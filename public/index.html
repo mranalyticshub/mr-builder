@@ -1,0 +1,95 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>MR Analytics – Dashboard Builder</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <style>
+    body { font-family: system-ui, -apple-system; margin: 0; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+    textarea, input, button { width: 100%; padding:10px; }
+    iframe { border:1px solid #eee; width:100%; height:700px; }
+    .card { border:1px solid #eee; padding:16px; border-radius:8px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Dashboard Builder</h1>
+
+  <div class="card">
+    <h2>1) Describe your business or upload a sample</h2>
+    <textarea id="prompt" rows="5" placeholder="e.g., We sell sportswear online... We want revenue by channel, monthly trend, and a podium of top 3 brands."></textarea>
+    <input id="file" type="file" accept=".csv,.xlsx"/>
+    <button id="start">Generate draft</button>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>2) Field Map</h2>
+      <pre id="fieldmap" style="height:300px; overflow:auto; background:#fafafa; padding:12px;"></pre>
+      <small>(MVP shows JSON – we’ll add a table editor later.)</small>
+    </div>
+    <div class="card">
+      <h2>2) Preview</h2>
+      <iframe id="preview" src=""></iframe>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>3) Natural language tweak</h2>
+      <input id="nl" placeholder="e.g., add a bar chart of revenue by brand"/>
+      <button id="applyNl">Apply</button>
+    </div>
+    <div class="card">
+      <h2>4) Approve & Continue</h2>
+      <input id="company" placeholder="Company name"/>
+      <input id="email" placeholder="Contact email"/>
+      <button id="approve">Approve design</button>
+      <div id="plan"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const ORCH = "ORCH_URL"; // we’ll replace this env-like string during deploy
+let sid = null;
+
+document.getElementById("start").onclick = async () => {
+  const res = await fetch(ORCH + "/session", {method:"POST"});
+  const s = await res.json();
+  sid = s.session_id;
+  const fd = new FormData();
+  fd.append("prompt", document.getElementById("prompt").value);
+  const f = document.getElementById("file").files[0];
+  if (f) fd.append("file", f);
+  const r2 = await fetch(ORCH + "/intake/" + sid, {method:"POST", body: fd});
+  const data = await r2.json();
+  document.getElementById("fieldmap").textContent = JSON.stringify(data.field_map, null, 2);
+  document.getElementById("preview").src = data.preview_url;
+};
+
+document.getElementById("applyNl").onclick = async () => {
+  if (!sid) return alert("Start first");
+  const r = await fetch(ORCH + "/nl-edit/" + sid, {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({instruction: document.getElementById("nl").value})});
+  const data = await r.json();
+  document.getElementById("preview").src = data.preview_url; // refresh
+};
+
+document.getElementById("approve").onclick = async () => {
+  if (!sid) return alert("Start first");
+  const company = document.getElementById("company").value;
+  const email = document.getElementById("email").value;
+  if (!company || !email) return alert("Company and email required");
+  const r = await fetch(ORCH + "/approve/" + sid, {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({company, email})});
+  const data = await r.json();
+  document.getElementById("plan").innerHTML =
+    `<p><strong>Recommended plan:</strong> ${data.plan}<br/>Reason: ${data.reason}</p>
+     <p><a href="${data.signup_url}" target="_blank"><button>Continue to Sign Up</button></a></p>`;
+};
+</script>
+</body>
+</html>
