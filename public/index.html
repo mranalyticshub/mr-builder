@@ -11,11 +11,19 @@
     textarea, input, button { width: 100%; padding:10px; }
     iframe { border:1px solid #eee; width:100%; height:700px; }
     .card { border:1px solid #eee; padding:16px; border-radius:8px; }
+    .muted { color:#666; font-size:12px; }
+    .row { display:flex; align-items:center; gap:12px; }
+    .sid-badge { background:#f6f6f6; border:1px solid #e7e7e7; padding:6px 8px; border-radius:6px; font-size:12px; }
+    button[disabled] { opacity: .6; cursor: not-allowed; }
   </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Dashboard Builder</h1>
+  <div class="row" style="margin-bottom:8px">
+    <span class="muted">Session:</span>
+    <span id="sidBadge" class="sid-badge">–</span>
+  </div>
 
   <div class="card">
     <h2>1) Describe your business or upload a sample</h2>
@@ -28,7 +36,7 @@
     <div class="card">
       <h2>2) Field Map</h2>
       <pre id="fieldmap" style="height:300px; overflow:auto; background:#fafafa; padding:12px;"></pre>
-      <small>(MVP shows JSON – we’ll add a table editor later.)</small>
+      <small class="muted">(MVP shows JSON – we’ll add a table editor later.)</small>
     </div>
     <div class="card">
       <h2>2) Preview</h2>
@@ -53,43 +61,124 @@
 </div>
 
 <script>
-const ORCH = "https://mr-orchestrator-585407302606.europe-west2.run.app"; // we’ll replace this env-like string during deploy
+/** IMPORTANT: set this to your Cloud Run URL for the orchestrator service */
+const ORCH = "https://mr-orchestrator-585407302606.europe-west2.run.app";
+
 let sid = null;
 
-document.getElementById("start").onclick = async () => {
-  const res = await fetch(ORCH + "/session", {method:"POST"});
-  const s = await res.json();
-  sid = s.session_id;
-  const fd = new FormData();
-  fd.append("prompt", document.getElementById("prompt").value);
-  const f = document.getElementById("file").files[0];
-  if (f) fd.append("file", f);
-  const r2 = await fetch(ORCH + "/intake/" + sid, {method:"POST", body: fd});
-  const data = await r2.json();
-  document.getElementById("fieldmap").textContent = JSON.stringify(data.field_map, null, 2);
-  document.getElementById("preview").src = data.preview_url;
-};
+function setBusy(btn, busy) {
+  if (!btn) return;
+  btn.disabled = !!busy;
+  btn.textContent = busy ? (btn.dataset.busyLabel || "Working…") : (btn.dataset.idleLabel || btn.textContent);
+}
 
-document.getElementById("applyNl").onclick = async () => {
-  if (!sid) return alert("Start first");
-  const r = await fetch(ORCH + "/nl-edit/" + sid, {method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({instruction: document.getElementById("nl").value})});
-  const data = await r.json();
-  document.getElementById("preview").src = data.preview_url; // refresh
-};
+async function ensureSession() {
+  if (sid) return sid;
+  const r = await fetch(`${ORCH}/session`, { method: "POST" });
+  const j = await r.json();
+  sid = j.session_id;
+  console.log("[BUILDER] session", sid);
+  document.getElementById("sidBadge").textContent = sid;
+  return sid;
+}
 
-document.getElementById("approve").onclick = async () => {
+async function generateDraft() {
+  const btn = document.getElementById("start");
+  btn.dataset.idleLabel = "Generate draft";
+  btn.dataset.busyLabel = "Generating…";
+  setBusy(btn, true);
+
+  try {
+    const s = await ensureSession();
+    const fd = new FormData();
+    fd.append("prompt", document.getElementById("prompt").value || "");
+    const f = document.getElementById("file").files[0];
+    if (f) fd.append("file", f);
+
+    const r2 = await fetch(`${ORCH}/intake/${s}`, { method: "POST", body: fd });
+    const data = await r2.json();
+
+    // show the field map
+    document.getElementById("fieldmap").textContent = JSON.stringify(data.field_map, null, 2);
+
+    // ALWAYS use server-provided preview_url (it includes the SAME sid)
+    const url = data.preview_url + "&_=" + Date.now(); // cache-buster
+    document.getElementById("preview").src = url;
+    console.log("[BUILDER] preview_url", url);
+  } catch (e) {
+    console.error(e);
+    alert("Failed to generate draft. Check console/logs.");
+  } finally {
+    setBusy(btn, false);
+  }
+}
+
+async function applyNl() {
   if (!sid) return alert("Start first");
-  const company = document.getElementById("company").value;
-  const email = document.getElementById("email").value;
-  if (!company || !email) return alert("Company and email required");
-  const r = await fetch(ORCH + "/approve/" + sid, {method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({company, email})});
-  const data = await r.json();
-  document.getElementById("plan").innerHTML =
-    `<p><strong>Recommended plan:</strong> ${data.plan}<br/>Reason: ${data.reason}</p>
-     <p><a href="${data.signup_url}" target="_blank"><button>Continue to Sign Up</button></a></p>`;
-};
+  const btn = document.getElementById("applyNl");
+  btn.dataset.idleLabel = "Apply";
+  btn.dataset.busyLabel = "Applying…";
+  setBusy(btn, true);
+
+  try {
+    const r = await fetch(`${ORCH}/nl-edit/${sid}`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ instruction: document.getElementById("nl").value || "" })
+    });
+    const data = await r.json();
+    // refresh preview with returned preview_url (sid stays the same)
+    const url = data.preview_url + "&_=" + Date.now();
+    document.getElementById("preview").src = url;
+    console.log("[BUILDER] preview_url", url);
+  } catch (e) {
+    console.error(e);
+    alert("Failed to apply change.");
+  } finally {
+    setBusy(btn, false);
+  }
+}
+
+async function approveDesign() {
+  if (!sid) return alert("Start first");
+  const btn = document.getElementById("approve");
+  btn.dataset.idleLabel = "Approve design";
+  btn.dataset.busyLabel = "Submitting…";
+  setBusy(btn, true);
+
+  try {
+    const company = document.getElementById("company").value.trim();
+    const email   = document.getElementById("email").value.trim();
+    if (!company || !email) {
+      setBusy(btn, false);
+      return alert("Company and email required");
+    }
+    const r = await fetch(`${ORCH}/approve/${sid}`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ company, email })
+    });
+    const data = await r.json();
+    document.getElementById("plan").innerHTML =
+      `<p><strong>Recommended plan:</strong> ${data.plan}<br/>Reason: ${data.reason}</p>
+       <p><a href="${data.signup_url}" target="_blank"><button>Continue to Sign Up</button></a></p>`;
+  } catch (e) {
+    console.error(e);
+    alert("Failed to submit approval.");
+  } finally {
+    setBusy(btn, false);
+  }
+}
+
+// Wire up events
+document.getElementById("start").addEventListener("click", generateDraft);
+document.getElementById("applyNl").addEventListener("click", applyNl);
+document.getElementById("approve").addEventListener("click", approveDesign);
+
+// Optional: prevent accidental new sessions on soft navigations
+window.addEventListener("pageshow", () => {
+  if (sid) document.getElementById("sidBadge").textContent = sid;
+});
 </script>
 </body>
 </html>
