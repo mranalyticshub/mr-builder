@@ -2,183 +2,263 @@
 <html>
 <head>
   <meta charset="utf-8"/>
-  <title>MR Analytics – Dashboard Builder</title>
+  <title>MR Analytics Hub – Dashboard Builder</title>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <style>
-    body { font-family: system-ui, -apple-system; margin: 0; }
-    .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
-    .grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
-    textarea, input, button { width: 100%; padding:10px; }
-    iframe { border:1px solid #eee; width:100%; height:700px; }
-    .card { border:1px solid #eee; padding:16px; border-radius:8px; }
+    :root { --gap:16px; }
+    body { font-family: system-ui, -apple-system; margin:0; }
+    .wrap { max-width: 1240px; margin: 0 auto; padding: 24px; }
+    h1 { margin: 0 0 16px; }
     .muted { color:#666; font-size:12px; }
     .row { display:flex; align-items:center; gap:12px; }
     .sid-badge { background:#f6f6f6; border:1px solid #e7e7e7; padding:6px 8px; border-radius:6px; font-size:12px; }
-    button[disabled] { opacity: .6; cursor: not-allowed; }
+    .card { border:1px solid #eee; padding:16px; border-radius:10px; background:#fff; }
+    .grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
+    .toolbar { display:flex; gap:8px; align-items:center; }
+    button[disabled] { opacity:.6; cursor:not-allowed; }
+    table { width:100%; border-collapse: collapse; font-size:14px; }
+    th, td { border-bottom:1px solid #eee; padding:8px; text-align:left; vertical-align:top; }
+    th { background:#fafafa; position:sticky; top:0; }
+    .scroll { max-height: 360px; overflow:auto; }
+    iframe { border:1px solid #eee; width:100%; height: 760px; border-radius:10px; }
+    .step { margin-bottom: 20px; }
+    .hidden { display:none; }
+    input[type="text"], select, textarea { width:100%; padding:8px; }
   </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Dashboard Builder</h1>
   <div class="row" style="margin-bottom:8px">
-    <span class="muted">Session:</span>
-    <span id="sidBadge" class="sid-badge">–</span>
+    <h1 style="flex:1">Dashboard Builder</h1>
+    <span class="muted">Session:</span><span id="sidBadge" class="sid-badge">–</span>
   </div>
 
-  <div class="card">
+  <!-- STEP A: Profile & Upload -->
+  <div class="card step" id="stepA">
     <h2>1) Describe your business or upload a sample</h2>
-    <textarea id="prompt" rows="5" placeholder="e.g., We sell sportswear online... We want revenue by channel, monthly trend, and a podium of top 3 brands."></textarea>
-    <input id="file" type="file" accept=".csv,.xlsx"/>
-    <button id="start">Generate draft</button>
+    <textarea id="prompt" rows="5" placeholder="What’s your business and what should the dashboard show?"></textarea>
+    <div class="toolbar" style="margin-top:8px">
+      <input id="file" type="file" accept=".csv,.xlsx"/>
+      <button id="start">Profile dataset</button>
+    </div>
+    <div id="aMsg" class="muted" style="margin-top:8px"></div>
   </div>
 
-  <div class="grid">
-    <div class="card">
-      <h2>2) Field Map</h2>
-      <pre id="fieldmap" style="height:300px; overflow:auto; background:#fafafa; padding:12px;"></pre>
-      <small class="muted">(MVP shows JSON – we’ll add a table editor later.)</small>
+  <!-- STEP B: Review fields & questions -->
+  <div class="card step hidden" id="stepB">
+    <div class="grid-2">
+      <div>
+        <h2>2) Field Map</h2>
+        <div class="scroll">
+          <table id="fieldTable">
+            <thead>
+              <tr>
+                <th>Field</th><th>Type</th><th>Semantic</th><th>Unit/Grain</th><th>Description</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <small class="muted">Edit semantics/description if needed.</small>
+      </div>
+      <div>
+        <h2>Questions</h2>
+        <div id="qBox" class="scroll"></div>
+        <small class="muted">Please answer any required questions before continuing.</small>
+      </div>
     </div>
-    <div class="card">
-      <h2>2) Preview</h2>
-      <iframe id="preview" src=""></iframe>
+    <div class="toolbar" style="margin-top:12px">
+      <button id="toDesign">Continue to design</button>
+      <div id="bMsg" class="muted"></div>
     </div>
   </div>
 
-  <div class="grid">
-    <div class="card">
-      <h2>3) Natural language tweak</h2>
-      <input id="nl" placeholder="e.g., add a bar chart of revenue by brand"/>
-      <button id="applyNl">Apply</button>
+  <!-- STEP C: Design & Preview (full width) -->
+  <div class="card step hidden" id="stepC">
+    <h2>3) Design & Preview</h2>
+    <div class="toolbar" style="margin-bottom:8px">
+      <input id="nl" placeholder="e.g., add a bar of returns by category; compare last month"/>
+      <button id="applyNl">Apply change</button>
+      <span id="cMsg" class="muted"></span>
     </div>
-    <div class="card">
-      <h2>4) Approve & Continue</h2>
-      <input id="company" placeholder="Company name"/>
-      <input id="email" placeholder="Contact email"/>
-      <button id="approve">Approve design</button>
-      <div id="plan"></div>
+    <iframe id="preview" src=""></iframe>
+
+    <div class="grid-2" style="margin-top:16px">
+      <div class="card">
+        <h3>Approve & Continue</h3>
+        <input id="company" placeholder="Company name"/>
+        <input id="email" placeholder="Contact email"/>
+        <button id="approve">Approve design</button>
+        <div id="plan" class="muted" style="margin-top:8px"></div>
+      </div>
+      <div class="card">
+        <h3>Download spec</h3>
+        <button id="downloadSpec">Download field map + DSL (JSON)</button>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
-/** IMPORTANT: set this to your Cloud Run URL for the orchestrator service */
 const ORCH = "https://mr-orchestrator-585407302606.europe-west2.run.app";
-
 let sid = null;
+let fieldMap = null;
+let questions = [];
 
-function setBusy(btn, busy) {
-  if (!btn) return;
-  btn.disabled = !!busy;
-  btn.textContent = busy ? (btn.dataset.busyLabel || "Working…") : (btn.dataset.idleLabel || btn.textContent);
-}
+function setMsg(id, text){ document.getElementById(id).textContent = text || ""; }
+function show(id, flag){ document.getElementById(id).classList.toggle("hidden", !flag); }
+function setBusy(btn, on, busy="Working…"){ if(!btn) return; btn.disabled=!!on; if(on){ btn.dataset._t=btn.textContent; btn.textContent=busy;} else if(btn.dataset._t){ btn.textContent=btn.dataset._t; } }
 
-async function ensureSession() {
-  if (sid) return sid;
-  const r = await fetch(`${ORCH}/session`, { method: "POST" });
-  const j = await r.json();
-  sid = j.session_id;
-  console.log("[BUILDER] session", sid);
+async function ensureSession(){
+  if(sid) return sid;
+  const r = await fetch(`${ORCH}/session`, {method:"POST"});
+  const j = await r.json(); sid = j.session_id;
   document.getElementById("sidBadge").textContent = sid;
   return sid;
 }
 
-async function generateDraft() {
-  const btn = document.getElementById("start");
-  btn.dataset.idleLabel = "Generate draft";
-  btn.dataset.busyLabel = "Generating…";
-  setBusy(btn, true);
-
-  try {
-    const s = await ensureSession();
-    const fd = new FormData();
-    fd.append("prompt", document.getElementById("prompt").value || "");
-    const f = document.getElementById("file").files[0];
-    if (f) fd.append("file", f);
-
-    const r2 = await fetch(`${ORCH}/intake/${s}`, { method: "POST", body: fd });
-    const data = await r2.json();
-
-    // show the field map
-    document.getElementById("fieldmap").textContent = JSON.stringify(data.field_map, null, 2);
-
-    // ALWAYS use server-provided preview_url (it includes the SAME sid)
-    const url = data.preview_url + "&_=" + Date.now(); // cache-buster
-    document.getElementById("preview").src = url;
-    console.log("[BUILDER] preview_url", url);
-  } catch (e) {
-    console.error(e);
-    alert("Failed to generate draft. Check console/logs.");
-  } finally {
-    setBusy(btn, false);
+function renderFieldTable(map){
+  const tb = document.querySelector("#fieldTable tbody"); tb.innerHTML="";
+  const fields = (map?.tables?.[0]?.fields)||[];
+  for(const f of fields){
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><strong>${f.name}</strong></td>
+      <td><select data-k="type">
+            <option ${f.type==="STRING"?"selected":""}>STRING</option>
+            <option ${f.type==="NUMERIC"?"selected":""}>NUMERIC</option>
+            <option ${f.type==="DATE"?"selected":""}>DATE</option>
+          </select></td>
+      <td><select data-k="semantic">
+            <option value="">—</option>
+            <option ${f.semantic==="id"?"selected":""} value="id">id</option>
+            <option ${f.semantic==="date"?"selected":""} value="date">date</option>
+            <option ${f.semantic==="currency"?"selected":""} value="currency">currency</option>
+            <option ${f.semantic==="category"?"selected":""} value="category">category</option>
+          </select></td>
+      <td><input type="text" data-k="unit" placeholder="GBP, %, day, month" value="${f.unit||f.grain||""}"/></td>
+      <td><input type="text" data-k="desc" placeholder="Short explanation" value="${f.desc||""}"/></td>`;
+    // store field name for saving
+    tr.dataset.field = f.name;
+    tb.appendChild(tr);
   }
 }
 
-async function applyNl() {
-  if (!sid) return alert("Start first");
-  const btn = document.getElementById("applyNl");
-  btn.dataset.idleLabel = "Apply";
-  btn.dataset.busyLabel = "Applying…";
-  setBusy(btn, true);
-
-  try {
-    const r = await fetch(`${ORCH}/nl-edit/${sid}`, {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ instruction: document.getElementById("nl").value || "" })
-    });
-    const data = await r.json();
-    // refresh preview with returned preview_url (sid stays the same)
-    const url = data.preview_url + "&_=" + Date.now();
-    document.getElementById("preview").src = url;
-    console.log("[BUILDER] preview_url", url);
-  } catch (e) {
-    console.error(e);
-    alert("Failed to apply change.");
-  } finally {
-    setBusy(btn, false);
-  }
-}
-
-async function approveDesign() {
-  if (!sid) return alert("Start first");
-  const btn = document.getElementById("approve");
-  btn.dataset.idleLabel = "Approve design";
-  btn.dataset.busyLabel = "Submitting…";
-  setBusy(btn, true);
-
-  try {
-    const company = document.getElementById("company").value.trim();
-    const email   = document.getElementById("email").value.trim();
-    if (!company || !email) {
-      setBusy(btn, false);
-      return alert("Company and email required");
+function renderQuestions(qs){
+  const box = document.getElementById("qBox"); box.innerHTML="";
+  for(const q of qs){
+    const wrap = document.createElement("div"); wrap.style.marginBottom="12px";
+    wrap.innerHTML = `<div><strong>${q.prompt}</strong></div>`;
+    let inputEl;
+    if(q.kind==="select"){
+      inputEl = document.createElement("select");
+      (q.options||[]).forEach(o=>{ const opt=document.createElement("option"); opt.value=o; opt.textContent=o; inputEl.appendChild(opt); });
+      if(q.default) inputEl.value=q.default;
+    }else{
+      inputEl = document.createElement("input"); inputEl.placeholder=q.placeholder||"";
+      if(q.default) inputEl.value=q.default;
     }
-    const r = await fetch(`${ORCH}/approve/${sid}`, {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ company, email })
-    });
-    const data = await r.json();
-    document.getElementById("plan").innerHTML =
-      `<p><strong>Recommended plan:</strong> ${data.plan}<br/>Reason: ${data.reason}</p>
-       <p><a href="${data.signup_url}" target="_blank"><button>Continue to Sign Up</button></a></p>`;
-  } catch (e) {
-    console.error(e);
-    alert("Failed to submit approval.");
-  } finally {
-    setBusy(btn, false);
+    inputEl.dataset.qid = q.id; inputEl.style.width="100%";
+    wrap.appendChild(inputEl); box.appendChild(wrap);
   }
 }
 
-// Wire up events
-document.getElementById("start").addEventListener("click", generateDraft);
-document.getElementById("applyNl").addEventListener("click", applyNl);
-document.getElementById("approve").addEventListener("click", approveDesign);
+function collectFieldMapEdits(){
+  const rows = document.querySelectorAll("#fieldTable tbody tr");
+  const byName = Object.fromEntries(rows && [...rows].map(r=>{
+    const name = r.dataset.field;
+    const out = {};
+    r.querySelectorAll("[data-k]").forEach(el=> out[el.dataset.k] = el.value.trim());
+    return [name, out];
+  }));
+  const table = fieldMap.tables[0];
+  table.fields = table.fields.map(f=>{
+    const e = byName[f.name]||{};
+    return { ...f,
+      type: e.type||f.type,
+      semantic: e.semantic||f.semantic||"",
+      unit: e.unit||f.unit,
+      grain: e.unit||f.grain,
+      desc: e.desc||f.desc||""
+    };
+  });
+  return fieldMap;
+}
 
-// Optional: prevent accidental new sessions on soft navigations
-window.addEventListener("pageshow", () => {
-  if (sid) document.getElementById("sidBadge").textContent = sid;
-});
+function collectAnswers(){
+  const inputs = document.querySelectorAll("#qBox [data-qid]");
+  const ans = {};
+  inputs.forEach(i => ans[i.dataset.qid] = i.value.trim());
+  return ans;
+}
+
+document.getElementById("start").onclick = async () => {
+  setBusy(document.getElementById("start"), true, "Profiling…");
+  setMsg("aMsg","");
+  try{
+    await ensureSession();
+    const fd = new FormData();
+    fd.append("prompt", document.getElementById("prompt").value||"");
+    const f = document.getElementById("file").files[0]; if(f) fd.append("file", f);
+    // New endpoint: /profile/{sid} (see backend section)
+    const r = await fetch(`${ORCH}/profile/${sid}`, { method:"POST", body: fd });
+    const data = await r.json();
+    fieldMap = data.field_map; questions = data.questions || [];
+    renderFieldTable(fieldMap); renderQuestions(questions);
+    show("stepB", true);
+    setMsg("aMsg","Profiling complete. Review fields and answer questions.");
+    document.getElementById("stepB").scrollIntoView({behavior:"smooth"});
+  }catch(e){
+    console.error(e); setMsg("aMsg","Profiling failed. Check logs.");
+  }finally{ setBusy(document.getElementById("start"), false); }
+};
+
+document.getElementById("toDesign").onclick = async () => {
+  setBusy(document.getElementById("toDesign"), true, "Building…");
+  setMsg("bMsg","");
+  try{
+    const fm = collectFieldMapEdits();
+    const answers = collectAnswers();
+    // Save final map & answers, then ask designer to create DSL
+    await fetch(`${ORCH}/field-map/${sid}`, { method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify(fm) });
+    const r = await fetch(`${ORCH}/design/${sid}`, { method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify({answers}) });
+    const data = await r.json();
+    document.getElementById("preview").src = data.preview_url + "&_=" + Date.now();
+    show("stepC", true);
+    document.getElementById("stepC").scrollIntoView({behavior:"smooth"});
+  }catch(e){
+    console.error(e); setMsg("bMsg","Design failed. Check logs.");
+  }finally{ setBusy(document.getElementById("toDesign"), false); }
+};
+
+document.getElementById("applyNl").onclick = async () => {
+  if(!sid) return;
+  setBusy(document.getElementById("applyNl"), true, "Applying…");
+  try{
+    const r = await fetch(`${ORCH}/nl-edit/${sid}`, { method:"POST", headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({instruction: document.getElementById("nl").value}) });
+    const data = await r.json();
+    document.getElementById("preview").src = data.preview_url + "&_=" + Date.now();
+  } finally { setBusy(document.getElementById("applyNl"), false); }
+};
+
+document.getElementById("approve").onclick = async () => {
+  if(!sid) return;
+  const email = document.getElementById("email").value.trim();
+  const company = document.getElementById("company").value.trim();
+  if(!email || !company) return alert("Company and email required");
+  const r = await fetch(`${ORCH}/approve/${sid}`, { method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify({company,email})});
+  const data = await r.json();
+  document.getElementById("plan").innerHTML = `<strong>${data.plan}</strong> – ${data.reason}<br><a href="${data.signup_url}" target="_blank">Continue to Sign Up</a>`;
+};
+
+document.getElementById("downloadSpec").onclick = async () => {
+  const r = await fetch(`${ORCH}/artifacts?sid=${encodeURIComponent(sid)}`);
+  const data = await r.json();
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = `mr_draft_${sid}.json`; a.click();
+};
 </script>
 </body>
 </html>
