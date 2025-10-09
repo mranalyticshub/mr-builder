@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <style>
     :root { --gap:16px; }
-    body { font-family: system-ui, -apple-system; margin:0; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; color:#111;}
     .wrap { max-width: 1240px; margin: 0 auto; padding: 24px; }
     h1 { margin: 0 0 16px; }
     .muted { color:#666; font-size:12px; }
@@ -18,12 +18,14 @@
     button[disabled] { opacity:.6; cursor:not-allowed; }
     table { width:100%; border-collapse: collapse; font-size:14px; }
     th, td { border-bottom:1px solid #eee; padding:8px; text-align:left; vertical-align:top; }
-    th { background:#fafafa; position:sticky; top:0; }
-    .scroll { max-height: 360px; overflow:auto; }
+    th { background:#fafafa; position:sticky; top:0; z-index:1;}
+    .scroll { max-height: 360px; overflow:auto; border:1px solid #f2f2f2; border-radius:8px;}
     iframe { border:1px solid #eee; width:100%; height: 760px; border-radius:10px; }
     .step { margin-bottom: 20px; }
     .hidden { display:none; }
-    input[type="text"], select, textarea { width:100%; padding:8px; }
+    input[type="text"], select, textarea { width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;}
+    textarea { resize:vertical; }
+    .pill {padding:2px 8px;border:1px solid #ddd;border-radius:10px;background:#fafafa;font-size:12px;}
   </style>
 </head>
 <body>
@@ -36,9 +38,9 @@
   <!-- STEP A: Profile & Upload -->
   <div class="card step" id="stepA">
     <h2>1) Describe your business or upload a sample</h2>
-    <textarea id="prompt" rows="5" placeholder="What’s your business and what should the dashboard show?"></textarea>
+    <textarea id="prompt" rows="5" placeholder="Tell us briefly about your business and what you want to track (e.g. 'UK sportswear retailer; monthly sales & profit, top brands, returns rate, online vs store')"></textarea>
     <div class="toolbar" style="margin-top:8px">
-      <input id="file" type="file" accept=".csv,.xlsx"/>
+      <input id="file" type="file" accept=".csv"/>
       <button id="start">Profile dataset</button>
     </div>
     <div id="aMsg" class="muted" style="margin-top:8px"></div>
@@ -48,22 +50,25 @@
   <div class="card step hidden" id="stepB">
     <div class="grid-2">
       <div>
-        <h2>2) Field Map</h2>
+        <h2>2) Fields & meanings</h2>
         <div class="scroll">
-          <table id="fieldTable">
+          <table id="schemaTable">
             <thead>
               <tr>
-                <th>Field</th><th>Type</th><th>Semantic</th><th>Unit/Grain</th><th>Description</th>
+                <th style="width:28%">Field</th>
+                <th style="width:16%">Type</th>
+                <th style="width:20%">Allowed</th>
+                <th>Description</th>
               </tr>
             </thead>
             <tbody></tbody>
           </table>
         </div>
-        <small class="muted">Edit semantics/description if needed.</small>
+        <small class="muted">Edit the AI’s guesses. “Allowed” accepts things like <span class="pill">any integer</span> <span class="pill">any positive number</span> <span class="pill">string</span> <span class="pill">string from list</span> etc.</small>
       </div>
       <div>
         <h2>Questions</h2>
-        <div id="qBox" class="scroll"></div>
+        <div id="qBox" class="scroll" style="padding:8px"></div>
         <small class="muted">Please answer any required questions before continuing.</small>
       </div>
     </div>
@@ -77,7 +82,7 @@
   <div class="card step hidden" id="stepC">
     <h2>3) Design & Preview</h2>
     <div class="toolbar" style="margin-bottom:8px">
-      <input id="nl" placeholder="e.g., add a bar of returns by category; compare last month"/>
+      <input id="nl" placeholder="e.g., add a line of daily orders; split sales by channel; move KPI top-left"/>
       <button id="applyNl">Apply change</button>
       <span id="cMsg" class="muted"></span>
     </div>
@@ -85,179 +90,232 @@
 
     <div class="grid-2" style="margin-top:16px">
       <div class="card">
-        <h3>Approve & Continue</h3>
+        <h3>Approve & continue</h3>
         <input id="company" placeholder="Company name"/>
         <input id="email" placeholder="Contact email"/>
-        <button id="approve">Approve design</button>
+        <button id="approve">Send to MR Analytics</button>
         <div id="plan" class="muted" style="margin-top:8px"></div>
       </div>
       <div class="card">
         <h3>Download spec</h3>
-        <button id="downloadSpec">Download field map + DSL (JSON)</button>
+        <button id="downloadSpec">Download schema + DSL (JSON)</button>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-const ORCH = "https://mr-orchestrator-585407302606.europe-west2.run.app";
-let sid = null;
-let fieldMap = null;
-let questions = [];
+/** SET THESE TWO CONSTANTS **/
+const ORCH    = "https://mr-orchestrator-585407302606.europe-west2.run.app";  // orchestrator base
+const PREVIEW = "https://mr-preview-585407302606.europe-west2.run.app";       // preview base
 
+let sid = null;
+let schemaTable = [];     // array of rows: {field, dtype, allowed, description}
+let questions   = [];     // array: {id, prompt, kind, options?, required?}
+
+/* Utilities */
 function setMsg(id, text){ document.getElementById(id).textContent = text || ""; }
 function show(id, flag){ document.getElementById(id).classList.toggle("hidden", !flag); }
 function setBusy(btn, on, busy="Working…"){ if(!btn) return; btn.disabled=!!on; if(on){ btn.dataset._t=btn.textContent; btn.textContent=busy;} else if(btn.dataset._t){ btn.textContent=btn.dataset._t; } }
+const $ = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
 
+/* Session bootstrap (cookie is set by the server) */
 async function ensureSession(){
-  if(sid) return sid;
-  const r = await fetch(`${ORCH}/session`, {method:"POST"});
-  const j = await r.json(); sid = j.session_id;
-  document.getElementById("sidBadge").textContent = sid;
+  if (sid) return sid;
+  const promptSeed = ($("#prompt").value||"").trim();
+  const r = await fetch(`${ORCH}/session`, {
+    method:"POST",
+    credentials:"include",
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ prompt: promptSeed })
+  });
+  const j = await r.json();
+  sid = j.sid || j.session_id || j.id;
+  $("#sidBadge").textContent = sid || "–";
   return sid;
 }
 
-function renderFieldTable(map){
-  const tb = document.querySelector("#fieldTable tbody"); tb.innerHTML="";
-  const fields = (map?.tables?.[0]?.fields)||[];
-  for(const f of fields){
+/* Renderers */
+function renderSchemaTable(rows){
+  const tb = $("#schemaTable tbody");
+  tb.innerHTML = "";
+  (rows||[]).forEach(r=>{
     const tr = document.createElement("tr");
+    tr.dataset.field = r.field;
     tr.innerHTML = `
-      <td><strong>${f.name}</strong></td>
-      <td><select data-k="type">
-            <option ${f.type==="STRING"?"selected":""}>STRING</option>
-            <option ${f.type==="NUMERIC"?"selected":""}>NUMERIC</option>
-            <option ${f.type==="DATE"?"selected":""}>DATE</option>
-          </select></td>
-      <td><select data-k="semantic">
-            <option value="">—</option>
-            <option ${f.semantic==="id"?"selected":""} value="id">id</option>
-            <option ${f.semantic==="date"?"selected":""} value="date">date</option>
-            <option ${f.semantic==="currency"?"selected":""} value="currency">currency</option>
-            <option ${f.semantic==="category"?"selected":""} value="category">category</option>
-          </select></td>
-      <td><input type="text" data-k="unit" placeholder="GBP, %, day, month" value="${f.unit||f.grain||""}"/></td>
-      <td><input type="text" data-k="desc" placeholder="Short explanation" value="${f.desc||""}"/></td>`;
-    // store field name for saving
-    tr.dataset.field = f.name;
+      <td><strong>${r.field}</strong></td>
+      <td>
+        <select data-k="dtype">
+          ${["string","integer","number","date","datetime","boolean"].map(d=>`<option ${r.dtype===d?"selected":""} value="${d}">${d}</option>`).join("")}
+        </select>
+      </td>
+      <td><input type="text" data-k="allowed" placeholder="any integer | any positive number | string from list..." value="${(r.allowed||"").replace(/"/g,"&quot;")}"/></td>
+      <td><input type="text" data-k="description" placeholder="What does this mean in context?" value="${(r.description||"").replace(/"/g,"&quot;")}"/></td>
+    `;
     tb.appendChild(tr);
-  }
+  });
 }
 
 function renderQuestions(qs){
-  const box = document.getElementById("qBox"); box.innerHTML="";
-  for(const q of qs){
-    const wrap = document.createElement("div"); wrap.style.marginBottom="12px";
-    wrap.innerHTML = `<div><strong>${q.prompt}</strong></div>`;
-    let inputEl;
-    if(q.kind==="select"){
-      inputEl = document.createElement("select");
-      (q.options||[]).forEach(o=>{ const opt=document.createElement("option"); opt.value=o; opt.textContent=o; inputEl.appendChild(opt); });
-      if(q.default) inputEl.value=q.default;
-    }else{
-      inputEl = document.createElement("input"); inputEl.placeholder=q.placeholder||"";
-      if(q.default) inputEl.value=q.default;
+  const box = $("#qBox");
+  box.innerHTML = "";
+  (qs||[]).forEach(q=>{
+    const wrap = document.createElement("div");
+    wrap.style.marginBottom = "10px";
+    wrap.innerHTML = `<div style="margin-bottom:4px"><strong>${q.prompt||q.id}</strong>${q.required? ' <span class="pill">required</span>':''}</div>`;
+    let el;
+    if ((q.kind||"").toLowerCase() === "select") {
+      el = document.createElement("select");
+      (q.options||[]).forEach(opt=>{
+        const o = document.createElement("option");
+        o.value = opt; o.textContent = opt; el.appendChild(o);
+      });
+      if (q.default) el.value = q.default;
+    } else {
+      el = document.createElement("input");
+      el.type = "text";
+      el.placeholder = q.placeholder || "";
+      if (q.default) el.value = q.default;
     }
-    inputEl.dataset.qid = q.id; inputEl.style.width="100%";
-    wrap.appendChild(inputEl); box.appendChild(wrap);
-  }
+    el.dataset.qid = q.id;
+    el.style.width = "100%";
+    wrap.appendChild(el);
+    box.appendChild(wrap);
+  });
 }
 
-function collectFieldMapEdits(){
-  const rows = document.querySelectorAll("#fieldTable tbody tr");
-  const byName = Object.fromEntries(rows && [...rows].map(r=>{
-    const name = r.dataset.field;
-    const out = {};
-    r.querySelectorAll("[data-k]").forEach(el=> out[el.dataset.k] = el.value.trim());
-    return [name, out];
-  }));
-  const table = fieldMap.tables[0];
-  table.fields = table.fields.map(f=>{
-    const e = byName[f.name]||{};
-    return { ...f,
-      type: e.type||f.type,
-      semantic: e.semantic||f.semantic||"",
-      unit: e.unit||f.unit,
-      grain: e.unit||f.grain,
-      desc: e.desc||f.desc||""
-    };
+/* Collectors */
+function collectSchemaEdits(){
+  const rows = $$("#schemaTable tbody tr");
+  return rows.map(tr=>{
+    const field = tr.dataset.field;
+    const out = { field };
+    tr.querySelectorAll("[data-k]").forEach(el => out[el.dataset.k] = el.value.trim());
+    return out;
   });
-  return fieldMap;
 }
 
 function collectAnswers(){
-  const inputs = document.querySelectorAll("#qBox [data-qid]");
   const ans = {};
-  inputs.forEach(i => ans[i.dataset.qid] = i.value.trim());
+  $$("#qBox [data-qid]").forEach(el => ans[el.dataset.qid] = el.value.trim());
   return ans;
 }
 
-document.getElementById("start").onclick = async () => {
-  setBusy(document.getElementById("start"), true, "Profiling…");
-  setMsg("aMsg","");
-  try{
+/* Actions */
+$("#start").onclick = async () => {
+  const btn = $("#start");
+  setBusy(btn, true, "Profiling…");
+  setMsg("aMsg", "");
+  try {
     await ensureSession();
+
     const fd = new FormData();
-    fd.append("prompt", document.getElementById("prompt").value||"");
-    const f = document.getElementById("file").files[0]; if(f) fd.append("file", f);
-    // New endpoint: /profile/{sid} (see backend section)
-    const r = await fetch(`${ORCH}/profile/${sid}`, { method:"POST", body: fd });
-    const data = await r.json();
-    fieldMap = data.field_map; questions = data.questions || [];
-    renderFieldTable(fieldMap); renderQuestions(questions);
+    fd.append("prompt", ($("#prompt").value||"").trim());
+    const file = $("#file").files[0]; if (file) fd.append("file", file);
+
+    const r = await fetch(`${ORCH}/profile/${encodeURIComponent(sid)}`, {
+      method:"POST", body: fd, credentials:"include"
+    });
+    const j = await r.json();
+
+    if (!j || j.ok === false) throw new Error(j?.error || "Profile failed");
+
+    schemaTable = j.schema_table || [];
+    questions   = j.questions    || [];
+    renderSchemaTable(schemaTable);
+    renderQuestions(questions);
+
     show("stepB", true);
     setMsg("aMsg","Profiling complete. Review fields and answer questions.");
-    document.getElementById("stepB").scrollIntoView({behavior:"smooth"});
-  }catch(e){
-    console.error(e); setMsg("aMsg","Profiling failed. Check logs.");
-  }finally{ setBusy(document.getElementById("start"), false); }
+    $("#stepB").scrollIntoView({behavior:"smooth"});
+  } catch (e){
+    console.error(e);
+    setMsg("aMsg", "Profiling failed. Check logs.");
+  } finally {
+    setBusy(btn, false);
+  }
 };
 
-document.getElementById("toDesign").onclick = async () => {
-  setBusy(document.getElementById("toDesign"), true, "Building…");
-  setMsg("bMsg","");
-  try{
-    const fm = collectFieldMapEdits();
+$("#toDesign").onclick = async () => {
+  const btn = $("#toDesign");
+  setBusy(btn, true, "Designing…");
+  setMsg("bMsg", "");
+  try {
+    const edited = collectSchemaEdits();
     const answers = collectAnswers();
-    // Save final map & answers, then ask designer to create DSL
-    await fetch(`${ORCH}/field-map/${sid}`, { method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify(fm) });
-    const r = await fetch(`${ORCH}/design/${sid}`, { method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify({answers}) });
-    const data = await r.json();
-    document.getElementById("preview").src = data.preview_url + "&_=" + Date.now();
+
+    const r = await fetch(`${ORCH}/design/${encodeURIComponent(sid)}`, {
+      method:"POST",
+      credentials:"include",
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ schema_table: edited, answers })
+    });
+    const j = await r.json();
+    if (!j || j.ok === false) throw new Error(j?.error || "Design failed");
+
+    const url = `${PREVIEW}/?sid=${encodeURIComponent(sid)}&_=${Date.now()}`;
+    $("#preview").src = url;
     show("stepC", true);
-    document.getElementById("stepC").scrollIntoView({behavior:"smooth"});
-  }catch(e){
-    console.error(e); setMsg("bMsg","Design failed. Check logs.");
-  }finally{ setBusy(document.getElementById("toDesign"), false); }
+    $("#stepC").scrollIntoView({behavior:"smooth"});
+  } catch (e){
+    console.error(e);
+    setMsg("bMsg", "Design failed. Check logs.");
+  } finally {
+    setBusy(btn, false);
+  }
 };
 
-document.getElementById("applyNl").onclick = async () => {
-  if(!sid) return;
-  setBusy(document.getElementById("applyNl"), true, "Applying…");
+$("#applyNl").onclick = async () => {
+  const btn = $("#applyNl");
+  setBusy(btn, true, "Applying…");
+  setMsg("cMsg", "");
   try{
-    const r = await fetch(`${ORCH}/nl-edit/${sid}`, { method:"POST", headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({instruction: document.getElementById("nl").value}) });
-    const data = await r.json();
-    document.getElementById("preview").src = data.preview_url + "&_=" + Date.now();
-  } finally { setBusy(document.getElementById("applyNl"), false); }
+    const change = ($("#nl").value||"").trim();
+    if (!change) { setBusy(btn,false); return; }
+    await fetch(`${ORCH}/edit/${encodeURIComponent(sid)}`, {
+      method:"POST",
+      credentials:"include",
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ change })
+    });
+    // Simply reload preview
+    $("#preview").src = `${PREVIEW}/?sid=${encodeURIComponent(sid)}&_=${Date.now()}`;
+  } catch(e){
+    console.error(e);
+    setMsg("cMsg","Couldn’t apply change.");
+  } finally {
+    setBusy(btn, false);
+  }
 };
 
-document.getElementById("approve").onclick = async () => {
-  if(!sid) return;
-  const email = document.getElementById("email").value.trim();
-  const company = document.getElementById("company").value.trim();
+$("#approve").onclick = async () => {
+  const email = ($("#email").value||"").trim();
+  const company = ($("#company").value||"").trim();
   if(!email || !company) return alert("Company and email required");
-  const r = await fetch(`${ORCH}/approve/${sid}`, { method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify({company,email})});
-  const data = await r.json();
-  document.getElementById("plan").innerHTML = `<strong>${data.plan}</strong> – ${data.reason}<br><a href="${data.signup_url}" target="_blank">Continue to Sign Up</a>`;
+  try{
+    const r = await fetch(`${ORCH}/export/${encodeURIComponent(sid)}`, {
+      method:"POST",
+      credentials:"include",
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ client_email: email, company })
+    });
+    const j = await r.json();
+    $("#plan").innerHTML = j?.ok ? "Sent. We'll be in touch shortly." : (j?.error || "Failed to send.");
+  } catch(e){
+    console.error(e);
+    $("#plan").textContent = "Failed to send.";
+  }
 };
 
-document.getElementById("downloadSpec").onclick = async () => {
-  const r = await fetch(`${ORCH}/artifacts?sid=${encodeURIComponent(sid)}`);
-  const data = await r.json();
-  const blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob); a.download = `mr_draft_${sid}.json`; a.click();
+$("#downloadSpec").onclick = async () => {
+  try{
+    const r = await fetch(`${ORCH}/artifacts?sid=${encodeURIComponent(sid)}`, { credentials:"include" });
+    const data = await r.json();
+    const blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = `mr_draft_${sid}.json`; a.click();
+  }catch(e){ console.error(e); }
 };
 </script>
 </body>
