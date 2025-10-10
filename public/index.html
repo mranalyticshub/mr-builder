@@ -47,7 +47,7 @@
     <textarea id="prompt" placeholder="What’s your business and what should the dashboard show?"></textarea>
     <div class="toolbar" style="margin-top:8px">
       <input id="file" type="file" accept=".csv,.xlsx"/>
-      <button id="start">Profile dataset</button>
+      <button id="start" type="button">Profile dataset</button>
       <span id="aMsg" class="muted"></span>
     </div>
   </div>
@@ -79,8 +79,8 @@
       </div>
     </div>
     <div class="toolbar" style="margin-top:12px">
-      <button id="toDesign">Continue to design</button>
-      <button id="downloadSpec" class="ghost">Download spec (JSON)</button>
+      <button id="toDesign" type="button">Continue to design</button>
+      <button id="downloadSpec" type="button" class="ghost">Download spec (JSON)</button>
       <span id="bMsg" class="muted"></span>
     </div>
   </div>
@@ -90,7 +90,7 @@
     <h2>3) Design & Preview</h2>
     <div class="toolbar" style="margin-bottom:8px">
       <input id="nl" placeholder="e.g., add a bar of returns by category; compare last month"/>
-      <button id="applyNl">Apply change</button>
+      <button id="applyNl" type="button">Apply change</button>
       <span id="cMsg" class="muted"></span>
     </div>
     <iframe id="preview" src=""></iframe>
@@ -100,13 +100,13 @@
         <h3>Approve & Continue</h3>
         <input id="company" placeholder="Company name"/>
         <input id="email" type="email" placeholder="Contact email"/>
-        <button id="approve">Approve design</button>
+        <button id="approve" type="button">Approve design</button>
         <div id="plan" class="muted" style="margin-top:8px"></div>
       </div>
       <div class="card">
         <h3>Session tools</h3>
         <div class="toolbar">
-          <button id="reloadPreview" class="ghost">Reload preview</button>
+          <button id="reloadPreview" type="button" class="ghost">Reload preview</button>
           <span class="muted">Preview SID is carried as a query param.</span>
         </div>
       </div>
@@ -141,13 +141,11 @@ function cookieSet(name, value){ document.cookie = `${name}=${value}; Max-Age=36
 async function ensureSession(){
   if(sid) return sid;
 
-  // Prefer explicit sid in URL, then cookie
   const urlSid = (readQuery("sid") || "").trim();
   const ckSid  = (cookieGet("mr_sid") || "").trim();
   if(urlSid){ sid = urlSid; cookieSet("mr_sid", sid); $('sidBadge').textContent = sid; return sid; }
   if(ckSid){ sid = ckSid; $('sidBadge').textContent = sid; return sid; }
 
-  // No sid → create one. Try JSON body, fallback to empty body.
   try{
     let r = await fetch(`${ORCH}/session`, {
       method: "POST",
@@ -156,7 +154,7 @@ async function ensureSession(){
     });
     if(r.status === 422){ r = await fetch(`${ORCH}/session`, { method:"POST" }); }
     const j = await r.json();
-    sid = j.sid || j.session_id;    // support either key
+    sid = j.sid || j.session_id;
     if(!sid) throw new Error("No sid in /session response");
     cookieSet("mr_sid", sid);
     $('sidBadge').textContent = sid;
@@ -200,6 +198,7 @@ function renderFieldTable(map){
     tb.appendChild(tr);
   }
 }
+
 function renderQuestions(qs){
   const box = $("#qBox"); box.innerHTML = "";
   for(const q of (qs||[])){
@@ -249,14 +248,15 @@ function collectFieldMapEdits(){
   });
   return fieldMap;
 }
+
 function collectAnswers(){
   const inputs = $("#qBox").querySelectorAll("[data-qid]");
   const ans = {}; inputs.forEach(i => ans[i.dataset.qid] = (i.value||"").trim());
   return ans;
 }
 
-/* ======== ACTIONS ======== */
-$("#start").onclick = async () => {
+/* ======== HANDLERS ======== */
+async function onStartClick(){
   const btn = $("#start");
   setBusy(btn, true, "Profiling…");
   setMsg("aMsg", "");
@@ -266,7 +266,6 @@ $("#start").onclick = async () => {
     fd.append("prompt", ($("#prompt").value || "").toString());
     const f = $("#file").files[0]; if(f) fd.append("file", f);
 
-    // profile
     const r = await fetch(`${ORCH}/profile/${encodeURIComponent(sid)}`, { method:"POST", body: fd });
     if(!r.ok){
       const t = await r.text().catch(()=>"(no body)");
@@ -291,11 +290,12 @@ $("#start").onclick = async () => {
     console.error(e);
     setMsg("aMsg", "Profiling failed. Check logs.", "err");
   }finally{
-    setBusy(btn, false);
+    const btn2 = $("#start");
+    if (btn2) setBusy(btn2, false);
   }
-};
+}
 
-$("#toDesign").onclick = async () => {
+async function onDesignClick(){
   const btn = $("#toDesign");
   setBusy(btn, true, "Building…");
   setMsg("bMsg", "");
@@ -330,9 +330,9 @@ $("#toDesign").onclick = async () => {
   }finally{
     setBusy(btn, false);
   }
-};
+}
 
-$("#applyNl").onclick = async () => {
+async function onApplyNl(){
   const btn = $("#applyNl");
   setBusy(btn, true, "Applying…");
   setMsg("cMsg", "");
@@ -353,9 +353,9 @@ $("#applyNl").onclick = async () => {
   }finally{
     setBusy(btn, false);
   }
-};
+}
 
-$("#approve").onclick = async () => {
+async function onApprove(){
   try{
     await ensureSession();
     const email = ($("#email").value||"").trim();
@@ -374,9 +374,9 @@ $("#approve").onclick = async () => {
     console.error(e);
     $("#plan").textContent = "Approval failed. Please try again.";
   }
-};
+}
 
-$("#downloadSpec").onclick = async () => {
+async function onDownload(){
   try{
     await ensureSession();
     const r = await fetch(`${ORCH}/artifacts?sid=${encodeURIComponent(sid)}`);
@@ -390,17 +390,42 @@ $("#downloadSpec").onclick = async () => {
     console.error(e);
     alert("Could not download spec.");
   }
-};
+}
 
-$("#reloadPreview").onclick = () => {
+function onReloadPreview(){
   const src = $("#preview").src.split("&_=")[0];
   $("#preview").src = src + (src.includes("?") ? "&" : "?") + "_=" + Date.now();
-};
+}
 
-/* ======== AUTO-BOOT ======== */
-(async () => {
+/* ======== BINDERS (idempotent + bfcache safe) ======== */
+function bindHandlers(){
+  // Ensure buttons are enabled and (re)bind listeners
+  const pairs = [
+    ["start", onStartClick],
+    ["toDesign", onDesignClick],
+    ["applyNl", onApplyNl],
+    ["approve", onApprove],
+    ["downloadSpec", onDownload],
+    ["reloadPreview", onReloadPreview],
+  ];
+  for(const [id, handler] of pairs){
+    const btn = $(id);
+    if(!btn) continue;
+    btn.disabled = false;
+    btn.removeAttribute("aria-disabled");
+    // drop any stale listeners by cloning
+    const clone = btn.cloneNode(true);
+    btn.parentNode.replaceChild(clone, btn);
+    clone.addEventListener("click", handler, { once:false });
+  }
+}
+
+// Bind on first load and when restored from bfcache
+document.addEventListener("DOMContentLoaded", async () => {
+  bindHandlers();
   try { await ensureSession(); } catch {}
-})();
+});
+window.addEventListener("pageshow", bindHandlers);
 </script>
 </body>
 </html>
