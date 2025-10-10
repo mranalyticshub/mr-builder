@@ -38,34 +38,34 @@
 <div class="wrap">
   <div class="row" style="margin-bottom:8px">
     <h1 style="flex:1">Dashboard Builder</h1>
-    <span class="muted">Session:</span><span id="sidBadge" class="sid-badge">–</span>
+    <span class="muted">Session:</span><span id="mrSid" class="sid-badge">–</span>
   </div>
 
   <!-- STEP A: Profile & Upload -->
-  <div class="card step" id="stepA">
+  <div class="card step" id="mrStepA">
     <h2>1) Describe your business or upload a sample</h2>
-    <textarea id="prompt" placeholder="What’s your business and what should the dashboard show?"></textarea>
+    <textarea id="mrPrompt" placeholder="What’s your business and what should the dashboard show?"></textarea>
     <div class="toolbar" style="margin-top:8px">
-      <input id="file" type="file" accept=".csv,.xlsx"/>
-      <button id="start" type="button">Profile dataset</button>
-      <span id="aMsg" class="muted"></span>
+      <input id="mrFile" type="file" accept=".csv,.xlsx"/>
+      <button id="mrStart" type="button">Profile dataset</button>
+      <span id="mrMsgA" class="muted"></span>
     </div>
   </div>
 
   <!-- STEP B: Review fields & questions -->
-  <div class="card step hidden" id="stepB">
+  <div class="card step hidden" id="mrStepB">
     <div class="grid-2">
       <div>
         <div class="row" style="justify-content:space-between;margin-bottom:8px">
           <h2 style="margin:0">2) Field Map</h2>
-          <span class="pill" id="fieldCount">0 fields</span>
+          <span class="pill" id="mrFieldCount">0 fields</span>
         </div>
         <div class="scroll">
-          <table id="fieldTable">
+          <table id="mrFieldTable">
             <thead>
-              <tr>
-                <th>Field</th><th>Type</th><th>Semantic</th><th>Unit/Grain</th><th>Description</th>
-              </tr>
+            <tr>
+              <th>Field</th><th>Type</th><th>Semantic</th><th>Unit/Grain</th><th>Description</th>
+            </tr>
             </thead>
             <tbody></tbody>
           </table>
@@ -74,39 +74,39 @@
       </div>
       <div>
         <h2>Questions</h2>
-        <div id="qBox" class="scroll" style="padding:8px"></div>
+        <div id="mrQBox" class="scroll" style="padding:8px"></div>
         <small class="muted">Please answer any required questions before continuing.</small>
       </div>
     </div>
     <div class="toolbar" style="margin-top:12px">
-      <button id="toDesign" type="button">Continue to design</button>
-      <button id="downloadSpec" class="ghost" type="button">Download spec (JSON)</button>
-      <span id="bMsg" class="muted"></span>
+      <button id="mrToDesign" type="button">Continue to design</button>
+      <button id="mrDownloadSpec" class="ghost" type="button">Download spec (JSON)</button>
+      <span id="mrMsgB" class="muted"></span>
     </div>
   </div>
 
   <!-- STEP C: Design & Preview (full width) -->
-  <div class="card step hidden" id="stepC">
+  <div class="card step hidden" id="mrStepC">
     <h2>3) Design & Preview</h2>
     <div class="toolbar" style="margin-bottom:8px">
-      <input id="nl" placeholder="e.g., add a bar of returns by category; compare last month"/>
-      <button id="applyNl" type="button">Apply change</button>
-      <span id="cMsg" class="muted"></span>
+      <input id="mrNl" placeholder="e.g., add a bar of returns by category; compare last month"/>
+      <button id="mrApplyNl" type="button">Apply change</button>
+      <span id="mrMsgC" class="muted"></span>
     </div>
-    <iframe id="preview" src=""></iframe>
+    <iframe id="mrPreview" src=""></iframe>
 
     <div class="grid-2" style="margin-top:16px">
       <div class="card">
         <h3>Approve & Continue</h3>
-        <input id="company" placeholder="Company name"/>
-        <input id="email" type="email" placeholder="Contact email"/>
-        <button id="approve" type="button">Approve design</button>
-        <div id="plan" class="muted" style="margin-top:8px"></div>
+        <input id="mrCompany" placeholder="Company name"/>
+        <input id="mrEmail" type="email" placeholder="Contact email"/>
+        <button id="mrApprove" type="button">Approve design</button>
+        <div id="mrPlan" class="muted" style="margin-top:8px"></div>
       </div>
       <div class="card">
         <h3>Session tools</h3>
         <div class="toolbar">
-          <button id="reloadPreview" class="ghost" type="button">Reload preview</button>
+          <button id="mrReloadPreview" class="ghost" type="button">Reload preview</button>
           <span class="muted">Preview SID is carried as a query param.</span>
         </div>
       </div>
@@ -116,7 +116,7 @@
 
 <script>
 /* ======== CONFIG ======== */
-const UI_VERSION = "rollback-1";
+const UI_VERSION = "mr-ns-ids-1";
 const ORCH = "https://mr-orchestrator-585407302606.europe-west2.run.app";
 
 /* ======== STATE ======== */
@@ -143,8 +143,8 @@ async function ensureSession(){
   if(sid) return sid;
   const urlSid = (readQuery("sid") || "").trim();
   const ckSid  = (cookieGet("mr_sid") || "").trim();
-  if(urlSid){ sid = urlSid; cookieSet("mr_sid", sid); $('sidBadge').textContent = sid; return sid; }
-  if(ckSid){ sid = ckSid; $('sidBadge').textContent = sid; return sid; }
+  if(urlSid){ sid = urlSid; cookieSet("mr_sid", sid); $('mrSid').textContent = sid; return sid; }
+  if(ckSid){ sid = ckSid; $('mrSid').textContent = sid; return sid; }
 
   try{
     let r = await fetch(`${ORCH}/session`, {
@@ -157,22 +157,22 @@ async function ensureSession(){
     sid = j.sid || j.session_id;
     if(!sid) throw new Error("No sid in /session response");
     cookieSet("mr_sid", sid);
-    $('sidBadge').textContent = sid;
+    $('mrSid').textContent = sid;
     console.log("[UI]", UI_VERSION, "session:", sid);
     return sid;
   }catch(err){
     console.error("ensureSession failed:", err);
-    setMsg("aMsg", "Could not create a session. Please reload.", "err");
+    setMsg("mrMsgA", "Could not create a session. Please reload.", "err");
     throw err;
   }
 }
 
 /* ======== RENDERERS ======== */
 function renderFieldTable(map){
-  const tb = $("#fieldTable").querySelector("tbody");
+  const tb = $("#mrFieldTable").querySelector("tbody");
   tb.innerHTML = "";
   const fields = (map?.tables?.[0]?.fields) || [];
-  $("#fieldCount").textContent = `${fields.length} field${fields.length===1?"":"s"}`;
+  $("#mrFieldCount").textContent = `${fields.length} field${fields.length===1?"":"s"}`;
   for(const f of fields){
     const tr = document.createElement("tr");
     tr.dataset.field = f.name;
@@ -200,7 +200,7 @@ function renderFieldTable(map){
   }
 }
 function renderQuestions(qs){
-  const box = $("#qBox"); box.innerHTML = "";
+  const box = $("#mrQBox"); box.innerHTML = "";
   for(const q of (qs||[])){
     const wrap = document.createElement("div"); wrap.style.marginBottom="12px";
     wrap.innerHTML = `<div style="margin-bottom:6px"><strong>${q.prompt||""}</strong></div>`;
@@ -226,7 +226,7 @@ function renderQuestions(qs){
 
 /* ======== COLLECTORS ======== */
 function collectFieldMapEdits(){
-  const rows = $("#fieldTable").querySelectorAll("tbody tr");
+  const rows = $("#mrFieldTable").querySelectorAll("tbody tr");
   const idx = {};
   rows.forEach(r=>{
     const name = r.dataset.field;
@@ -249,21 +249,21 @@ function collectFieldMapEdits(){
   return fieldMap;
 }
 function collectAnswers(){
-  const inputs = $("#qBox").querySelectorAll("[data-qid]");
+  const inputs = $("#mrQBox").querySelectorAll("[data-qid]");
   const ans = {}; inputs.forEach(i => ans[i.dataset.qid] = (i.value||"").trim());
   return ans;
 }
 
 /* ======== ACTIONS ======== */
-$("#start").onclick = async () => {
-  const btn = $("#start");
+$("#mrStart").onclick = async () => {
+  const btn = $("#mrStart");
   setBusy(btn, true, "Profiling…");
-  setMsg("aMsg", "");
+  setMsg("mrMsgA", "");
   try{
     await ensureSession();
     const fd = new FormData();
-    fd.append("prompt", ($("#prompt").value || "").toString());
-    const f = $("#file").files[0]; if(f) fd.append("file", f);
+    fd.append("prompt", ($("#mrPrompt").value || "").toString());
+    const f = $("#mrFile").files[0]; if(f) fd.append("file", f);
 
     const r = await fetch(`${ORCH}/profile/${encodeURIComponent(sid)}`, { method:"POST", body: fd });
     if(!r.ok){
@@ -276,24 +276,24 @@ $("#start").onclick = async () => {
     questions = data.questions || [];
 
     if(!fieldMap?.tables?.[0]?.fields?.length){
-      setMsg("aMsg", "Profiling completed but no fields detected. Please check your file format.", "err");
+      setMsg("mrMsgA", "Profiling completed but no fields detected. Please check your file format.", "err");
     } else {
-      setMsg("aMsg", "Profiling complete. Review fields and answer questions.", "ok");
+      setMsg("mrMsgA", "Profiling complete. Review fields and answer questions.", "ok");
     }
 
     renderFieldTable(fieldMap);
     renderQuestions(questions);
-    show("stepB", true);
-    $("#stepB").scrollIntoView({behavior:"smooth"});
+    show("mrStepB", true);
+    $("#mrStepB").scrollIntoView({behavior:"smooth"});
   }catch(e){
-    console.error(e); setMsg("aMsg", "Profiling failed. Check logs.", "err");
+    console.error(e); setMsg("mrMsgA", "Profiling failed. Check logs.", "err");
   }finally{ setBusy(btn, false); }
 };
 
-$("#toDesign").onclick = async () => {
-  const btn = $("#toDesign");
+$("#mrToDesign").onclick = async () => {
+  const btn = $("#mrToDesign");
   setBusy(btn, true, "Building…");
-  setMsg("bMsg", "");
+  setMsg("mrMsgB", "");
   try{
     await ensureSession();
     const fm = collectFieldMapEdits();
@@ -314,37 +314,37 @@ $("#toDesign").onclick = async () => {
     if(!r.ok) throw new Error(`/design failed (${r.status}): ${JSON.stringify(data)}`);
     if(!data.preview_url) throw new Error("No preview_url from /design");
 
-    $("#preview").src = data.preview_url + (data.preview_url.includes("?") ? "&" : "?") + "_=" + Date.now();
-    show("stepC", true);
-    $("#stepC").scrollIntoView({behavior:"smooth"});
+    $("#mrPreview").src = data.preview_url + (data.preview_url.includes("?") ? "&" : "?") + "_=" + Date.now();
+    show("mrStepC", true);
+    $("#mrStepC").scrollIntoView({behavior:"smooth"});
   }catch(e){
-    console.error(e); setMsg("bMsg", "Design failed. Check logs.", "err");
+    console.error(e); setMsg("mrMsgB", "Design failed. Check logs.", "err");
   }finally{ setBusy(btn, false); }
 };
 
-$("#applyNl").onclick = async () => {
-  const btn = $("#applyNl");
+$("#mrApplyNl").onclick = async () => {
+  const btn = $("#mrApplyNl");
   setBusy(btn, true, "Applying…");
-  setMsg("cMsg", "");
+  setMsg("mrMsgC", "");
   try{
     await ensureSession();
     const r = await fetch(`${ORCH}/nl-edit/${encodeURIComponent(sid)}`, {
       method:"POST", headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({instruction: ($("#nl").value||"").toString()})
+      body: JSON.stringify({instruction: ($("#mrNl").value||"").toString()})
     });
     const data = await r.json();
     if(!r.ok) throw new Error(`/nl-edit failed (${r.status}): ${JSON.stringify(data)}`);
     if(data.preview_url){
-      $("#preview").src = data.preview_url + (data.preview_url.includes("?") ? "&" : "?") + "_=" + Date.now();
+      $("#mrPreview").src = data.preview_url + (data.preview_url.includes("?") ? "&" : "?") + "_=" + Date.now();
     }
   }finally{ setBusy(btn, false); }
 };
 
-$("#approve").onclick = async () => {
+$("#mrApprove").onclick = async () => {
   try{
     await ensureSession();
-    const email = ($("#email").value||"").trim();
-    const company = ($("#company").value||"").trim();
+    const email = ($("#mrEmail").value||"").trim();
+    const company = ($("#mrCompany").value||"").trim();
     if(!email || !company){ alert("Company and email required"); return; }
 
     const r = await fetch(`${ORCH}/approve/${encodeURIComponent(sid)}`, {
@@ -353,15 +353,15 @@ $("#approve").onclick = async () => {
     });
     const data = await r.json();
     if(!r.ok) throw new Error(`/approve failed (${r.status}): ${JSON.stringify(data)}`);
-    $("#plan").innerHTML = `<strong>${data.plan||"Plan"}</strong> – ${data.reason||""}<br>
+    $("#mrPlan").innerHTML = `<strong>${data.plan||"Plan"}</strong> – ${data.reason||""}<br>
       ${data.signup_url ? `<a href="${data.signup_url}" target="_blank" rel="noopener">Continue to Sign Up</a>` : ""}`;
   }catch(e){
     console.error(e);
-    $("#plan").textContent = "Approval failed. Please try again.";
+    $("#mrPlan").textContent = "Approval failed. Please try again.";
   }
 };
 
-$("#downloadSpec").onclick = async () => {
+$("#mrDownloadSpec").onclick = async () => {
   try{
     await ensureSession();
     const r = await fetch(`${ORCH}/artifacts?sid=${encodeURIComponent(sid)}`);
@@ -377,9 +377,9 @@ $("#downloadSpec").onclick = async () => {
   }
 };
 
-$("#reloadPreview").onclick = () => {
-  const src = $("#preview").src.split("&_=")[0];
-  $("#preview").src = src + (src.includes("?") ? "&" : "?") + "_=" + Date.now();
+$("#mrReloadPreview").onclick = () => {
+  const src = $("#mrPreview").src.split("&_=")[0];
+  $("#mrPreview").src = src + (src.includes("?") ? "&" : "?") + "_=" + Date.now();
 };
 
 /* ======== AUTO-BOOT ======== */
