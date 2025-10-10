@@ -47,7 +47,7 @@
     <textarea id="prompt" placeholder="What’s your business and what should the dashboard show?"></textarea>
     <div class="toolbar" style="margin-top:8px">
       <input id="file" type="file" accept=".csv,.xlsx"/>
-      <button id="start" type="button" onclick="window._start && window._start()">Profile dataset</button>
+      <button id="start">Profile dataset</button>
       <span id="aMsg" class="muted"></span>
     </div>
   </div>
@@ -114,131 +114,293 @@
   </div>
 </div>
 
-<!-- ========================== -->
-<!-- Main Script -->
-<!-- ========================== -->
 <script>
+/* ======== CONFIG ======== */
 const ORCH = "https://mr-orchestrator-585407302606.europe-west2.run.app";
-let sid = null, fieldMap = null, questions = [];
 
-function setMsg(id, text){ const el=document.getElementById(id); if(el) el.textContent=text||""; }
-function show(id,flag){ const el=document.getElementById(id); if(el) el.classList.toggle("hidden",!flag); }
-function setBusy(btn,on,msg="Working…"){ if(!btn)return; btn.disabled=!!on; if(on){btn.dataset.t=btn.textContent;btn.textContent=msg;} else if(btn.dataset.t){btn.textContent=btn.dataset.t;} }
+/* ======== STATE ======== */
+let sid = null;
+let fieldMap = null;
+let questions = [];
 
+/* ======== UTILS ======== */
+const $ = (id) => document.getElementById(id);
+function setMsg(id, text, cls="muted"){ const el=$(id); if(!el) return; el.className=cls; el.textContent = text||""; }
+function show(id, flag){ $(id).classList.toggle("hidden", !flag); }
+function setBusy(btn, on, label="Working…"){
+  if(!btn) return;
+  btn.disabled = !!on;
+  if(on){ btn.dataset._t = btn.textContent; btn.textContent = label; }
+  else if(btn.dataset._t){ btn.textContent = btn.dataset._t; delete btn.dataset._t; }
+}
+function readQuery(k){ const p = new URLSearchParams(location.search); return p.get(k); }
+function cookieGet(name){ return (`; ${document.cookie}`).split(`; ${name}=`).pop().split(';')[0] || ""; }
+function cookieSet(name, value){ document.cookie = `${name}=${value}; Max-Age=3600; Path=/; SameSite=None; Secure`; }
+
+/* ======== SESSION BOOTSTRAP (robust) ======== */
 async function ensureSession(){
   if(sid) return sid;
-  const r=await fetch(`${ORCH}/session`,{method:"POST"});
-  if(!r.ok) throw new Error("/session failed");
-  const j=await r.json(); sid=j.session_id||j.sid||j.id; if(!sid) throw new Error("no sid");
-  document.getElementById("sidBadge").textContent=sid; return sid;
+
+  // Prefer explicit sid in URL, then cookie
+  const urlSid = (readQuery("sid") || "").trim();
+  const ckSid  = (cookieGet("mr_sid") || "").trim();
+  if(urlSid){ sid = urlSid; cookieSet("mr_sid", sid); $('sidBadge').textContent = sid; return sid; }
+  if(ckSid){ sid = ckSid; $('sidBadge').textContent = sid; return sid; }
+
+  // No sid → create one. Try JSON body, fallback to empty body.
+  try{
+    let r = await fetch(`${ORCH}/session`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({prompt:""})
+    });
+    if(r.status === 422){ r = await fetch(`${ORCH}/session`, { method:"POST" }); }
+    const j = await r.json();
+    sid = j.sid || j.session_id;    // support either key
+    if(!sid) throw new Error("No sid in /session response");
+    cookieSet("mr_sid", sid);
+    $('sidBadge').textContent = sid;
+    return sid;
+  }catch(err){
+    console.error("ensureSession failed:", err);
+    setMsg("aMsg", "Could not create a session. Please reload.", "err");
+    throw err;
+  }
 }
 
+/* ======== RENDERERS ======== */
 function renderFieldTable(map){
-  const tb=document.querySelector("#fieldTable tbody"); tb.innerHTML="";
-  const fields=(map?.tables?.[0]?.fields)||[];
-  document.getElementById("fieldCount").textContent=`${fields.length} field${fields.length===1?"":"s"}`;
+  const tb = $("#fieldTable").querySelector("tbody");
+  tb.innerHTML = "";
+  const fields = (map?.tables?.[0]?.fields) || [];
+  $("#fieldCount").textContent = `${fields.length} field${fields.length===1?"":"s"}`;
   for(const f of fields){
-    const tr=document.createElement("tr");
-    tr.dataset.field=f.name;
-    tr.innerHTML=`
+    const tr = document.createElement("tr");
+    tr.dataset.field = f.name;
+    tr.innerHTML = `
       <td><strong>${f.name}</strong></td>
-      <td><select data-k="type">
-        <option ${f.type==="STRING"?"selected":""}>STRING</option>
-        <option ${f.type==="NUMERIC"?"selected":""}>NUMERIC</option>
-        <option ${f.type==="DATE"?"selected":""}>DATE</option>
-      </select></td>
-      <td><select data-k="semantic">
-        <option value="">—</option>
-        <option value="id" ${f.semantic==="id"?"selected":""}>id</option>
-        <option value="date" ${f.semantic==="date"?"selected":""}>date</option>
-        <option value="currency" ${f.semantic==="currency"?"selected":""}>currency</option>
-        <option value="category" ${f.semantic==="category"?"selected":""}>category</option>
-      </select></td>
-      <td><input data-k="unit" placeholder="GBP, %, day, month" value="${f.unit||f.grain||""}"/></td>
-      <td><input data-k="desc" placeholder="Short explanation" value="${f.desc||""}"/></td>`;
+      <td>
+        <select data-k="type">
+          <option ${f.type==="STRING"?"selected":""}>STRING</option>
+          <option ${f.type==="NUMERIC"?"selected":""}>NUMERIC</option>
+          <option ${f.type==="DATE"?"selected":""}>DATE</option>
+        </select>
+      </td>
+      <td>
+        <select data-k="semantic">
+          <option value="" ${!f.semantic?"selected":""}>—</option>
+          <option value="id" ${f.semantic==="id"?"selected":""}>id</option>
+          <option value="date" ${f.semantic==="date"?"selected":""}>date</option>
+          <option value="currency" ${f.semantic==="currency"?"selected":""}>currency</option>
+          <option value="category" ${f.semantic==="category"?"selected":""}>category</option>
+        </select>
+      </td>
+      <td><input type="text" data-k="unit" placeholder="GBP, %, day, month" value="${(f.unit||f.grain||"").toString()}"/></td>
+      <td><input type="text" data-k="desc" placeholder="Short explanation" value="${(f.desc||"").toString()}"/></td>`;
     tb.appendChild(tr);
   }
 }
 function renderQuestions(qs){
-  const box=document.getElementById("qBox"); box.innerHTML="";
-  for(const q of qs){
-    const wrap=document.createElement("div");
-    wrap.style.marginBottom="12px";
-    wrap.innerHTML=`<div><strong>${q.prompt||""}</strong></div>`;
-    let input=document.createElement(q.kind==="select"?"select":"input");
-    if(q.kind==="select"){ (q.options||[]).forEach(o=>{const opt=document.createElement("option");opt.value=o;opt.textContent=o;input.appendChild(opt)}); }
-    else input.placeholder=q.placeholder||"";
-    if(q.default) input.value=q.default;
-    input.dataset.qid=q.id; input.style.width="100%"; wrap.appendChild(input); box.appendChild(wrap);
+  const box = $("#qBox"); box.innerHTML = "";
+  for(const q of (qs||[])){
+    const wrap = document.createElement("div"); wrap.style.marginBottom="12px";
+    wrap.innerHTML = `<div style="margin-bottom:6px"><strong>${q.prompt||""}</strong></div>`;
+    let inputEl;
+    if(q.kind === "select"){
+      inputEl = document.createElement("select");
+      (q.options||[]).forEach(o=>{
+        const opt = document.createElement("option");
+        opt.value=o; opt.textContent=o; inputEl.appendChild(opt);
+      });
+      if(q.default) inputEl.value = q.default;
+    }else{
+      inputEl = document.createElement("input");
+      inputEl.placeholder = q.placeholder || "";
+      if(q.default) inputEl.value = q.default;
+    }
+    inputEl.dataset.qid = q.id;
+    inputEl.style.width = "100%";
+    wrap.appendChild(inputEl);
+    box.appendChild(wrap);
   }
 }
+
+/* ======== COLLECTORS ======== */
 function collectFieldMapEdits(){
-  const rows=document.querySelectorAll("#fieldTable tbody tr");
-  const by={}; rows.forEach(r=>{const n=r.dataset.field;const o={};r.querySelectorAll("[data-k]").forEach(el=>o[el.dataset.k]=el.value.trim());by[n]=o;});
-  const table=fieldMap.tables[0];
-  table.fields=table.fields.map(f=>{const e=by[f.name]||{};return{...f,type:e.type||f.type,semantic:e.semantic||f.semantic||"",unit:e.unit||f.unit,grain:e.unit||f.grain,desc:e.desc||f.desc||""};});
+  const rows = $("#fieldTable").querySelectorAll("tbody tr");
+  const idx = {};
+  rows.forEach(r=>{
+    const name = r.dataset.field;
+    const out = {};
+    r.querySelectorAll("[data-k]").forEach(el=> out[el.dataset.k] = (el.value||"").trim());
+    idx[name] = out;
+  });
+  const table = fieldMap.tables[0];
+  table.fields = table.fields.map(f=>{
+    const e = idx[f.name] || {};
+    return {
+      ...f,
+      type: e.type || f.type,
+      semantic: e.semantic || f.semantic || "",
+      unit: e.unit || f.unit,
+      grain: e.unit || f.grain,
+      desc: e.desc || f.desc || ""
+    };
+  });
   return fieldMap;
 }
 function collectAnswers(){
-  const inputs=document.querySelectorAll("#qBox [data-qid]"); const ans={}; inputs.forEach(i=>ans[i.dataset.qid]=i.value.trim()); return ans;
+  const inputs = $("#qBox").querySelectorAll("[data-qid]");
+  const ans = {}; inputs.forEach(i => ans[i.dataset.qid] = (i.value||"").trim());
+  return ans;
 }
 
-/* --- Handlers --- */
-window._start=async function(){
-  const btn=document.getElementById("start");
-  setBusy(btn,true,"Profiling…"); setMsg("aMsg","");
+/* ======== ACTIONS ======== */
+$("#start").onclick = async () => {
+  const btn = $("#start");
+  setBusy(btn, true, "Profiling…");
+  setMsg("aMsg", "");
   try{
     await ensureSession();
-    const fd=new FormData();
-    fd.append("prompt",document.getElementById("prompt").value||"");
-    const f=document.getElementById("file").files[0]; if(f) fd.append("file",f);
-    const r=await fetch(`${ORCH}/profile/${sid}`,{method:"POST",body:fd});
-    const txt=await r.text(); if(!r.ok) throw new Error(txt);
-    const data=JSON.parse(txt||"{}");
-    fieldMap=data.field_map||{}; questions=data.questions||[];
-    renderFieldTable(fieldMap); renderQuestions(questions);
-    show("stepB",true); setMsg("aMsg","Profiling complete. Review fields and answer questions.");
-    document.getElementById("stepB").scrollIntoView({behavior:"smooth"});
-  }catch(e){ console.error(e); setMsg("aMsg","Profiling failed. Check logs."); }
-  finally{ setBusy(btn,false); }
+    const fd = new FormData();
+    fd.append("prompt", ($("#prompt").value || "").toString());
+    const f = $("#file").files[0]; if(f) fd.append("file", f);
+
+    // profile
+    const r = await fetch(`${ORCH}/profile/${encodeURIComponent(sid)}`, { method:"POST", body: fd });
+    if(!r.ok){
+      const t = await r.text().catch(()=>"(no body)");
+      throw new Error(`/profile failed (${r.status}): ${t}`);
+    }
+    const data = await r.json();
+
+    fieldMap  = data.field_map || data.fieldMap || {};
+    questions = data.questions || [];
+
+    if(!fieldMap?.tables?.[0]?.fields?.length){
+      setMsg("aMsg", "Profiling completed but no fields detected. Please check your file format.", "err");
+    } else {
+      setMsg("aMsg", "Profiling complete. Review fields and answer questions.", "ok");
+    }
+
+    renderFieldTable(fieldMap);
+    renderQuestions(questions);
+    show("stepB", true);
+    $("#stepB").scrollIntoView({behavior:"smooth"});
+  }catch(e){
+    console.error(e);
+    setMsg("aMsg", "Profiling failed. Check logs.", "err");
+  }finally{
+    setBusy(btn, false);
+  }
 };
 
-async function onDesign(){
-  const btn=document.getElementById("toDesign"); setBusy(btn,true,"Building…"); setMsg("bMsg","");
+$("#toDesign").onclick = async () => {
+  const btn = $("#toDesign");
+  setBusy(btn, true, "Building…");
+  setMsg("bMsg", "");
   try{
-    const fm=collectFieldMapEdits(), ans=collectAnswers();
-    await fetch(`${ORCH}/field-map/${sid}`,{method:"POST",headers:{'Content-Type':'application/json'},body:JSON.stringify(fm)});
-    const r=await fetch(`${ORCH}/design/${sid}`,{method:"POST",headers:{'Content-Type':'application/json'},body:JSON.stringify({answers:ans})});
-    const data=await r.json(); document.getElementById("preview").src=data.preview_url+"&_="+Date.now();
-    show("stepC",true); document.getElementById("stepC").scrollIntoView({behavior:"smooth"});
-  }catch(e){console.error(e); setMsg("bMsg","Design failed. Check logs.");}
-  finally{setBusy(btn,false);}
-}
-async function onNlEdit(){
-  const btn=document.getElementById("applyNl"); setBusy(btn,true,"Applying…");
+    await ensureSession();
+    const fm = collectFieldMapEdits();
+    const answers = collectAnswers();
+
+    // persist field map
+    let r = await fetch(`${ORCH}/field-map/${encodeURIComponent(sid)}`, {
+      method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify(fm)
+    });
+    if(!r.ok){
+      const t = await r.text().catch(()=>"(no body)");
+      throw new Error(`/field-map failed (${r.status}): ${t}`);
+    }
+
+    // design / preview
+    r = await fetch(`${ORCH}/design/${encodeURIComponent(sid)}`, {
+      method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify({answers})
+    });
+    const data = await r.json();
+    if(!r.ok) throw new Error(`/design failed (${r.status}): ${JSON.stringify(data)}`);
+    if(!data.preview_url) throw new Error("No preview_url from /design");
+
+    $("#preview").src = data.preview_url + (data.preview_url.includes("?") ? "&" : "?") + "_=" + Date.now();
+    show("stepC", true);
+    $("#stepC").scrollIntoView({behavior:"smooth"});
+  }catch(e){
+    console.error(e);
+    setMsg("bMsg", "Design failed. Check logs.", "err");
+  }finally{
+    setBusy(btn, false);
+  }
+};
+
+$("#applyNl").onclick = async () => {
+  const btn = $("#applyNl");
+  setBusy(btn, true, "Applying…");
+  setMsg("cMsg", "");
   try{
-    const r=await fetch(`${ORCH}/nl-edit/${sid}`,{method:"POST",headers:{'Content-Type':'application/json'},body:JSON.stringify({instruction:document.getElementById("nl").value})});
-    const data=await r.json(); document.getElementById("preview").src=data.preview_url+"&_="+Date.now();
-  }catch(e){console.error(e);} finally{setBusy(btn,false);}
-}
-async function onApprove(){
-  const c=document.getElementById("company").value.trim(), e=document.getElementById("email").value.trim();
-  if(!c||!e) return alert("Company and email required");
-  const r=await fetch(`${ORCH}/approve/${sid}`,{method:"POST",headers:{'Content-Type':'application/json'},body:JSON.stringify({company:c,email:e})});
-  const d=await r.json(); document.getElementById("plan").innerHTML=`<strong>${d.plan}</strong> – ${d.reason}<br><a href="${d.signup_url}" target="_blank">Continue to Sign Up</a>`;
-}
-async function onDownloadSpec(){
-  const r=await fetch(`${ORCH}/artifacts?sid=${encodeURIComponent(sid)}`); const d=await r.json();
-  const blob=new Blob([JSON.stringify(d,null,2)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`mr_draft_${sid}.json`; a.click();
-}
-document.addEventListener("DOMContentLoaded",()=>{
-  document.getElementById("toDesign").addEventListener("click",onDesign);
-  document.getElementById("applyNl").addEventListener("click",onNlEdit);
-  document.getElementById("approve").addEventListener("click",onApprove);
-  document.getElementById("downloadSpec").addEventListener("click",onDownloadSpec);
-  document.getElementById("reloadPreview").addEventListener("click",()=>{const p=document.getElementById("preview");p.src=p.src.split("&_=")[0]+"&_="+Date.now();});
-  console.log("[UI] Bound handlers");
-});
+    await ensureSession();
+    const r = await fetch(`${ORCH}/nl-edit/${encodeURIComponent(sid)}`, {
+      method:"POST", headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({instruction: ($("#nl").value||"").toString()})
+    });
+    const data = await r.json();
+    if(!r.ok) throw new Error(`/nl-edit failed (${r.status}): ${JSON.stringify(data)}`);
+    if(data.preview_url){
+      $("#preview").src = data.preview_url + (data.preview_url.includes("?") ? "&" : "?") + "_=" + Date.now();
+    }
+  }catch(e){
+    console.error(e);
+    setMsg("cMsg", "Could not apply change.", "err");
+  }finally{
+    setBusy(btn, false);
+  }
+};
+
+$("#approve").onclick = async () => {
+  try{
+    await ensureSession();
+    const email = ($("#email").value||"").trim();
+    const company = ($("#company").value||"").trim();
+    if(!email || !company){ alert("Company and email required"); return; }
+
+    const r = await fetch(`${ORCH}/approve/${encodeURIComponent(sid)}`, {
+      method:"POST", headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({company,email})
+    });
+    const data = await r.json();
+    if(!r.ok) throw new Error(`/approve failed (${r.status}): ${JSON.stringify(data)}`);
+    $("#plan").innerHTML = `<strong>${data.plan||"Plan"}</strong> – ${data.reason||""}<br>
+      ${data.signup_url ? `<a href="${data.signup_url}" target="_blank" rel="noopener">Continue to Sign Up</a>` : ""}`;
+  }catch(e){
+    console.error(e);
+    $("#plan").textContent = "Approval failed. Please try again.";
+  }
+};
+
+$("#downloadSpec").onclick = async () => {
+  try{
+    await ensureSession();
+    const r = await fetch(`${ORCH}/artifacts?sid=${encodeURIComponent(sid)}`);
+    const data = await r.json();
+    const blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `mr_draft_${sid}.json`;
+    a.click();
+  }catch(e){
+    console.error(e);
+    alert("Could not download spec.");
+  }
+};
+
+$("#reloadPreview").onclick = () => {
+  const src = $("#preview").src.split("&_=")[0];
+  $("#preview").src = src + (src.includes("?") ? "&" : "?") + "_=" + Date.now();
+};
+
+/* ======== AUTO-BOOT ======== */
+(async () => {
+  try { await ensureSession(); } catch {}
+})();
 </script>
 </body>
 </html>
