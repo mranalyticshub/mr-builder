@@ -32,6 +32,10 @@
     .err { color:#b00020; }
     .ok { color:#0a6; }
     .pill { font-size:12px; background:#f2f2f2; padding:2px 8px; border-radius:999px; border:1px solid #e9e9e9; }
+
+    /* Ensure the profile button is always clickable even if a theme overlay exists */
+    #mrStepA { position: relative; z-index: 10000; isolation: isolate; }
+    #mrStart { position: relative; z-index: 10001; pointer-events: auto !important; }
   </style>
 </head>
 <body>
@@ -47,7 +51,7 @@
     <textarea id="mrPrompt" placeholder="What’s your business and what should the dashboard show?"></textarea>
     <div class="toolbar" style="margin-top:8px">
       <input id="mrFile" type="file" accept=".csv,.xlsx"/>
-      <button id="mrStart" type="button">Profile dataset</button>
+      <button id="mrStart" type="button" onclick="window.__mrProfileClick?.()">Profile dataset</button>
       <span id="mrMsgA" class="muted"></span>
     </div>
   </div>
@@ -63,9 +67,9 @@
         <div class="scroll">
           <table id="mrFieldTable">
             <thead>
-            <tr>
-              <th>Field</th><th>Type</th><th>Semantic</th><th>Unit/Grain</th><th>Description</th>
-            </tr>
+              <tr>
+                <th>Field</th><th>Type</th><th>Semantic</th><th>Unit/Grain</th><th>Description</th>
+              </tr>
             </thead>
             <tbody></tbody>
           </table>
@@ -79,8 +83,8 @@
       </div>
     </div>
     <div class="toolbar" style="margin-top:12px">
-      <button id="mrToDesign" type="button">Continue to design</button>
-      <button id="mrDownloadSpec" class="ghost" type="button">Download spec (JSON)</button>
+      <button id="mrToDesign">Continue to design</button>
+      <button id="mrDownloadSpec" class="ghost">Download spec (JSON)</button>
       <span id="mrMsgB" class="muted"></span>
     </div>
   </div>
@@ -90,7 +94,7 @@
     <h2>3) Design & Preview</h2>
     <div class="toolbar" style="margin-bottom:8px">
       <input id="mrNl" placeholder="e.g., add a bar of returns by category; compare last month"/>
-      <button id="mrApplyNl" type="button">Apply change</button>
+      <button id="mrApplyNl">Apply change</button>
       <span id="mrMsgC" class="muted"></span>
     </div>
     <iframe id="mrPreview" src=""></iframe>
@@ -100,13 +104,13 @@
         <h3>Approve & Continue</h3>
         <input id="mrCompany" placeholder="Company name"/>
         <input id="mrEmail" type="email" placeholder="Contact email"/>
-        <button id="mrApprove" type="button">Approve design</button>
+        <button id="mrApprove">Approve design</button>
         <div id="mrPlan" class="muted" style="margin-top:8px"></div>
       </div>
       <div class="card">
         <h3>Session tools</h3>
         <div class="toolbar">
-          <button id="mrReloadPreview" class="ghost" type="button">Reload preview</button>
+          <button id="mrReloadPreview" class="ghost">Reload preview</button>
           <span class="muted">Preview SID is carried as a query param.</span>
         </div>
       </div>
@@ -116,7 +120,6 @@
 
 <script>
 /* ======== CONFIG ======== */
-const UI_VERSION = "mr-ns-ids-1";
 const ORCH = "https://mr-orchestrator-585407302606.europe-west2.run.app";
 
 /* ======== STATE ======== */
@@ -141,11 +144,13 @@ function cookieSet(name, value){ document.cookie = `${name}=${value}; Max-Age=36
 /* ======== SESSION BOOTSTRAP ======== */
 async function ensureSession(){
   if(sid) return sid;
+
   const urlSid = (readQuery("sid") || "").trim();
   const ckSid  = (cookieGet("mr_sid") || "").trim();
   if(urlSid){ sid = urlSid; cookieSet("mr_sid", sid); $('mrSid').textContent = sid; return sid; }
   if(ckSid){ sid = ckSid; $('mrSid').textContent = sid; return sid; }
 
+  // Try JSON body first (newer backend), then fallback (older)
   try{
     let r = await fetch(`${ORCH}/session`, {
       method: "POST",
@@ -158,7 +163,6 @@ async function ensureSession(){
     if(!sid) throw new Error("No sid in /session response");
     cookieSet("mr_sid", sid);
     $('mrSid').textContent = sid;
-    console.log("[UI]", UI_VERSION, "session:", sid);
     return sid;
   }catch(err){
     console.error("ensureSession failed:", err);
@@ -254,8 +258,8 @@ function collectAnswers(){
   return ans;
 }
 
-/* ======== ACTIONS ======== */
-$("#mrStart").onclick = async () => {
+/* ======== ACTION HANDLERS (robust bind) ======== */
+window._mrStartHandler = async function(){
   const btn = $("#mrStart");
   setBusy(btn, true, "Profiling…");
   setMsg("mrMsgA", "");
@@ -286,10 +290,29 @@ $("#mrStart").onclick = async () => {
     show("mrStepB", true);
     $("#mrStepB").scrollIntoView({behavior:"smooth"});
   }catch(e){
-    console.error(e); setMsg("mrMsgA", "Profiling failed. Check logs.", "err");
-  }finally{ setBusy(btn, false); }
+    console.error(e);
+    setMsg("mrMsgA", "Profiling failed. Check logs.", "err");
+  }finally{
+    setBusy(btn, false);
+  }
 };
 
+/* Multi-bind so clicks work even with theme overlays */
+(function robustBind(){
+  const btn = document.getElementById('mrStart');
+  if(!btn) return;
+  window.__mrProfileClick = () => window._mrStartHandler();
+  btn.onclick = window.__mrProfileClick;
+  btn.addEventListener('click', window.__mrProfileClick);
+  // Debug: verify we see the click
+  document.addEventListener('click', (e) => {
+    if (e.target && (e.target.id === 'mrStart' || e.target.closest('#mrStart'))) {
+      console.log('[UI] mrStart DOM click seen');
+    }
+  }, true);
+})();
+
+/* Other buttons */
 $("#mrToDesign").onclick = async () => {
   const btn = $("#mrToDesign");
   setBusy(btn, true, "Building…");
@@ -318,8 +341,11 @@ $("#mrToDesign").onclick = async () => {
     show("mrStepC", true);
     $("#mrStepC").scrollIntoView({behavior:"smooth"});
   }catch(e){
-    console.error(e); setMsg("mrMsgB", "Design failed. Check logs.", "err");
-  }finally{ setBusy(btn, false); }
+    console.error(e);
+    setMsg("mrMsgB", "Design failed. Check logs.", "err");
+  }finally{
+    setBusy(btn, false);
+  }
 };
 
 $("#mrApplyNl").onclick = async () => {
@@ -337,7 +363,12 @@ $("#mrApplyNl").onclick = async () => {
     if(data.preview_url){
       $("#mrPreview").src = data.preview_url + (data.preview_url.includes("?") ? "&" : "?") + "_=" + Date.now();
     }
-  }finally{ setBusy(btn, false); }
+  }catch(e){
+    console.error(e);
+    setMsg("mrMsgC", "Could not apply change.", "err");
+  }finally{
+    setBusy(btn, false);
+  }
 };
 
 $("#mrApprove").onclick = async () => {
@@ -383,9 +414,7 @@ $("#mrReloadPreview").onclick = () => {
 };
 
 /* ======== AUTO-BOOT ======== */
-(async () => {
-  try { await ensureSession(); } catch {}
-})();
+(async () => { try { await ensureSession(); } catch {} })();
 </script>
 </body>
 </html>
