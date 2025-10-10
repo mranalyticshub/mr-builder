@@ -14,7 +14,7 @@
     .muted { color:#666; font-size:13px; }
     .row { display:flex; align-items:center; gap:12px; }
     .sid-badge { background:#fafafa; border:1px solid #e7e7e7; padding:6px 8px; border-radius:6px; font-size:12px; }
-    .card { border:1px solid #eee; padding:16px; border-radius:10px; background:#fff; position:relative; z-index:1; }
+    .card { border:1px solid #eee; padding:16px; border-radius:10px; background:#fff; }
     .grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
     .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
     button { appearance:none; background:#111; color:#fff; border:0; padding:9px 12px; border-radius:8px; cursor:pointer; }
@@ -85,7 +85,7 @@
     </div>
   </div>
 
-  <!-- STEP C: Design & Preview (full width) -->
+  <!-- STEP C: Design & Preview -->
   <div class="card step hidden" id="stepC">
     <h2>3) Design & Preview</h2>
     <div class="toolbar" style="margin-bottom:8px">
@@ -137,33 +137,40 @@ function readQuery(k){ const p = new URLSearchParams(location.search); return p.
 function cookieGet(name){ return (`; ${document.cookie}`).split(`; ${name}=`).pop().split(';')[0] || ""; }
 function cookieSet(name, value){ document.cookie = `${name}=${value}; Max-Age=3600; Path=/; SameSite=None; Secure`; }
 
-/* ======== SESSION BOOTSTRAP (robust) ======== */
+/* ======== SESSION (defensive) ======== */
 async function ensureSession(){
   if(sid) return sid;
 
-  // Prefer explicit sid in URL, then cookie
   const urlSid = (readQuery("sid") || "").trim();
   const ckSid  = (cookieGet("mr_sid") || "").trim();
   if(urlSid){ sid = urlSid; cookieSet("mr_sid", sid); $('sidBadge').textContent = sid; return sid; }
   if(ckSid){ sid = ckSid; $('sidBadge').textContent = sid; return sid; }
 
-  // No sid → create one. Try JSON body, fallback to empty body.
   try{
     let r = await fetch(`${ORCH}/session`, {
       method: "POST",
       headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({prompt:""})
+      body: JSON.stringify({prompt:""}),
+      mode: "cors",
+      cache: "no-store",
+      credentials: "omit",
     });
-    if(r.status === 422){ r = await fetch(`${ORCH}/session`, { method:"POST" }); }
-    const j = await r.json();
-    sid = j.sid || j.session_id;    // support either key
-    if(!sid) throw new Error("No sid in /session response");
+    if(r.status === 422){
+      // Some frameworks reject empty/JSON body – retry with empty body
+      r = await fetch(`${ORCH}/session`, { method:"POST", mode:"cors", cache:"no-store", credentials:"omit" });
+    }
+    const text = await r.text();
+    let j = {};
+    try { j = JSON.parse(text); } catch { j = {}; }
+    sid = j.sid || j.session_id;
+    if(!sid) throw new Error(`No sid in /session response (status ${r.status}). Body: ${text.slice(0,400)}`);
     cookieSet("mr_sid", sid);
     $('sidBadge').textContent = sid;
+    console.log("[UI] session ok", sid);
     return sid;
   }catch(err){
     console.error("ensureSession failed:", err);
-    setMsg("aMsg", "Could not create a session. Please reload.", "err");
+    setMsg("aMsg", `Could not create a session: ${String(err)}`, "err");
     throw err;
   }
 }
@@ -200,7 +207,6 @@ function renderFieldTable(map){
     tb.appendChild(tr);
   }
 }
-
 function renderQuestions(qs){
   const box = $("#qBox"); box.innerHTML = "";
   for(const q of (qs||[])){
@@ -256,23 +262,37 @@ function collectAnswers(){
   return ans;
 }
 
-/* ======== ACTIONS (handlers) ======== */
-async function onStartClick(evt){
+/* ======== ACTIONS ======== */
+async function onProfileClick(){
   const btn = $("#start");
   setBusy(btn, true, "Profiling…");
   setMsg("aMsg", "");
   try{
     await ensureSession();
+
     const fd = new FormData();
     fd.append("prompt", ($("#prompt").value || "").toString());
-    const f = $("#file").files[0]; if(f) fd.append("file", f);
+    const f = $("#file").files[0];
+    if(f) fd.append("file", f);
 
-    const r = await fetch(`${ORCH}/profile/${encodeURIComponent(sid)}`, { method:"POST", body: fd });
+    console.log("[UI] POST /profile for sid", sid, "file?", !!f);
+    const r = await fetch(`${ORCH}/profile/${encodeURIComponent(sid)}`, {
+      method:"POST",
+      body: fd,
+      mode: "cors",
+      cache: "no-store",
+      credentials: "omit",
+    });
+
+    const bodyText = await r.text();
+    let data = {};
+    try { data = JSON.parse(bodyText); } catch { data = {}; }
+
     if(!r.ok){
-      const t = await r.text().catch(()=>"(no body)");
-      throw new Error(`/profile failed (${r.status}): ${t}`);
+      console.error("[UI] /profile failed", r.status, bodyText);
+      setMsg("aMsg", `Profiling failed (HTTP ${r.status}). ${bodyText.slice(0,350)}`, "err");
+      return;
     }
-    const data = await r.json();
 
     fieldMap  = data.field_map || data.fieldMap || {};
     questions = data.questions || [];
@@ -289,13 +309,13 @@ async function onStartClick(evt){
     $("#stepB").scrollIntoView({behavior:"smooth"});
   }catch(e){
     console.error(e);
-    setMsg("aMsg", "Profiling failed. Check logs.", "err");
+    setMsg("aMsg", `Profiling failed. ${String(e)}`, "err");
   }finally{
     setBusy(btn, false);
   }
 }
 
-async function onToDesignClick(){
+async function onDesignClick(){
   const btn = $("#toDesign");
   setBusy(btn, true, "Building…");
   setMsg("bMsg", "");
@@ -305,7 +325,10 @@ async function onToDesignClick(){
     const answers = collectAnswers();
 
     let r = await fetch(`${ORCH}/field-map/${encodeURIComponent(sid)}`, {
-      method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify(fm)
+      method:"POST",
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(fm),
+      mode:"cors", cache:"no-store", credentials:"omit",
     });
     if(!r.ok){
       const t = await r.text().catch(()=>"(no body)");
@@ -313,24 +336,28 @@ async function onToDesignClick(){
     }
 
     r = await fetch(`${ORCH}/design/${encodeURIComponent(sid)}`, {
-      method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify({answers})
+      method:"POST",
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({answers}),
+      mode:"cors", cache:"no-store", credentials:"omit",
     });
-    const data = await r.json();
-    if(!r.ok) throw new Error(`/design failed (${r.status}): ${JSON.stringify(data)}`);
-    if(!data.preview_url) throw new Error("No preview_url from /design");
+    const text = await r.text();
+    let data = {}; try { data=JSON.parse(text); } catch {}
+    if(!r.ok) throw new Error(`/design failed (${r.status}): ${text}`);
 
+    if(!data.preview_url) throw new Error("No preview_url from /design");
     $("#preview").src = data.preview_url + (data.preview_url.includes("?") ? "&" : "?") + "_=" + Date.now();
     show("stepC", true);
     $("#stepC").scrollIntoView({behavior:"smooth"});
   }catch(e){
     console.error(e);
-    setMsg("bMsg", "Design failed. Check logs.", "err");
+    setMsg("bMsg", String(e), "err");
   }finally{
     setBusy(btn, false);
   }
 }
 
-async function onApplyNlClick(){
+async function onApplyNl(){
   const btn = $("#applyNl");
   setBusy(btn, true, "Applying…");
   setMsg("cMsg", "");
@@ -338,22 +365,24 @@ async function onApplyNlClick(){
     await ensureSession();
     const r = await fetch(`${ORCH}/nl-edit/${encodeURIComponent(sid)}`, {
       method:"POST", headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({instruction: ($("#nl").value||"").toString()})
+      body: JSON.stringify({instruction: ($("#nl").value||"").toString()}),
+      mode:"cors", cache:"no-store", credentials:"omit",
     });
-    const data = await r.json();
-    if(!r.ok) throw new Error(`/nl-edit failed (${r.status}): ${JSON.stringify(data)}`);
+    const text = await r.text();
+    let data={}; try{ data=JSON.parse(text); }catch{}
+    if(!r.ok) throw new Error(`/nl-edit failed (${r.status}): ${text}`);
     if(data.preview_url){
       $("#preview").src = data.preview_url + (data.preview_url.includes("?") ? "&" : "?") + "_=" + Date.now();
     }
   }catch(e){
     console.error(e);
-    setMsg("cMsg", "Could not apply change.", "err");
+    setMsg("cMsg", String(e), "err");
   }finally{
     setBusy(btn, false);
   }
 }
 
-async function onApproveClick(){
+async function onApprove(){
   try{
     await ensureSession();
     const email = ($("#email").value||"").trim();
@@ -362,34 +391,17 @@ async function onApproveClick(){
 
     const r = await fetch(`${ORCH}/approve/${encodeURIComponent(sid)}`, {
       method:"POST", headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({company,email})
+      body: JSON.stringify({company,email}),
+      mode:"cors", cache:"no-store", credentials:"omit",
     });
-    const data = await r.json();
-    if(!r.ok) throw new Error(`/approve failed (${r.status}): ${JSON.stringify(data)}`);
-    $("#plan").innerHTML = `<strong>${data.plan||"Plan"}</strong> – ${data.reason||""}<br>
-      ${data.signup_url ? `<a href="${data.signup_url}" target="_blank" rel="noopener">Continue to Sign Up</a>` : ""}`;
+    const text = await r.text(); let data={}; try{ data=JSON.parse(text); }catch{}
+    if(!r.ok) throw new Error(`/approve failed (${r.status}): ${text}`);
+    $("#plan").innerHTML = `<strong>${data.plan||"Plan"}</strong> – ${data.reason||""}<br>${
+      data.signup_url ? `<a href="${data.signup_url}" target="_blank" rel="noopener">Continue to Sign Up</a>` : ""}`;
   }catch(e){
     console.error(e);
-    $("#plan").textContent = "Approval failed. Please try again.";
+    $("#plan").textContent = `Approval failed. ${String(e)}`;
   }
-}
-
-function onDownloadSpec(){
-  (async ()=>{
-    try{
-      await ensureSession();
-      const r = await fetch(`${ORCH}/artifacts?sid=${encodeURIComponent(sid)}`);
-      const data = await r.json();
-      const blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `mr_draft_${sid}.json`;
-      a.click();
-    }catch(e){
-      console.error(e);
-      alert("Could not download spec.");
-    }
-  })();
 }
 
 function onReloadPreview(){
@@ -397,51 +409,34 @@ function onReloadPreview(){
   $("#preview").src = src + (src.includes("?") ? "&" : "?") + "_=" + Date.now();
 }
 
-/* ======== INITIAL BINDINGS ======== */
-function bindAll(){
-  $("#start")?.addEventListener("click", onStartClick);
-  $("#toDesign")?.addEventListener("click", onToDesignClick);
-  $("#applyNl")?.addEventListener("click", onApplyNlClick);
-  $("#approve")?.addEventListener("click", onApproveClick);
-  $("#downloadSpec")?.addEventListener("click", onDownloadSpec);
+/* ======== (RE)ATTACH HANDLERS EVERY LOAD ======== */
+function attachHandlers(){
+  $("#start")?.addEventListener("click", onProfileClick);
+  $("#toDesign")?.addEventListener("click", onDesignClick);
+  $("#applyNl")?.addEventListener("click", onApplyNl);
+  $("#approve")?.addEventListener("click", onApprove);
+  $("#downloadSpec")?.addEventListener("click", async () => {
+    try{
+      await ensureSession();
+      const r = await fetch(`${ORCH}/artifacts?sid=${encodeURIComponent(sid)}`,
+        {mode:"cors", cache:"no-store", credentials:"omit"});
+      const data = await r.json();
+      const blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `mr_draft_${sid}.json`;
+      a.click();
+    }catch(e){ console.error(e); alert("Could not download spec."); }
+  });
   $("#reloadPreview")?.addEventListener("click", onReloadPreview);
 }
 
-/* ======== HARDENING PATCH: keep Profile button clickable ======== */
-(function harden(){
-  // Global error hooks so you see root-cause in console
-  window.addEventListener('error', e => console.error('[UI] global error:', e.message || e));
-  window.addEventListener('unhandledrejection', e => console.error('[UI] unhandled promise rejection:', e.reason || e));
-
-  // Re-enable and rebind #start periodically (handles bfcache / overlay / stale disabled)
-  const revive = setInterval(() => {
-    const btn = $("#start");
-    if (!btn) return;
-    btn.disabled = false;
-    btn.removeAttribute('aria-disabled');
-    btn.style.pointerEvents = 'auto';
-    btn.style.position = 'relative';
-    btn.style.zIndex = '2';
-
-    // Replace with clone to drop stale listeners then re-bind
-    const clone = btn.cloneNode(true);
-    btn.parentNode.replaceChild(clone, btn);
-    clone.addEventListener("click", onStartClick);
-  }, 600);
-
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) clearInterval(revive);
-  });
-})();
-
-/* ======== AUTO-BOOT ======== */
+/* ======== BOOT ======== */
 document.addEventListener("DOMContentLoaded", async () => {
-  try {
-    bindAll();
-    await ensureSession();
-  } catch (e) {
-    // already logged
-  }
+  try{
+    attachHandlers();              // ensure handlers are present after any refresh
+    await ensureSession();         // create/restore session
+  }catch{}                         // message already shown if it fails
 });
 </script>
 </body>
