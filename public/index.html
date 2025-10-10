@@ -14,7 +14,7 @@
     .muted { color:#666; font-size:13px; }
     .row { display:flex; align-items:center; gap:12px; }
     .sid-badge { background:#fafafa; border:1px solid #e7e7e7; padding:6px 8px; border-radius:6px; font-size:12px; }
-    .card { border:1px solid #eee; padding:16px; border-radius:10px; background:#fff; }
+    .card { border:1px solid #eee; padding:16px; border-radius:10px; background:#fff; position:relative; z-index:1; }
     .grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
     .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
     button { appearance:none; background:#111; color:#fff; border:0; padding:9px 12px; border-radius:8px; cursor:pointer; }
@@ -80,7 +80,7 @@
     </div>
     <div class="toolbar" style="margin-top:12px">
       <button id="toDesign" type="button">Continue to design</button>
-      <button id="downloadSpec" type="button" class="ghost">Download spec (JSON)</button>
+      <button id="downloadSpec" class="ghost" type="button">Download spec (JSON)</button>
       <span id="bMsg" class="muted"></span>
     </div>
   </div>
@@ -106,7 +106,7 @@
       <div class="card">
         <h3>Session tools</h3>
         <div class="toolbar">
-          <button id="reloadPreview" type="button" class="ghost">Reload preview</button>
+          <button id="reloadPreview" class="ghost" type="button">Reload preview</button>
           <span class="muted">Preview SID is carried as a query param.</span>
         </div>
       </div>
@@ -141,11 +141,13 @@ function cookieSet(name, value){ document.cookie = `${name}=${value}; Max-Age=36
 async function ensureSession(){
   if(sid) return sid;
 
+  // Prefer explicit sid in URL, then cookie
   const urlSid = (readQuery("sid") || "").trim();
   const ckSid  = (cookieGet("mr_sid") || "").trim();
   if(urlSid){ sid = urlSid; cookieSet("mr_sid", sid); $('sidBadge').textContent = sid; return sid; }
   if(ckSid){ sid = ckSid; $('sidBadge').textContent = sid; return sid; }
 
+  // No sid → create one. Try JSON body, fallback to empty body.
   try{
     let r = await fetch(`${ORCH}/session`, {
       method: "POST",
@@ -154,7 +156,7 @@ async function ensureSession(){
     });
     if(r.status === 422){ r = await fetch(`${ORCH}/session`, { method:"POST" }); }
     const j = await r.json();
-    sid = j.sid || j.session_id;
+    sid = j.sid || j.session_id;    // support either key
     if(!sid) throw new Error("No sid in /session response");
     cookieSet("mr_sid", sid);
     $('sidBadge').textContent = sid;
@@ -248,15 +250,14 @@ function collectFieldMapEdits(){
   });
   return fieldMap;
 }
-
 function collectAnswers(){
   const inputs = $("#qBox").querySelectorAll("[data-qid]");
   const ans = {}; inputs.forEach(i => ans[i.dataset.qid] = (i.value||"").trim());
   return ans;
 }
 
-/* ======== HANDLERS ======== */
-async function onStartClick(){
+/* ======== ACTIONS (handlers) ======== */
+async function onStartClick(evt){
   const btn = $("#start");
   setBusy(btn, true, "Profiling…");
   setMsg("aMsg", "");
@@ -290,12 +291,11 @@ async function onStartClick(){
     console.error(e);
     setMsg("aMsg", "Profiling failed. Check logs.", "err");
   }finally{
-    const btn2 = $("#start");
-    if (btn2) setBusy(btn2, false);
+    setBusy(btn, false);
   }
 }
 
-async function onDesignClick(){
+async function onToDesignClick(){
   const btn = $("#toDesign");
   setBusy(btn, true, "Building…");
   setMsg("bMsg", "");
@@ -304,7 +304,6 @@ async function onDesignClick(){
     const fm = collectFieldMapEdits();
     const answers = collectAnswers();
 
-    // persist field map
     let r = await fetch(`${ORCH}/field-map/${encodeURIComponent(sid)}`, {
       method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify(fm)
     });
@@ -313,7 +312,6 @@ async function onDesignClick(){
       throw new Error(`/field-map failed (${r.status}): ${t}`);
     }
 
-    // design / preview
     r = await fetch(`${ORCH}/design/${encodeURIComponent(sid)}`, {
       method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify({answers})
     });
@@ -332,7 +330,7 @@ async function onDesignClick(){
   }
 }
 
-async function onApplyNl(){
+async function onApplyNlClick(){
   const btn = $("#applyNl");
   setBusy(btn, true, "Applying…");
   setMsg("cMsg", "");
@@ -355,7 +353,7 @@ async function onApplyNl(){
   }
 }
 
-async function onApprove(){
+async function onApproveClick(){
   try{
     await ensureSession();
     const email = ($("#email").value||"").trim();
@@ -376,20 +374,22 @@ async function onApprove(){
   }
 }
 
-async function onDownload(){
-  try{
-    await ensureSession();
-    const r = await fetch(`${ORCH}/artifacts?sid=${encodeURIComponent(sid)}`);
-    const data = await r.json();
-    const blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `mr_draft_${sid}.json`;
-    a.click();
-  }catch(e){
-    console.error(e);
-    alert("Could not download spec.");
-  }
+function onDownloadSpec(){
+  (async ()=>{
+    try{
+      await ensureSession();
+      const r = await fetch(`${ORCH}/artifacts?sid=${encodeURIComponent(sid)}`);
+      const data = await r.json();
+      const blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `mr_draft_${sid}.json`;
+      a.click();
+    }catch(e){
+      console.error(e);
+      alert("Could not download spec.");
+    }
+  })();
 }
 
 function onReloadPreview(){
@@ -397,35 +397,52 @@ function onReloadPreview(){
   $("#preview").src = src + (src.includes("?") ? "&" : "?") + "_=" + Date.now();
 }
 
-/* ======== BINDERS (idempotent + bfcache safe) ======== */
-function bindHandlers(){
-  // Ensure buttons are enabled and (re)bind listeners
-  const pairs = [
-    ["start", onStartClick],
-    ["toDesign", onDesignClick],
-    ["applyNl", onApplyNl],
-    ["approve", onApprove],
-    ["downloadSpec", onDownload],
-    ["reloadPreview", onReloadPreview],
-  ];
-  for(const [id, handler] of pairs){
-    const btn = $(id);
-    if(!btn) continue;
-    btn.disabled = false;
-    btn.removeAttribute("aria-disabled");
-    // drop any stale listeners by cloning
-    const clone = btn.cloneNode(true);
-    btn.parentNode.replaceChild(clone, btn);
-    clone.addEventListener("click", handler, { once:false });
-  }
+/* ======== INITIAL BINDINGS ======== */
+function bindAll(){
+  $("#start")?.addEventListener("click", onStartClick);
+  $("#toDesign")?.addEventListener("click", onToDesignClick);
+  $("#applyNl")?.addEventListener("click", onApplyNlClick);
+  $("#approve")?.addEventListener("click", onApproveClick);
+  $("#downloadSpec")?.addEventListener("click", onDownloadSpec);
+  $("#reloadPreview")?.addEventListener("click", onReloadPreview);
 }
 
-// Bind on first load and when restored from bfcache
+/* ======== HARDENING PATCH: keep Profile button clickable ======== */
+(function harden(){
+  // Global error hooks so you see root-cause in console
+  window.addEventListener('error', e => console.error('[UI] global error:', e.message || e));
+  window.addEventListener('unhandledrejection', e => console.error('[UI] unhandled promise rejection:', e.reason || e));
+
+  // Re-enable and rebind #start periodically (handles bfcache / overlay / stale disabled)
+  const revive = setInterval(() => {
+    const btn = $("#start");
+    if (!btn) return;
+    btn.disabled = false;
+    btn.removeAttribute('aria-disabled');
+    btn.style.pointerEvents = 'auto';
+    btn.style.position = 'relative';
+    btn.style.zIndex = '2';
+
+    // Replace with clone to drop stale listeners then re-bind
+    const clone = btn.cloneNode(true);
+    btn.parentNode.replaceChild(clone, btn);
+    clone.addEventListener("click", onStartClick);
+  }, 600);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) clearInterval(revive);
+  });
+})();
+
+/* ======== AUTO-BOOT ======== */
 document.addEventListener("DOMContentLoaded", async () => {
-  bindHandlers();
-  try { await ensureSession(); } catch {}
+  try {
+    bindAll();
+    await ensureSession();
+  } catch (e) {
+    // already logged
+  }
 });
-window.addEventListener("pageshow", bindHandlers);
 </script>
 </body>
 </html>
