@@ -10,111 +10,45 @@
     .wrap { max-width: 1240px; margin: 0 auto; padding: 24px; }
     h1 { margin: 0 0 16px; font-size: 38px; letter-spacing:.2px}
     h2 { margin: 0 0 10px; }
-    h3 { margin: 0 0 8px; }
     .muted { color:#666; font-size:13px; }
     .row { display:flex; align-items:center; gap:12px; }
     .sid-badge { background:#fafafa; border:1px solid #e7e7e7; padding:6px 8px; border-radius:6px; font-size:12px; }
     .card { border:1px solid #eee; padding:16px; border-radius:10px; background:#fff; }
-    .grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
     .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
-    button { appearance:none; background:#111; color:#fff; border:0; padding:9px 12px; border-radius:8px; cursor:pointer; }
-    button.ghost { background:#f5f5f5; color:#111; border:1px solid #ddd; }
+    button { appearance:none; background:#111; color:#fff; border:0; padding:10px 14px; border-radius:8px; cursor:pointer; }
+    button.secondary { background:#f5f5f5; color:#111; border:1px solid #ddd; }
     button[disabled] { opacity:.55; cursor:not-allowed; }
-    input[type="text"], input[type="email"], select, textarea { width:100%; padding:9px 10px; border-radius:8px; border:1px solid #ddd; }
+    input[type="text"], input[type="email"], select, textarea { width:100%; padding:10px 12px; border-radius:8px; border:1px solid #ddd; }
     textarea { min-height: 140px; font-family: ui-monospace, Menlo, Consolas, monospace; }
-    table { width:100%; border-collapse: collapse; font-size:14px; }
-    th, td { border-bottom:1px solid #eee; padding:8px; text-align:left; vertical-align:top; }
-    th { background:#fafafa; position:sticky; top:0; z-index:1;}
-    .scroll { max-height: 360px; overflow:auto; border:1px solid #eee; border-radius:8px; }
-    iframe { border:1px solid #eee; width:100%; height: 760px; border-radius:10px; }
-    .step { margin-bottom: 20px; }
     .hidden { display:none; }
     .err { color:#b00020; }
     .ok { color:#0a6; }
-    .pill { font-size:12px; background:#f2f2f2; padding:2px 8px; border-radius:999px; border:1px solid #e9e9e9; }
-
-    /* Ensure the profile button is always clickable even if a theme overlay exists */
-    #mrStepA { position: relative; z-index: 10000; isolation: isolate; }
-    #mrStart { position: relative; z-index: 10001; pointer-events: auto !important; }
   </style>
 </head>
 <body>
 <div class="wrap">
   <div class="row" style="margin-bottom:8px">
     <h1 style="flex:1">Dashboard Builder</h1>
-    <span class="muted">Session:</span><span id="mrSid" class="sid-badge">–</span>
+    <span class="muted">Session:</span>
+    <span id="sidBadge" class="sid-badge">–</span>
+    <button id="newSession" class="secondary" type="button" title="Start a fresh session">New session</button>
   </div>
 
-  <!-- STEP A: Profile & Upload -->
-  <div class="card step" id="mrStepA">
+  <!-- STEP A -->
+  <div class="card" id="stepA">
     <h2>1) Describe your business or upload a sample</h2>
-    <textarea id="mrPrompt" placeholder="What’s your business and what should the dashboard show?"></textarea>
+    <textarea id="prompt" placeholder="What’s your business and what should the dashboard show?"></textarea>
     <div class="toolbar" style="margin-top:8px">
-      <input id="mrFile" type="file" accept=".csv,.xlsx"/>
-      <button id="mrStart" type="button" onclick="window.__mrProfileClick?.()">Profile dataset</button>
-      <span id="mrMsgA" class="muted"></span>
+      <input id="file" type="file" accept=".csv,.xlsx"/>
+      <button id="start" type="button">Profile dataset</button>
+      <span id="aMsg" class="muted"></span>
     </div>
   </div>
 
-  <!-- STEP B: Review fields & questions -->
-  <div class="card step hidden" id="mrStepB">
-    <div class="grid-2">
-      <div>
-        <div class="row" style="justify-content:space-between;margin-bottom:8px">
-          <h2 style="margin:0">2) Field Map</h2>
-          <span class="pill" id="mrFieldCount">0 fields</span>
-        </div>
-        <div class="scroll">
-          <table id="mrFieldTable">
-            <thead>
-              <tr>
-                <th>Field</th><th>Type</th><th>Semantic</th><th>Unit/Grain</th><th>Description</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-        <small class="muted">Edit semantics/description if needed.</small>
-      </div>
-      <div>
-        <h2>Questions</h2>
-        <div id="mrQBox" class="scroll" style="padding:8px"></div>
-        <small class="muted">Please answer any required questions before continuing.</small>
-      </div>
-    </div>
-    <div class="toolbar" style="margin-top:12px">
-      <button id="mrToDesign">Continue to design</button>
-      <button id="mrDownloadSpec" class="ghost">Download spec (JSON)</button>
-      <span id="mrMsgB" class="muted"></span>
-    </div>
-  </div>
-
-  <!-- STEP C: Design & Preview (full width) -->
-  <div class="card step hidden" id="mrStepC">
-    <h2>3) Design & Preview</h2>
-    <div class="toolbar" style="margin-bottom:8px">
-      <input id="mrNl" placeholder="e.g., add a bar of returns by category; compare last month"/>
-      <button id="mrApplyNl">Apply change</button>
-      <span id="mrMsgC" class="muted"></span>
-    </div>
-    <iframe id="mrPreview" src=""></iframe>
-
-    <div class="grid-2" style="margin-top:16px">
-      <div class="card">
-        <h3>Approve & Continue</h3>
-        <input id="mrCompany" placeholder="Company name"/>
-        <input id="mrEmail" type="email" placeholder="Contact email"/>
-        <button id="mrApprove">Approve design</button>
-        <div id="mrPlan" class="muted" style="margin-top:8px"></div>
-      </div>
-      <div class="card">
-        <h3>Session tools</h3>
-        <div class="toolbar">
-          <button id="mrReloadPreview" class="ghost">Reload preview</button>
-          <span class="muted">Preview SID is carried as a query param.</span>
-        </div>
-      </div>
-    </div>
+  <!-- STEP B shell (kept for future steps) -->
+  <div class="card hidden" id="stepB">
+    <h2>2) Field Map</h2>
+    <div id="stepBMsg" class="muted"></div>
   </div>
 </div>
 
@@ -122,12 +56,7 @@
 /* ======== CONFIG ======== */
 const ORCH = "https://mr-orchestrator-585407302606.europe-west2.run.app";
 
-/* ======== STATE ======== */
-let sid = null;
-let fieldMap = null;
-let questions = [];
-
-/* ======== UTILS ======== */
+/* ======== HELPERS ======== */
 const $ = (id) => document.getElementById(id);
 function setMsg(id, text, cls="muted"){ const el=$(id); if(!el) return; el.className=cls; el.textContent = text||""; }
 function show(id, flag){ $(id).classList.toggle("hidden", !flag); }
@@ -140,281 +69,103 @@ function setBusy(btn, on, label="Working…"){
 function readQuery(k){ const p = new URLSearchParams(location.search); return p.get(k); }
 function cookieGet(name){ return (`; ${document.cookie}`).split(`; ${name}=`).pop().split(';')[0] || ""; }
 function cookieSet(name, value){ document.cookie = `${name}=${value}; Max-Age=3600; Path=/; SameSite=None; Secure`; }
+function cookieDel(name){ document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=None; Secure`; }
 
-/* ======== SESSION BOOTSTRAP ======== */
+/* ======== STATE ======== */
+let sid = null;
+
+/* ======== SESSION ======== */
+async function createSession(){
+  // try JSON body; fall back to empty body if 422
+  let r = await fetch(`${ORCH}/session`, {
+    method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({prompt:""})
+  });
+  if(r.status === 422){ r = await fetch(`${ORCH}/session`, { method:"POST" }); }
+  const j = await r.json();
+  const newSid = j.sid || j.session_id;
+  if(!newSid) throw new Error("No sid in /session response");
+  cookieSet("mr_sid", newSid);
+  sid = newSid;
+  $("sidBadge").textContent = sid;
+  return sid;
+}
+
 async function ensureSession(){
-  if(sid) return sid;
+  // forced new session via URL switch
+  if(readQuery("new") === "1"){ cookieDel("mr_sid"); }
 
   const urlSid = (readQuery("sid") || "").trim();
   const ckSid  = (cookieGet("mr_sid") || "").trim();
-  if(urlSid){ sid = urlSid; cookieSet("mr_sid", sid); $('mrSid').textContent = sid; return sid; }
-  if(ckSid){ sid = ckSid; $('mrSid').textContent = sid; return sid; }
+  if(urlSid){ sid = urlSid; cookieSet("mr_sid", sid); $("sidBadge").textContent = sid; return sid; }
+  if(ckSid){ sid = ckSid; $("sidBadge").textContent = sid; return sid; }
+  return await createSession();
+}
 
-  // Try JSON body first (newer backend), then fallback (older)
+/* ======== WIRES ======== */
+async function onNewSession(){
   try{
-    let r = await fetch(`${ORCH}/session`, {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({prompt:""})
-    });
-    if(r.status === 422){ r = await fetch(`${ORCH}/session`, { method:"POST" }); }
-    const j = await r.json();
-    sid = j.sid || j.session_id;
-    if(!sid) throw new Error("No sid in /session response");
-    cookieSet("mr_sid", sid);
-    $('mrSid').textContent = sid;
-    return sid;
-  }catch(err){
-    console.error("ensureSession failed:", err);
-    setMsg("mrMsgA", "Could not create a session. Please reload.", "err");
-    throw err;
+    setBusy($("newSession"), true, "Starting…");
+    cookieDel("mr_sid");
+    await createSession();
+    setMsg("aMsg", "New session started.", "ok");
+  }catch(e){
+    console.error(e);
+    setMsg("aMsg", "Could not start a new session.", "err");
+  }finally{
+    setBusy($("newSession"), false);
   }
 }
 
-/* ======== RENDERERS ======== */
-function renderFieldTable(map){
-  const tb = $("#mrFieldTable").querySelector("tbody");
-  tb.innerHTML = "";
-  const fields = (map?.tables?.[0]?.fields) || [];
-  $("#mrFieldCount").textContent = `${fields.length} field${fields.length===1?"":"s"}`;
-  for(const f of fields){
-    const tr = document.createElement("tr");
-    tr.dataset.field = f.name;
-    tr.innerHTML = `
-      <td><strong>${f.name}</strong></td>
-      <td>
-        <select data-k="type">
-          <option ${f.type==="STRING"?"selected":""}>STRING</option>
-          <option ${f.type==="NUMERIC"?"selected":""}>NUMERIC</option>
-          <option ${f.type==="DATE"?"selected":""}>DATE</option>
-        </select>
-      </td>
-      <td>
-        <select data-k="semantic">
-          <option value="" ${!f.semantic?"selected":""}>—</option>
-          <option value="id" ${f.semantic==="id"?"selected":""}>id</option>
-          <option value="date" ${f.semantic==="date"?"selected":""}>date</option>
-          <option value="currency" ${f.semantic==="currency"?"selected":""}>currency</option>
-          <option value="category" ${f.semantic==="category"?"selected":""}>category</option>
-        </select>
-      </td>
-      <td><input type="text" data-k="unit" placeholder="GBP, %, day, month" value="${(f.unit||f.grain||"").toString()}"/></td>
-      <td><input type="text" data-k="desc" placeholder="Short explanation" value="${(f.desc||"").toString()}"/></td>`;
-    tb.appendChild(tr);
-  }
-}
-function renderQuestions(qs){
-  const box = $("#mrQBox"); box.innerHTML = "";
-  for(const q of (qs||[])){
-    const wrap = document.createElement("div"); wrap.style.marginBottom="12px";
-    wrap.innerHTML = `<div style="margin-bottom:6px"><strong>${q.prompt||""}</strong></div>`;
-    let inputEl;
-    if(q.kind === "select"){
-      inputEl = document.createElement("select");
-      (q.options||[]).forEach(o=>{
-        const opt = document.createElement("option");
-        opt.value=o; opt.textContent=o; inputEl.appendChild(opt);
-      });
-      if(q.default) inputEl.value = q.default;
-    }else{
-      inputEl = document.createElement("input");
-      inputEl.placeholder = q.placeholder || "";
-      if(q.default) inputEl.value = q.default;
-    }
-    inputEl.dataset.qid = q.id;
-    inputEl.style.width = "100%";
-    wrap.appendChild(inputEl);
-    box.appendChild(wrap);
-  }
-}
-
-/* ======== COLLECTORS ======== */
-function collectFieldMapEdits(){
-  const rows = $("#mrFieldTable").querySelectorAll("tbody tr");
-  const idx = {};
-  rows.forEach(r=>{
-    const name = r.dataset.field;
-    const out = {};
-    r.querySelectorAll("[data-k]").forEach(el=> out[el.dataset.k] = (el.value||"").trim());
-    idx[name] = out;
-  });
-  const table = fieldMap.tables[0];
-  table.fields = table.fields.map(f=>{
-    const e = idx[f.name] || {};
-    return {
-      ...f,
-      type: e.type || f.type,
-      semantic: e.semantic || f.semantic || "",
-      unit: e.unit || f.unit,
-      grain: e.unit || f.grain,
-      desc: e.desc || f.desc || ""
-    };
-  });
-  return fieldMap;
-}
-function collectAnswers(){
-  const inputs = $("#mrQBox").querySelectorAll("[data-qid]");
-  const ans = {}; inputs.forEach(i => ans[i.dataset.qid] = (i.value||"").trim());
-  return ans;
-}
-
-/* ======== ACTION HANDLERS (robust bind) ======== */
-window._mrStartHandler = async function(){
-  const btn = $("#mrStart");
+async function onProfile(){
+  const btn = $("start");
   setBusy(btn, true, "Profiling…");
-  setMsg("mrMsgA", "");
+  setMsg("aMsg", "");
   try{
     await ensureSession();
+
     const fd = new FormData();
-    fd.append("prompt", ($("#mrPrompt").value || "").toString());
-    const f = $("#mrFile").files[0]; if(f) fd.append("file", f);
+    fd.append("prompt", ($("prompt").value || "").toString());
+    const f = $("file").files[0];
+    if(f) fd.append("file", f);
 
     const r = await fetch(`${ORCH}/profile/${encodeURIComponent(sid)}`, { method:"POST", body: fd });
+    const text = await r.text();
+    let data = {};
+    try { data = JSON.parse(text || "{}"); } catch { /* keep default */ }
+
     if(!r.ok){
-      const t = await r.text().catch(()=>"(no body)");
-      throw new Error(`/profile failed (${r.status}): ${t}`);
+      console.error("PROFILE ERROR", r.status, text);
+      throw new Error(data?.error || text || `HTTP ${r.status}`);
     }
-    const data = await r.json();
 
-    fieldMap  = data.field_map || data.fieldMap || {};
-    questions = data.questions || [];
-
-    if(!fieldMap?.tables?.[0]?.fields?.length){
-      setMsg("mrMsgA", "Profiling completed but no fields detected. Please check your file format.", "err");
+    // If your orchestrator returns { field_map, questions } we can gate step B here:
+    if(data.field_map?.tables?.[0]?.fields?.length){
+      setMsg("aMsg", "Profiling complete. Review fields and answer questions.", "ok");
+      $("stepBMsg").textContent = `Detected ${data.field_map.tables[0].fields.length} fields.`;
+      show("stepB", true);
     } else {
-      setMsg("mrMsgA", "Profiling complete. Review fields and answer questions.", "ok");
+      setMsg("aMsg", "Profiling completed but no fields were detected. Check your file format.", "err");
     }
-
-    renderFieldTable(fieldMap);
-    renderQuestions(questions);
-    show("mrStepB", true);
-    $("#mrStepB").scrollIntoView({behavior:"smooth"});
   }catch(e){
     console.error(e);
-    setMsg("mrMsgA", "Profiling failed. Check logs.", "err");
+    setMsg("aMsg", "Profiling failed. Check logs.", "err");
   }finally{
     setBusy(btn, false);
   }
-};
+}
 
-/* Multi-bind so clicks work even with theme overlays */
-(function robustBind(){
-  const btn = document.getElementById('mrStart');
-  if(!btn) return;
-  window.__mrProfileClick = () => window._mrStartHandler();
-  btn.onclick = window.__mrProfileClick;
-  btn.addEventListener('click', window.__mrProfileClick);
-  // Debug: verify we see the click
-  document.addEventListener('click', (e) => {
-    if (e.target && (e.target.id === 'mrStart' || e.target.closest('#mrStart'))) {
-      console.log('[UI] mrStart DOM click seen');
-    }
-  }, true);
+/* ======== BOOT ======== */
+(async () => {
+  try {
+    await ensureSession();
+  } catch(e) {
+    console.error(e);
+    setMsg("aMsg", "Could not create a session. Please reload.", "err");
+  }
+  // bind handlers (ensure type="button" so clicks don't submit anything)
+  $("newSession").addEventListener("click", onNewSession, {passive:true});
+  $("start").addEventListener("click", onProfile, {passive:true});
 })();
-
-/* Other buttons */
-$("#mrToDesign").onclick = async () => {
-  const btn = $("#mrToDesign");
-  setBusy(btn, true, "Building…");
-  setMsg("mrMsgB", "");
-  try{
-    await ensureSession();
-    const fm = collectFieldMapEdits();
-    const answers = collectAnswers();
-
-    let r = await fetch(`${ORCH}/field-map/${encodeURIComponent(sid)}`, {
-      method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify(fm)
-    });
-    if(!r.ok){
-      const t = await r.text().catch(()=>"(no body)");
-      throw new Error(`/field-map failed (${r.status}): ${t}`);
-    }
-
-    r = await fetch(`${ORCH}/design/${encodeURIComponent(sid)}`, {
-      method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify({answers})
-    });
-    const data = await r.json();
-    if(!r.ok) throw new Error(`/design failed (${r.status}): ${JSON.stringify(data)}`);
-    if(!data.preview_url) throw new Error("No preview_url from /design");
-
-    $("#mrPreview").src = data.preview_url + (data.preview_url.includes("?") ? "&" : "?") + "_=" + Date.now();
-    show("mrStepC", true);
-    $("#mrStepC").scrollIntoView({behavior:"smooth"});
-  }catch(e){
-    console.error(e);
-    setMsg("mrMsgB", "Design failed. Check logs.", "err");
-  }finally{
-    setBusy(btn, false);
-  }
-};
-
-$("#mrApplyNl").onclick = async () => {
-  const btn = $("#mrApplyNl");
-  setBusy(btn, true, "Applying…");
-  setMsg("mrMsgC", "");
-  try{
-    await ensureSession();
-    const r = await fetch(`${ORCH}/nl-edit/${encodeURIComponent(sid)}`, {
-      method:"POST", headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({instruction: ($("#mrNl").value||"").toString()})
-    });
-    const data = await r.json();
-    if(!r.ok) throw new Error(`/nl-edit failed (${r.status}): ${JSON.stringify(data)}`);
-    if(data.preview_url){
-      $("#mrPreview").src = data.preview_url + (data.preview_url.includes("?") ? "&" : "?") + "_=" + Date.now();
-    }
-  }catch(e){
-    console.error(e);
-    setMsg("mrMsgC", "Could not apply change.", "err");
-  }finally{
-    setBusy(btn, false);
-  }
-};
-
-$("#mrApprove").onclick = async () => {
-  try{
-    await ensureSession();
-    const email = ($("#mrEmail").value||"").trim();
-    const company = ($("#mrCompany").value||"").trim();
-    if(!email || !company){ alert("Company and email required"); return; }
-
-    const r = await fetch(`${ORCH}/approve/${encodeURIComponent(sid)}`, {
-      method:"POST", headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({company,email})
-    });
-    const data = await r.json();
-    if(!r.ok) throw new Error(`/approve failed (${r.status}): ${JSON.stringify(data)}`);
-    $("#mrPlan").innerHTML = `<strong>${data.plan||"Plan"}</strong> – ${data.reason||""}<br>
-      ${data.signup_url ? `<a href="${data.signup_url}" target="_blank" rel="noopener">Continue to Sign Up</a>` : ""}`;
-  }catch(e){
-    console.error(e);
-    $("#mrPlan").textContent = "Approval failed. Please try again.";
-  }
-};
-
-$("#mrDownloadSpec").onclick = async () => {
-  try{
-    await ensureSession();
-    const r = await fetch(`${ORCH}/artifacts?sid=${encodeURIComponent(sid)}`);
-    const data = await r.json();
-    const blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `mr_draft_${sid}.json`;
-    a.click();
-  }catch(e){
-    console.error(e);
-    alert("Could not download spec.");
-  }
-};
-
-$("#mrReloadPreview").onclick = () => {
-  const src = $("#mrPreview").src.split("&_=")[0];
-  $("#mrPreview").src = src + (src.includes("?") ? "&" : "?") + "_=" + Date.now();
-};
-
-/* ======== AUTO-BOOT ======== */
-(async () => { try { await ensureSession(); } catch {} })();
 </script>
 </body>
 </html>
