@@ -23,6 +23,9 @@
     .hidden { display:none; }
     .err { color:#b00020; }
     .ok { color:#0a6; }
+    table { width:100%; border-collapse: collapse; margin-top:10px; }
+    th, td { text-align:left; border-bottom:1px solid #eee; padding:8px 6px; font-size:14px; }
+    th { background:#fafafa; }
   </style>
 </head>
 <body>
@@ -45,10 +48,11 @@
     </div>
   </div>
 
-  <!-- STEP B shell (kept for future steps) -->
+  <!-- STEP B -->
   <div class="card hidden" id="stepB">
     <h2>2) Field Map</h2>
     <div id="stepBMsg" class="muted"></div>
+    <div id="fieldsPreview"></div>
   </div>
 </div>
 
@@ -67,16 +71,55 @@ function setBusy(btn, on, label="Working…"){
   else if(btn.dataset._t){ btn.textContent = btn.dataset._t; delete btn.dataset._t; }
 }
 function readQuery(k){ const p = new URLSearchParams(location.search); return p.get(k); }
-function cookieGet(name){ return (`; ${document.cookie}`).split(`; ${name}=`).pop().split(';')[0] || ""; }
+function cookieGet(name){
+  try{
+    const v = (`; ${document.cookie}`).split(`; ${name}=`).pop().split(';')[0];
+    return v === document.cookie ? "" : v;
+  }catch(_){ return ""; }
+}
 function cookieSet(name, value){ document.cookie = `${name}=${value}; Max-Age=3600; Path=/; SameSite=None; Secure`; }
 function cookieDel(name){ document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=None; Secure`; }
+
+/* Small renderer for a preview table (first 6 rows) */
+function renderFieldsPreview(fields){
+  const root = $("fieldsPreview");
+  root.innerHTML = "";
+  if(!Array.isArray(fields) || !fields.length) return;
+
+  const head = document.createElement("div");
+  head.className = "muted";
+  head.textContent = "Preview of detected fields:";
+  root.appendChild(head);
+
+  const tbl = document.createElement("table");
+  const thead = document.createElement("thead");
+  thead.innerHTML = "<tr><th>field</th><th>dtype</th><th>description</th></tr>";
+  tbl.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  fields.slice(0,6).forEach(f => {
+    const tr = document.createElement("tr");
+    const field = (f.field ?? f.name ?? "");
+    const dtype = (f.dtype ?? f.type ?? "");
+    const desc  = (f.description ?? "");
+    tr.innerHTML = `<td>${escapeHtml(field)}</td><td>${escapeHtml(dtype)}</td><td>${escapeHtml(desc)}</td>`;
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+  root.appendChild(tbl);
+}
+
+function escapeHtml(s){
+  return String(s ?? "").replace(/[&<>"'`=\/]/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;","/":"&#47;","`":"&#96;","=":"&#61;"
+  }[c]));
+}
 
 /* ======== STATE ======== */
 let sid = null;
 
 /* ======== SESSION ======== */
 async function createSession(){
-  // try JSON body; fall back to empty body if 422
   let r = await fetch(`${ORCH}/session`, {
     method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({prompt:""})
   });
@@ -91,9 +134,7 @@ async function createSession(){
 }
 
 async function ensureSession(){
-  // forced new session via URL switch
   if(readQuery("new") === "1"){ cookieDel("mr_sid"); }
-
   const urlSid = (readQuery("sid") || "").trim();
   const ckSid  = (cookieGet("mr_sid") || "").trim();
   if(urlSid){ sid = urlSid; cookieSet("mr_sid", sid); $("sidBadge").textContent = sid; return sid; }
@@ -108,6 +149,9 @@ async function onNewSession(){
     cookieDel("mr_sid");
     await createSession();
     setMsg("aMsg", "New session started.", "ok");
+    show("stepB", false);
+    $("fieldsPreview").innerHTML = "";
+    $("stepBMsg").textContent = "";
   }catch(e){
     console.error(e);
     setMsg("aMsg", "Could not start a new session.", "err");
@@ -116,10 +160,23 @@ async function onNewSession(){
   }
 }
 
+function pickFields(resp){
+  // Preferred keys first, then legacy
+  if (Array.isArray(resp?.fields)) return resp.fields;
+  if (Array.isArray(resp?.schema_table)) return resp.schema_table;
+  if (Array.isArray(resp?.schema)) return resp.schema;
+  if (Array.isArray(resp?.field_map?.tables?.[0]?.fields)) return resp.field_map.tables[0].fields;
+  return [];
+}
+
 async function onProfile(){
   const btn = $("start");
   setBusy(btn, true, "Profiling…");
   setMsg("aMsg", "");
+  show("stepB", false);
+  $("fieldsPreview").innerHTML = "";
+  $("stepBMsg").textContent = "";
+
   try{
     await ensureSession();
 
@@ -138,13 +195,18 @@ async function onProfile(){
       throw new Error(data?.error || text || `HTTP ${r.status}`);
     }
 
-    // If your orchestrator returns { field_map, questions } we can gate step B here:
-    if(data.field_map?.tables?.[0]?.fields?.length){
-      setMsg("aMsg", "Profiling complete. Review fields and answer questions.", "ok");
-      $("stepBMsg").textContent = `Detected ${data.field_map.tables[0].fields.length} fields.`;
+    // --- Robust field extraction (new and legacy keys) ---
+    const fields = pickFields(data);
+    const qCount = Array.isArray(data?.questions) ? data.questions.length : 0;
+
+    if(fields.length){
+      setMsg("aMsg", `Profiling complete. Detected ${fields.length} fields` + (qCount ? ` • ${qCount} questions` : ""), "ok");
+      $("stepBMsg").textContent = `Detected ${fields.length} fields.` + (qCount ? ` There are ${qCount} questions.` : "");
+      renderFieldsPreview(fields);
       show("stepB", true);
     } else {
       setMsg("aMsg", "Profiling completed but no fields were detected. Check your file format.", "err");
+      show("stepB", false);
     }
   }catch(e){
     console.error(e);
@@ -162,7 +224,6 @@ async function onProfile(){
     console.error(e);
     setMsg("aMsg", "Could not create a session. Please reload.", "err");
   }
-  // bind handlers (ensure type="button" so clicks don't submit anything)
   $("newSession").addEventListener("click", onNewSession, {passive:true});
   $("start").addEventListener("click", onProfile, {passive:true});
 })();
