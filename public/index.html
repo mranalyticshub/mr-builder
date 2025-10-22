@@ -5,7 +5,7 @@
   <title>MR Analytics Hub – Dashboard Builder</title>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <style>
-    :root { --gap:16px; }
+    :root { --gap:16px; --gridCols:12; --gridRows:9; }
     html, body { margin:0; padding:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto; color:#111;}
     .wrap { max-width: 1240px; margin: 0 auto; padding: 24px; }
     h1 { margin: 0 0 16px; font-size: 38px; letter-spacing:.2px}
@@ -24,19 +24,35 @@
     .err { color:#b00020; }
     .ok { color:#0a6; }
 
-    /* Field table */
+    /* table */
+    .tbl-wrap { max-height: 360px; overflow:auto; border:1px solid #eee; border-radius:10px; }
     table { width:100%; border-collapse: collapse; }
-    th, td { padding:10px 12px; border-bottom:1px solid #eee; vertical-align: top; }
-    td[contenteditable="true"] { background:#fcfcfc; outline:none; }
-    .scroll { max-height: 340px; overflow: auto; border:1px solid #f1f1f1; border-radius:8px; }
+    th, td { border-bottom:1px solid #f0f0f0; padding:10px 12px; vertical-align: top; }
+    th { position: sticky; top:0; background:#fff; z-index:1; }
+    td.editable { background:#fffdf7; outline: 0; }
+    td.editable:focus { box-shadow: inset 0 0 0 2px #ffe7a3; background:#fff9e6; }
 
-    /* Preview grid (12-col) */
-    .preview-grid { position:relative; width:100%; border:1px dashed #ddd; border-radius:10px; padding:12px; }
-    .grid-inner { position:relative; width:100%; height:680px; background:repeating-linear-gradient(to right, #fafafa 0 1px, transparent 1px 8.333%); }
-    .tile { position:absolute; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.08); border:1px solid #eee; border-radius:10px; overflow:hidden; display:flex; flex-direction:column;}
-    .tile h4 { margin:0; padding:10px 12px; font-size:14px; border-bottom:1px solid #f5f5f5; background:#fcfcfc;}
-    .tile .body { padding:12px; font-size:12px; color:#666; }
-    .tiny { font-size:12px; }
+    /* questions */
+    .qgrid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+    .qcard { border:1px dashed #e6e6e6; border-radius:10px; padding:14px; }
+    .qcard h4 { margin:0 0 6px; font-size:14px; color:#444; }
+
+    /* design grid preview */
+    .gridWrap { border:1px solid #eee; border-radius:10px; padding:8px; background:#fff; }
+    .grid { position: relative; width:100%; height: 560px; background:
+      repeating-linear-gradient(to right, #fafafa 0 1px, transparent 1px calc((100%/var(--gridCols)))),
+      repeating-linear-gradient(to bottom, #fafafa 0 1px, transparent 1px calc((100%/var(--gridRows))));
+      background-size: calc(100%/var(--gridCols)) calc(100%/var(--gridRows));
+      border-radius:8px;
+    }
+    .tile {
+      position:absolute; background:#f7f9ff; border:1px solid #dfe7ff; border-radius:8px;
+      box-shadow: 0 1px 0 rgba(0,0,0,.03);
+      display:flex; align-items:center; justify-content:center; text-align:center;
+      padding:8px;
+    }
+    .tile .title { font-size:13px; color:#334; }
+    .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px; }
   </style>
 </head>
 <body>
@@ -62,23 +78,30 @@
   <!-- STEP B -->
   <div class="card hidden" id="stepB">
     <h2>2) Field Map</h2>
-    <div id="stepBMsg" class="muted"></div>
+    <div class="muted" style="margin-bottom:8px">
+      Detected <span id="fldCount">0</span> fields. There are <span id="qCount">0</span> questions. Preview of detected fields:
+      <div>Tips: click in the <b>dtype</b>, <b>allowed</b> or <b>description</b> cells to edit. Changes are kept locally and used when designing.</div>
+    </div>
 
-    <div class="scroll" style="margin-top:12px">
-      <table id="fieldsTable">
+    <div class="tbl-wrap">
+      <table id="fieldTable">
         <thead>
-          <tr><th style="width:220px">field</th><th style="width:130px">dtype</th><th style="width:180px">allowed</th><th>description</th></tr>
+        <tr>
+          <th style="width:220px">field</th>
+          <th style="width:110px">dtype</th>
+          <th style="width:200px">allowed</th>
+          <th>description</th>
+        </tr>
         </thead>
-        <tbody id="fieldsBody"></tbody>
+        <tbody></tbody>
       </table>
     </div>
 
-    <div style="margin-top:16px">
-      <h3>3) Questions</h3>
-      <div id="questionsWrap" class="muted tiny">No questions yet.</div>
-    </div>
+    <h2 style="margin-top:18px">3) Questions</h2>
+    <div class="muted" style="margin-bottom:8px">Please answer briefly, or leave blank.</div>
+    <div id="qGrid" class="qgrid"></div>
 
-    <div class="toolbar" style="margin-top:14px">
+    <div class="actions">
       <button id="toDesign" type="button">Continue to design</button>
       <span id="bMsg" class="muted"></span>
     </div>
@@ -86,10 +109,10 @@
 
   <!-- STEP C -->
   <div class="card hidden" id="stepC">
-    <h2>3) Design & Preview</h2>
-    <div id="cMsg" class="muted"></div>
-    <div class="preview-grid" style="margin-top:10px">
-      <div id="grid" class="grid-inner"></div>
+    <h2>4) Design & Preview</h2>
+    <div id="cMsg" class="muted" style="margin-bottom:8px"></div>
+    <div class="gridWrap">
+      <div id="grid" class="grid" aria-label="Layout preview (tiles from DSL)"></div>
     </div>
   </div>
 </div>
@@ -115,9 +138,9 @@ function cookieDel(name){ document.cookie = `${name}=; Max-Age=0; Path=/; SameSi
 
 /* ======== STATE ======== */
 let sid = null;
-let schemaFields = [];        // editable fields
-let questions = [];           // clarifying qs
-let dsl = null;               // returned dashboard
+let fields = [];           // working copy of schema rows {field, dtype, allowed, description}
+let questions = [];        // [{id,text,answer}]
+let dsl = null;
 
 /* ======== SESSION ======== */
 async function createSession(){
@@ -143,49 +166,114 @@ async function ensureSession(){
   return await createSession();
 }
 
-/* ======== UI – fields & questions ======== */
-function renderFields(fields){
-  const tb = $("fieldsBody");
-  tb.innerHTML = "";
-  fields.forEach((f,i)=>{
+/* ======== RENDERERS ======== */
+function renderFieldsTable(rows){
+  const tbody = $("fieldTable").querySelector("tbody");
+  tbody.innerHTML = "";
+  rows.forEach((r, i) => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${f.field ?? ""}</td>
-      <td contenteditable="true" data-k="dtype">${f.dtype ?? ""}</td>
-      <td contenteditable="true" data-k="allowed">${f.allowed ?? ""}</td>
-      <td contenteditable="true" data-k="description">${f.description ?? ""}</td>`;
-    tr.querySelectorAll('[contenteditable="true"]').forEach(cell=>{
-      cell.addEventListener("blur", ()=>{
-        const k = cell.dataset.k;
-        schemaFields[i][k] = cell.textContent.trim();
-      });
-    });
-    tb.appendChild(tr);
+    const tdField = document.createElement("td");
+    tdField.textContent = r.field || "";
+    tdField.style.fontWeight = "600";
+    tr.appendChild(tdField);
+
+    const tdDtype = document.createElement("td");
+    tdDtype.className = "editable";
+    tdDtype.contentEditable = "true";
+    tdDtype.textContent = r.dtype || "";
+    tdDtype.dataset.row = i; tdDtype.dataset.key = "dtype";
+    tr.appendChild(tdDtype);
+
+    const tdAllowed = document.createElement("td");
+    tdAllowed.className = "editable";
+    tdAllowed.contentEditable = "true";
+    tdAllowed.textContent = r.allowed || "";
+    tdAllowed.dataset.row = i; tdAllowed.dataset.key = "allowed";
+    tr.appendChild(tdAllowed);
+
+    const tdDesc = document.createElement("td");
+    tdDesc.className = "editable";
+    tdDesc.contentEditable = "true";
+    tdDesc.textContent = r.description || "";
+    tdDesc.dataset.row = i; tdDesc.dataset.key = "description";
+    tr.appendChild(tdDesc);
+
+    tbody.appendChild(tr);
   });
+
+  // delegate changes (keep state in `fields`)
+  tbody.addEventListener("blur", (ev) => {
+    const t = ev.target;
+    if(!t.classList.contains("editable")) return;
+    const row = Number(t.dataset.row);
+    const key = t.dataset.key;
+    if(!Number.isFinite(row) || !key) return;
+    fields[row][key] = t.textContent.trim();
+  }, true);
 }
 
 function renderQuestions(qs){
-  const wrap = $("questionsWrap");
-  if(!qs?.length){ wrap.textContent = "No questions."; return; }
-  wrap.innerHTML = "";
-  qs.forEach((q, idx)=>{
+  const root = $("qGrid");
+  root.innerHTML = "";
+  qs.forEach((q, i) => {
     const card = document.createElement("div");
-    card.style = "margin:10px 0; border:1px solid #eee; border-radius:8px; padding:10px 12px; background:#fff;";
-    card.innerHTML = `<div class="tiny muted" style="margin-bottom:6px">Question ${idx+1}</div>
-                      <div style="margin-bottom:8px">${q}</div>
-                      <textarea data-idx="${idx}" placeholder="Your answer (optional)"></textarea>`;
-    wrap.appendChild(card);
+    card.className = "qcard";
+    const h = document.createElement("h4");
+    h.textContent = `Question ${i+1}`;
+    const p = document.createElement("div");
+    p.style.marginBottom = "6px";
+    p.textContent = q.text || q.question || "";
+    const ta = document.createElement("textarea");
+    ta.placeholder = "Your answer (optional)";
+    ta.value = q.answer || "";
+    ta.addEventListener("input", () => { q.answer = ta.value; });
+    card.append(h, p, ta);
+    root.appendChild(card);
   });
 }
 
-/* ======== STEP A – Profile ======== */
+function renderDesignGrid(dslObj){
+  const grid = $("grid");
+  grid.innerHTML = "";
+  if(!dslObj || !dslObj.pages || !dslObj.pages[0] || !Array.isArray(dslObj.pages[0].tiles)){
+    setMsg("cMsg", "No tiles returned in DSL. Edit the schema/answers and try again.", "err");
+    return;
+  }
+  const tiles = dslObj.pages[0].tiles;
+
+  // position tiles in a 12x9 grid
+  grid.style.setProperty("--gridCols", 12);
+  grid.style.setProperty("--gridRows", 9);
+
+  const toPct = (val, total) => `${(val/total)*100}%`;
+
+  tiles.forEach((t) => {
+    // sanitize & defaults
+    const x = Math.max(0, Number(t.x||0));
+    const y = Math.max(0, Number(t.y||0));
+    const w = Math.max(1, Number(t.w||3));
+    const h = Math.max(1, Number(t.h||3));
+    const div = document.createElement("div");
+    div.className = "tile";
+    div.style.left   = toPct(x, 12);
+    div.style.top    = toPct(y, 9);
+    div.style.width  = toPct(w, 12);
+    div.style.height = toPct(h, 9);
+    const label = document.createElement("div");
+    label.className = "title";
+    label.textContent = t.title || `${t.type||"tile"}`;
+    div.appendChild(label);
+    grid.appendChild(div);
+  });
+}
+
+/* ======== WIRES ======== */
 async function onNewSession(){
   try{
     setBusy($("newSession"), true, "Starting…");
     cookieDel("mr_sid");
     await createSession();
     setMsg("aMsg", "New session started.", "ok");
-    show("stepB", false); show("stepC", false);
   }catch(e){
     console.error(e);
     setMsg("aMsg", "Could not start a new session.", "err");
@@ -209,19 +297,40 @@ async function onProfile(){
     const r = await fetch(`${ORCH}/profile/${encodeURIComponent(sid)}`, { method:"POST", body: fd });
     const text = await r.text();
     let data = {};
-    try { data = JSON.parse(text || "{}"); } catch {}
-    if(!r.ok){ throw new Error(data?.error || text || `HTTP ${r.status}`); }
+    try { data = JSON.parse(text || "{}"); } catch { /* keep default */ }
 
-    // hydrate table & questions
-    schemaFields = data.schema_table || data.fields || [];
-    questions    = data.questions || [];
+    if(!r.ok){
+      console.error("PROFILE ERROR", r.status, text);
+      throw new Error(data?.error || text || `HTTP ${r.status}`);
+    }
 
-    const previewCt = Math.min(6, schemaFields.length);
-    setMsg("aMsg", `Profiling complete. Detected ${schemaFields.length} fields • ${questions.length} questions`, "ok");
-    $("stepBMsg").textContent = `Detected ${schemaFields.length} fields. There are ${questions.length} questions.\nPreview of detected fields:`;
-    renderFields(schemaFields.slice(0, previewCt));   // show first 6 rows; you already saw it scrollable
+    // Accept either `field_map.tables[0].fields` or legacy `{schema_table|fields}`
+    const detected =
+      data?.field_map?.tables?.[0]?.fields ||
+      data?.schema_table ||
+      data?.fields || [];
+
+    // Normalize to editable rows
+    fields = detected.map(x => ({
+      field: x.field || x.name || "",
+      dtype: (x.dtype || x.type || "").toString(),
+      allowed: (x.allowed || x.constraint || "").toString(),
+      description: (x.description || "").toString()
+    }));
+
+    questions = (data.questions || []).map((q, i) => ({
+      id: q.id || `q${i+1}`,
+      text: q.text || q.question || "",
+      answer: q.answer || ""
+    }));
+
+    $("fldCount").textContent = fields.length;
+    $("qCount").textContent = questions.length;
+
+    renderFieldsTable(fields);
     renderQuestions(questions);
 
+    setMsg("aMsg", `Profiling complete. Detected ${fields.length} fields • ${questions.length} questions`, "ok");
     show("stepB", true);
     show("stepC", false);
   }catch(e){
@@ -232,70 +341,50 @@ async function onProfile(){
   }
 }
 
-/* ======== STEP C – Design & Preview ======== */
-function colWidthPx(){ return $("grid").clientWidth / 12; }
-function gridToPx(n){ return Math.round(n * colWidthPx()); }
-function rowToPx(n){ return Math.round(n * 56); }  // ~56px row height (tweak if you like)
-
-function renderPreview(d){
-  const grid = $("grid");
-  grid.innerHTML = "";
-  if(!d?.pages?.length){ setMsg("cMsg","Design has no pages.","err"); return; }
-  const page = d.pages[0];
-  const tiles = page.tiles || [];
-  tiles.forEach(t=>{
-    // defaults
-    const x = Math.max(0, t.x ?? 0), y = Math.max(0, t.y ?? 0),
-          w = Math.min(12, t.w ?? 4), h = Math.max(1, t.h ?? 3);
-
-    const div = document.createElement("div");
-    div.className = "tile";
-    div.style.left   = gridToPx(x) + "px";
-    div.style.top    = rowToPx(y)  + "px";
-    div.style.width  = gridToPx(w) + "px";
-    div.style.height = rowToPx(h)  + "px";
-    div.innerHTML = `<h4>${t.title || t.type || "tile"}</h4>
-                     <div class="body tiny">type: ${t.type || "?"}<br/>w×h: ${w}×${h} @ (${x},${y})</div>`;
-    grid.appendChild(div);
-  });
-}
-
 async function onDesign(){
   const btn = $("toDesign");
   setBusy(btn, true, "Designing…");
   setMsg("bMsg", "");
   try{
-    // collect answers (optional)
-    const answers = Array.from($("questionsWrap").querySelectorAll("textarea")).map(t=>t.value.trim()).filter(Boolean);
-
+    // payload is the edited fields + answers only
     const body = {
-      schema_table: schemaFields,  // your edits are in-memory already
-      answers
+      schema_table: fields.map(r => ({
+        field:r.field, dtype:r.dtype, allowed:r.allowed, description:r.description
+      })),
+      answers: questions.map(q => q.answer || "").filter(Boolean)
     };
+
     const r = await fetch(`${ORCH}/design/${encodeURIComponent(sid)}`, {
       method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body)
     });
-    const j = await r.json();
-    if(!r.ok){ throw new Error(j?.error || `HTTP ${r.status}`); }
+    const text = await r.text();
+    let data = {};
+    try { data = JSON.parse(text || "{}"); } catch {}
+    if(!r.ok){
+      console.error("DESIGN ERROR", r.status, text);
+      throw new Error(data?.error || text || `HTTP ${r.status}`);
+    }
 
-    dsl = j.dsl || j;
-    setMsg("bMsg","Design created.","ok");
-    setMsg("cMsg","Page 1 preview (layout only).","muted");
-    renderPreview(dsl);
+    dsl = data.dsl || data;
+    setMsg("bMsg", "Design created.", "ok");
     show("stepC", true);
-    // scroll to preview
-    document.getElementById("stepC").scrollIntoView({behavior:"smooth"});
+    setMsg("cMsg", "Page 1 preview (layout only).", "muted");
+    renderDesignGrid(dsl);
   }catch(e){
     console.error(e);
-    setMsg("bMsg","Design failed. Check logs.","err");
+    setMsg("bMsg", "Design failed. Check logs.", "err");
   }finally{
-    setBusy(btn,false);
+    setBusy(btn, false);
   }
 }
 
 /* ======== BOOT ======== */
 (async () => {
-  try { await ensureSession(); } catch(e){ console.error(e); setMsg("aMsg","Could not create a session. Please reload.","err"); }
+  try { await ensureSession(); }
+  catch(e) {
+    console.error(e);
+    setMsg("aMsg", "Could not create a session. Please reload.", "err");
+  }
   $("newSession").addEventListener("click", onNewSession, {passive:true});
   $("start").addEventListener("click", onProfile, {passive:true});
   $("toDesign").addEventListener("click", onDesign, {passive:true});
