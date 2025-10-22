@@ -17,15 +17,24 @@
     .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
     button { appearance:none; background:#111; color:#fff; border:0; padding:10px 14px; border-radius:8px; cursor:pointer; }
     button.secondary { background:#f5f5f5; color:#111; border:1px solid #ddd; }
+    button.ghost { background:transparent; color:#111; border:1px dashed #ccc; }
     button[disabled] { opacity:.55; cursor:not-allowed; }
-    input[type="text"], input[type="email"], select, textarea { width:100%; padding:10px 12px; border-radius:8px; border:1px solid #ddd; }
-    textarea { min-height: 140px; font-family: ui-monospace, Menlo, Consolas, monospace; }
+    input[type="text"], input[type="email"], select, textarea { width:100%; padding:9px 10px; border-radius:8px; border:1px solid #ddd; }
+    textarea { min-height: 120px; font-family: ui-monospace, Menlo, Consolas, monospace; }
     .hidden { display:none; }
     .err { color:#b00020; }
     .ok { color:#0a6; }
-    table { width:100%; border-collapse: collapse; margin-top:10px; }
-    th, td { text-align:left; border-bottom:1px solid #eee; padding:8px 6px; font-size:14px; }
-    th { background:#fafafa; }
+
+    /* table */
+    table { width:100%; border-collapse:collapse; }
+    th, td { text-align:left; border-top:1px solid #eee; padding:10px 12px; vertical-align:top; }
+    th { background:#fafafa; border-top:0; position:sticky; top:0; z-index:1; }
+    tbody tr:hover { background:#fcfcfc; }
+    .fit { width:1%; white-space:nowrap; }
+    .pill { font-size:12px; padding:3px 8px; border-radius:999px; background:#f3f4f6; border:1px solid #e5e7eb; }
+
+    .grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+    @media (max-width: 900px){ .grid-2 { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -50,9 +59,45 @@
 
   <!-- STEP B -->
   <div class="card hidden" id="stepB">
-    <h2>2) Field Map</h2>
-    <div id="stepBMsg" class="muted"></div>
-    <div id="fieldsPreview"></div>
+    <div class="row" style="justify-content:space-between; align-items:flex-end;">
+      <div>
+        <h2>2) Field Map</h2>
+        <div id="stepBMsg" class="muted"></div>
+      </div>
+      <div class="row">
+        <input id="fieldSearch" type="text" placeholder="Filter fields… (e.g. date, price, region)" style="min-width:260px"/>
+        <button id="copyJSON" class="ghost" type="button" title="Copy current field map JSON">Copy JSON</button>
+      </div>
+    </div>
+
+    <div style="max-height: 420px; overflow: auto; border:1px solid #eee; border-radius:10px; margin-top:10px;">
+      <table id="fieldsTable">
+        <thead>
+          <tr>
+            <th class="fit">#</th>
+            <th>field</th>
+            <th class="fit">dtype</th>
+            <th>allowed</th>
+            <th style="width:45%">description</th>
+          </tr>
+        </thead>
+        <tbody id="fieldsBody"></tbody>
+      </table>
+    </div>
+
+    <div style="margin-top:12px" class="muted">Tips: click in the <b>dtype</b>, <b>allowed</b> or <b>description</b> cells to edit. Your changes are saved in the session.</div>
+  </div>
+
+  <!-- STEP C -->
+  <div class="card hidden" id="stepC" style="margin-top:16px;">
+    <h2>3) Questions</h2>
+    <div id="qMsg" class="muted"></div>
+    <div id="questionsWrap" class="grid-2" style="margin-top:8px;"></div>
+
+    <div class="toolbar" style="margin-top:14px">
+      <button id="continueDesign" type="button">Continue to design</button>
+      <span id="designMsg" class="muted"></span>
+    </div>
   </div>
 </div>
 
@@ -71,52 +116,22 @@ function setBusy(btn, on, label="Working…"){
   else if(btn.dataset._t){ btn.textContent = btn.dataset._t; delete btn.dataset._t; }
 }
 function readQuery(k){ const p = new URLSearchParams(location.search); return p.get(k); }
-function cookieGet(name){
-  try{
-    const v = (`; ${document.cookie}`).split(`; ${name}=`).pop().split(';')[0];
-    return v === document.cookie ? "" : v;
-  }catch(_){ return ""; }
-}
+function cookieGet(name){ return (`; ${document.cookie}`).split(`; ${name}=`).pop().split(';')[0] || ""; }
 function cookieSet(name, value){ document.cookie = `${name}=${value}; Max-Age=3600; Path=/; SameSite=None; Secure`; }
 function cookieDel(name){ document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=None; Secure`; }
-
-/* Small renderer for a preview table (first 6 rows) */
-function renderFieldsPreview(fields){
-  const root = $("fieldsPreview");
-  root.innerHTML = "";
-  if(!Array.isArray(fields) || !fields.length) return;
-
-  const head = document.createElement("div");
-  head.className = "muted";
-  head.textContent = "Preview of detected fields:";
-  root.appendChild(head);
-
-  const tbl = document.createElement("table");
-  const thead = document.createElement("thead");
-  thead.innerHTML = "<tr><th>field</th><th>dtype</th><th>description</th></tr>";
-  tbl.appendChild(thead);
-
-  const tbody = document.createElement("tbody");
-  fields.slice(0,6).forEach(f => {
-    const tr = document.createElement("tr");
-    const field = (f.field ?? f.name ?? "");
-    const dtype = (f.dtype ?? f.type ?? "");
-    const desc  = (f.description ?? "");
-    tr.innerHTML = `<td>${escapeHtml(field)}</td><td>${escapeHtml(dtype)}</td><td>${escapeHtml(desc)}</td>`;
-    tbody.appendChild(tr);
-  });
-  tbl.appendChild(tbody);
-  root.appendChild(tbl);
-}
-
-function escapeHtml(s){
-  return String(s ?? "").replace(/[&<>"'`=\/]/g, c => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;","/":"&#47;","`":"&#96;","=":"&#61;"
-  }[c]));
+function pickFields(resp){
+  if (Array.isArray(resp?.fields)) return resp.fields;
+  if (Array.isArray(resp?.schema_table)) return resp.schema_table;
+  if (Array.isArray(resp?.schema)) return resp.schema;
+  if (Array.isArray(resp?.field_map?.tables?.[0]?.fields)) return resp.field_map.tables[0].fields;
+  return [];
 }
 
 /* ======== STATE ======== */
 let sid = null;
+let FIELD_ROWS = [];     // [{field,dtype,allowed,description}, ...]
+let QUESTIONS = [];      // ["...", ...]
+let ANSWERS = [];        // synced with inputs
 
 /* ======== SESSION ======== */
 async function createSession(){
@@ -132,7 +147,6 @@ async function createSession(){
   $("sidBadge").textContent = sid;
   return sid;
 }
-
 async function ensureSession(){
   if(readQuery("new") === "1"){ cookieDel("mr_sid"); }
   const urlSid = (readQuery("sid") || "").trim();
@@ -142,16 +156,94 @@ async function ensureSession(){
   return await createSession();
 }
 
-/* ======== WIRES ======== */
+/* ======== RENDERERS ======== */
+function renderFieldsTable(filter=""){
+  const tbody = $("fieldsBody");
+  tbody.innerHTML = "";
+  let rows = FIELD_ROWS;
+  if(filter){
+    const f = filter.toLowerCase();
+    rows = rows.filter(r =>
+      (r.field||"").toLowerCase().includes(f) ||
+      (r.dtype||"").toLowerCase().includes(f) ||
+      (r.allowed||"").toLowerCase().includes(f) ||
+      (r.description||"").toLowerCase().includes(f)
+    );
+  }
+  rows.forEach((row, i) => {
+    const tr = document.createElement("tr");
+
+    const c0 = document.createElement("td"); c0.className="fit muted"; c0.textContent = i+1; tr.appendChild(c0);
+
+    const c1 = document.createElement("td");
+    c1.innerHTML = `<span class="pill">${row.field || ""}</span>`;
+    tr.appendChild(c1);
+
+    const c2 = document.createElement("td"); c2.className="fit";
+    const dtype = document.createElement("select");
+    ["string","category","number","integer","date","datetime","boolean"].forEach(opt=>{
+      const o = document.createElement("option"); o.value=opt; o.textContent=opt;
+      if((row.dtype||"").toLowerCase()===opt) o.selected=true;
+      dtype.appendChild(o);
+    });
+    dtype.addEventListener("change", (e)=>{ row.dtype = e.target.value; });
+    c2.appendChild(dtype);
+    tr.appendChild(c2);
+
+    const c3 = document.createElement("td");
+    const allowed = document.createElement("input");
+    allowed.type="text"; allowed.placeholder="any string / any positive number / string from list [A,B] …";
+    allowed.value = row.allowed || "";
+    allowed.addEventListener("input", (e)=>{ row.allowed = e.target.value; });
+    c3.appendChild(allowed);
+    tr.appendChild(c3);
+
+    const c4 = document.createElement("td");
+    const desc = document.createElement("textarea");
+    desc.value = row.description || "";
+    desc.addEventListener("input", (e)=>{ row.description = e.target.value; });
+    c4.appendChild(desc);
+    tr.appendChild(c4);
+
+    tbody.appendChild(tr);
+  });
+
+  $("stepBMsg").textContent =
+    `Detected ${FIELD_ROWS.length} fields. Showing ${rows.length}${filter ? ` (filtered)` : ""}.`;
+}
+
+function renderQuestions(){
+  const wrap = $("questionsWrap");
+  wrap.innerHTML = "";
+  ANSWERS = QUESTIONS.map(()=> "");
+  if(!QUESTIONS.length){
+    setMsg("qMsg","No questions returned by the model.","muted");
+    return;
+  }
+  QUESTIONS.forEach((q, idx) => {
+    const div = document.createElement("div");
+    div.className = "card";
+    div.style.border = "1px dashed #eee";
+    div.innerHTML = `
+      <div class="muted" style="margin-bottom:6px">Question ${idx+1}</div>
+      <div style="font-weight:600; margin-bottom:8px">${q}</div>
+      <textarea placeholder="Your answer (optional)" data-idx="${idx}"></textarea>
+    `;
+    wrap.appendChild(div);
+  });
+  wrap.querySelectorAll("textarea").forEach(t =>
+    t.addEventListener("input", (e)=>{ ANSWERS[e.target.dataset.idx|0] = e.target.value; })
+  );
+  setMsg("qMsg", `There ${QUESTIONS.length===1 ? "is" : "are"} ${QUESTIONS.length} question${QUESTIONS.length===1?"":"s"}.`);
+}
+
+/* ======== ACTIONS ======== */
 async function onNewSession(){
   try{
     setBusy($("newSession"), true, "Starting…");
     cookieDel("mr_sid");
     await createSession();
     setMsg("aMsg", "New session started.", "ok");
-    show("stepB", false);
-    $("fieldsPreview").innerHTML = "";
-    $("stepBMsg").textContent = "";
   }catch(e){
     console.error(e);
     setMsg("aMsg", "Could not start a new session.", "err");
@@ -160,22 +252,12 @@ async function onNewSession(){
   }
 }
 
-function pickFields(resp){
-  // Preferred keys first, then legacy
-  if (Array.isArray(resp?.fields)) return resp.fields;
-  if (Array.isArray(resp?.schema_table)) return resp.schema_table;
-  if (Array.isArray(resp?.schema)) return resp.schema;
-  if (Array.isArray(resp?.field_map?.tables?.[0]?.fields)) return resp.field_map.tables[0].fields;
-  return [];
-}
-
 async function onProfile(){
   const btn = $("start");
   setBusy(btn, true, "Profiling…");
   setMsg("aMsg", "");
   show("stepB", false);
-  $("fieldsPreview").innerHTML = "";
-  $("stepBMsg").textContent = "";
+  show("stepC", false);
 
   try{
     await ensureSession();
@@ -195,22 +277,66 @@ async function onProfile(){
       throw new Error(data?.error || text || `HTTP ${r.status}`);
     }
 
-    // --- Robust field extraction (new and legacy keys) ---
     const fields = pickFields(data);
-    const qCount = Array.isArray(data?.questions) ? data.questions.length : 0;
+    FIELD_ROWS = (fields || []).map(x => ({
+      field: x.field || x.name || "",
+      dtype: (x.dtype || x.type || "string").toLowerCase(),
+      allowed: x.allowed || "",
+      description: x.description || ""
+    }));
+    QUESTIONS = Array.isArray(data?.questions) ? data.questions : [];
 
-    if(fields.length){
-      setMsg("aMsg", `Profiling complete. Detected ${fields.length} fields` + (qCount ? ` • ${qCount} questions` : ""), "ok");
-      $("stepBMsg").textContent = `Detected ${fields.length} fields.` + (qCount ? ` There are ${qCount} questions.` : "");
-      renderFieldsPreview(fields);
-      show("stepB", true);
-    } else {
+    if(!FIELD_ROWS.length){
       setMsg("aMsg", "Profiling completed but no fields were detected. Check your file format.", "err");
-      show("stepB", false);
+      return;
     }
+
+    setMsg("aMsg", `Profiling complete. Detected ${FIELD_ROWS.length} fields • ${QUESTIONS.length} question${QUESTIONS.length===1?"":"s"}`, "ok");
+
+    // Fields
+    renderFieldsTable("");
+    show("stepB", true);
+
+    // Questions
+    renderQuestions();
+    show("stepC", true);
+
   }catch(e){
     console.error(e);
     setMsg("aMsg", "Profiling failed. Check logs.", "err");
+  }finally{
+    setBusy(btn, false);
+  }
+}
+
+function onFieldSearch(e){
+  renderFieldsTable(e.target.value || "");
+}
+
+function onCopyJSON(){
+  const payload = { schema_table: FIELD_ROWS, questions: QUESTIONS };
+  navigator.clipboard.writeText(JSON.stringify(payload, null, 2))
+    .then(()=> setMsg("stepBMsg","Copied current field map JSON to clipboard.","ok"))
+    .catch(()=> setMsg("stepBMsg","Could not copy to clipboard.","err"));
+}
+
+async function onContinueDesign(){
+  const btn = $("continueDesign");
+  setBusy(btn, true, "Designing…"); setMsg("designMsg","");
+  try{
+    const body = {
+      schema_table: FIELD_ROWS,
+      answers: ANSWERS.filter(a=> (a||"").trim() !== "")
+    };
+    const r = await fetch(`${ORCH}/design/${encodeURIComponent(sid)}`, {
+      method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body)
+    });
+    const data = await r.json();
+    if(!r.ok){ throw new Error(data?.error || `HTTP ${r.status}`); }
+    setMsg("designMsg","Design created. (DSL saved in session artifacts.)","ok");
+  }catch(e){
+    console.error(e);
+    setMsg("designMsg","Could not create design. Check logs.","err");
   }finally{
     setBusy(btn, false);
   }
@@ -226,6 +352,9 @@ async function onProfile(){
   }
   $("newSession").addEventListener("click", onNewSession, {passive:true});
   $("start").addEventListener("click", onProfile, {passive:true});
+  $("fieldSearch").addEventListener("input", onFieldSearch);
+  $("copyJSON").addEventListener("click", onCopyJSON);
+  $("continueDesign").addEventListener("click", onContinueDesign);
 })();
 </script>
 </body>
