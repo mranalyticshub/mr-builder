@@ -4,55 +4,74 @@
   <meta charset="utf-8"/>
   <title>MR Analytics Hub – Dashboard Builder</title>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
+
   <style>
-    :root { --gap:16px; --gridCols:12; --gridRows:9; }
-    html, body { margin:0; padding:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto; color:#111;}
+    :root { --gap:16px; --bg:#fff; --ink:#111; --muted:#666; --line:#e9e9e9; --ok:#0a6; --err:#b00020; }
+    html, body { margin:0; padding:0; background:#fafafa; color:var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial; }
     .wrap { max-width: 1240px; margin: 0 auto; padding: 24px; }
-    h1 { margin: 0 0 16px; font-size: 38px; letter-spacing:.2px}
+    h1 { margin: 0 0 16px; font-size: 38px; letter-spacing:.2px }
     h2 { margin: 0 0 10px; }
-    .muted { color:#666; font-size:13px; }
+    .muted { color:var(--muted); font-size:13px; }
     .row { display:flex; align-items:center; gap:12px; }
     .sid-badge { background:#fafafa; border:1px solid #e7e7e7; padding:6px 8px; border-radius:6px; font-size:12px; }
-    .card { border:1px solid #eee; padding:16px; border-radius:10px; background:#fff; }
+    .card { border:1px solid var(--line); padding:16px; border-radius:10px; background:var(--bg); }
     .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
-    button { appearance:none; background:#111; color:#fff; border:0; padding:10px 14px; border-radius:8px; cursor:pointer; }
+    button { appearance:none; background:#111; color:#fff; border:0; padding:10px 14px; border-radius:8px;
+      cursor:pointer; font-weight:600; }
     button.secondary { background:#f5f5f5; color:#111; border:1px solid #ddd; }
+    button.ghost { background:#fff; color:#111; border:1px dashed #bbb; }
     button[disabled] { opacity:.55; cursor:not-allowed; }
-    input[type="text"], input[type="email"], select, textarea { width:100%; padding:10px 12px; border-radius:8px; border:1px solid #ddd; }
+    input[type="text"], input[type="email"], select, textarea {
+      width:100%; padding:10px 12px; border-radius:8px; border:1px solid #ddd; background:#fff; }
     textarea { min-height: 140px; font-family: ui-monospace, Menlo, Consolas, monospace; }
-    .hidden { display:none; }
-    .err { color:#b00020; }
-    .ok { color:#0a6; }
+    .hidden { display:none !important; }
+    .err { color:var(--err); }
+    .ok { color:var(--ok); }
 
-    /* table */
-    .tbl-wrap { max-height: 360px; overflow:auto; border:1px solid #eee; border-radius:10px; }
-    table { width:100%; border-collapse: collapse; }
-    th, td { border-bottom:1px solid #f0f0f0; padding:10px 12px; vertical-align: top; }
-    th { position: sticky; top:0; background:#fff; z-index:1; }
-    td.editable { background:#fffdf7; outline: 0; }
-    td.editable:focus { box-shadow: inset 0 0 0 2px #ffe7a3; background:#fff9e6; }
+    /* ---------- Field Map (scrollable list with sticky header) ---------- */
+    .fm-wrap { border:1px solid var(--line); border-radius:10px; overflow:hidden; background:#fff; }
+    .fm-head { background:#fcfcfc; border-bottom:1px solid var(--line); }
+    .fm-head, .fm-row {
+      display:grid; grid-template-columns: 220px 140px 220px 1fr; gap:0; align-items:center;
+    }
+    .fm-head div, .fm-row div { padding:10px 12px; border-right:1px solid var(--line); }
+    .fm-head div:last-child, .fm-row div:last-child { border-right:0; }
+    .fm-body { max-height: 360px; overflow:auto; }
+    .fm-row { border-bottom:1px solid var(--line); }
+    .fm-row:nth-child(odd) { background:#fff; }
+    .fm-row:nth-child(even) { background:#fbfbfb; }
+    .fm-edit { outline: none; border-radius:6px; }
+    .fm-edit:focus { box-shadow: inset 0 0 0 2px #cde9ff; background:#f6fbff; }
 
-    /* questions */
-    .qgrid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
-    .qcard { border:1px dashed #e6e6e6; border-radius:10px; padding:14px; }
-    .qcard h4 { margin:0 0 6px; font-size:14px; color:#444; }
+    .grid-note { margin: 8px 0 0; }
 
-    /* design grid preview */
-    .gridWrap { border:1px solid #eee; border-radius:10px; padding:8px; background:#fff; }
-    .grid { position: relative; width:100%; height: 560px; background:
-      repeating-linear-gradient(to right, #fafafa 0 1px, transparent 1px calc((100%/var(--gridCols)))),
-      repeating-linear-gradient(to bottom, #fafafa 0 1px, transparent 1px calc((100%/var(--gridRows))));
-      background-size: calc(100%/var(--gridCols)) calc(100%/var(--gridRows));
+    /* ---------- Design Preview (12×9 grid, absolute tiles) ---------- */
+    #previewPanel { border:1px solid var(--line); border-radius:10px; background:#fff; padding:12px; }
+    #previewCanvas {
+      position:relative;
+      height: 640px;           /* visible height (you can adjust) */
       border-radius:8px;
+      background:
+        repeating-linear-gradient(to right, #f1f1f1 0 1px, transparent 1px calc(100% / 12)),
+        repeating-linear-gradient(to bottom, #f1f1f1 0 1px, transparent 1px calc(100% / 9));
+      overflow:hidden;
     }
     .tile {
-      position:absolute; background:#f7f9ff; border:1px solid #dfe7ff; border-radius:8px;
-      box-shadow: 0 1px 0 rgba(0,0,0,.03);
-      display:flex; align-items:center; justify-content:center; text-align:center;
-      padding:8px;
+      position:absolute;
+      border:1px solid #dadada;
+      border-radius:8px;
+      background: #fff;
+      display:flex; flex-direction:column;
+      box-shadow: 0 1px 0 rgba(0,0,0,.03), 0 6px 16px rgba(0,0,0,.04);
     }
-    .tile .title { font-size:13px; color:#334; }
-    .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px; }
+    .tile .t-h { font-weight:600; padding:8px 10px; border-bottom:1px solid #eee; }
+    .tile .t-b { padding:10px; color:#666; font-size:12px; }
+    .preview-empty {
+      position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+      color:#888; font-size:14px; background: repeating-linear-gradient(
+        45deg, #fafafa, #fafafa 12px, #fefefe 12px, #fefefe 24px);
+    }
   </style>
 </head>
 <body>
@@ -64,7 +83,7 @@
     <button id="newSession" class="secondary" type="button" title="Start a fresh session">New session</button>
   </div>
 
-  <!-- STEP A -->
+  <!-- STEP 1 -->
   <div class="card" id="stepA">
     <h2>1) Describe your business or upload a sample</h2>
     <textarea id="prompt" placeholder="What’s your business and what should the dashboard show?"></textarea>
@@ -75,45 +94,49 @@
     </div>
   </div>
 
-  <!-- STEP B -->
+  <!-- STEP 2 -->
   <div class="card hidden" id="stepB">
     <h2>2) Field Map</h2>
-    <div class="muted" style="margin-bottom:8px">
-      Detected <span id="fldCount">0</span> fields. There are <span id="qCount">0</span> questions. Preview of detected fields:
-      <div>Tips: click in the <b>dtype</b>, <b>allowed</b> or <b>description</b> cells to edit. Changes are kept locally and used when designing.</div>
+    <div class="muted grid-note">Detected <span id="fCount">0</span> fields. There are
+      <span id="qCount">0</span> questions.</div>
+
+    <div class="fm-wrap" style="margin-top:8px">
+      <div class="fm-head">
+        <div><strong>field</strong></div>
+        <div><strong>dtype</strong></div>
+        <div><strong>allowed</strong></div>
+        <div><strong>description</strong></div>
+      </div>
+      <div id="fmBody" class="fm-body"></div>
     </div>
 
-    <div class="tbl-wrap">
-      <table id="fieldTable">
-        <thead>
-        <tr>
-          <th style="width:220px">field</th>
-          <th style="width:110px">dtype</th>
-          <th style="width:200px">allowed</th>
-          <th>description</th>
-        </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
-    <h2 style="margin-top:18px">3) Questions</h2>
-    <div class="muted" style="margin-bottom:8px">Please answer briefly, or leave blank.</div>
-    <div id="qGrid" class="qgrid"></div>
-
-    <div class="actions">
-      <button id="toDesign" type="button">Continue to design</button>
+    <div style="margin-top:14px; display:flex; gap:10px; align-items:center">
+      <button id="toDesign" class="ghost" type="button">Continue to design</button>
       <span id="bMsg" class="muted"></span>
     </div>
   </div>
 
-  <!-- STEP C -->
+  <!-- STEP 3 -->
   <div class="card hidden" id="stepC">
-    <h2>4) Design & Preview</h2>
-    <div id="cMsg" class="muted" style="margin-bottom:8px"></div>
-    <div class="gridWrap">
-      <div id="grid" class="grid" aria-label="Layout preview (tiles from DSL)"></div>
+    <h2>3) Questions</h2>
+    <div class="muted" style="margin-bottom:12px">
+      These help clarify data semantics so the dashboard fits your business (e.g., “Is <em>sales_amount</em> net or gross?”).
     </div>
+    <div id="qWrap"></div>
+
+    <div style="margin-top:14px; display:flex; gap:10px; align-items:center">
+      <button id="genDesign" class="" type="button">Generate dashboard</button>
+      <span id="cMsg" class="muted"></span>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="card hidden" id="stepD">
+    <h2>4) Design & Preview</h2>
+    <div id="previewPanel">
+      <div id="previewCanvas"></div>
+    </div>
+    <div class="muted" style="margin-top:8px">Page 1 preview (layout only).</div>
   </div>
 </div>
 
@@ -138,9 +161,10 @@ function cookieDel(name){ document.cookie = `${name}=; Max-Age=0; Path=/; SameSi
 
 /* ======== STATE ======== */
 let sid = null;
-let fields = [];           // working copy of schema rows {field, dtype, allowed, description}
-let questions = [];        // [{id,text,answer}]
-let dsl = null;
+let schemaFields = [];    // full list of fields
+let questions = [];       // llm questions
+let answers = {};         // free-text answers keyed by idx
+let dsl = null;           // returned dashboard DSL
 
 /* ======== SESSION ======== */
 async function createSession(){
@@ -166,104 +190,113 @@ async function ensureSession(){
   return await createSession();
 }
 
-/* ======== RENDERERS ======== */
-function renderFieldsTable(rows){
-  const tbody = $("fieldTable").querySelector("tbody");
-  tbody.innerHTML = "";
-  rows.forEach((r, i) => {
-    const tr = document.createElement("tr");
-    const tdField = document.createElement("td");
-    tdField.textContent = r.field || "";
-    tdField.style.fontWeight = "600";
-    tr.appendChild(tdField);
+/* ======== FIELD MAP RENDER ======== */
+function renderFieldMap(fields){
+  $("fCount").textContent = fields.length;
+  const body = $("fmBody");
+  body.innerHTML = "";
 
-    const tdDtype = document.createElement("td");
-    tdDtype.className = "editable";
-    tdDtype.contentEditable = "true";
-    tdDtype.textContent = r.dtype || "";
-    tdDtype.dataset.row = i; tdDtype.dataset.key = "dtype";
-    tr.appendChild(tdDtype);
+  fields.forEach((f,i) => {
+    const row = document.createElement("div");
+    row.className = "fm-row";
+    const cField = document.createElement("div");
+    cField.textContent = f.field ?? f.name ?? "";
+    const cDType = document.createElement("div");
+    const cAllowed = document.createElement("div");
+    const cDesc = document.createElement("div");
 
-    const tdAllowed = document.createElement("td");
-    tdAllowed.className = "editable";
-    tdAllowed.contentEditable = "true";
-    tdAllowed.textContent = r.allowed || "";
-    tdAllowed.dataset.row = i; tdAllowed.dataset.key = "allowed";
-    tr.appendChild(tdAllowed);
+    // editable cells
+    cDType.textContent = f.dtype ?? "";
+    cAllowed.textContent = f.allowed ?? "";
+    cDesc.textContent = f.description ?? "";
 
-    const tdDesc = document.createElement("td");
-    tdDesc.className = "editable";
-    tdDesc.contentEditable = "true";
-    tdDesc.textContent = r.description || "";
-    tdDesc.dataset.row = i; tdDesc.dataset.key = "description";
-    tr.appendChild(tdDesc);
+    [cDType,cAllowed,cDesc].forEach((cell, colIdx) => {
+      cell.contentEditable = "true";
+      cell.classList.add("fm-edit");
+      cell.addEventListener("blur", () => {
+        const val = cell.textContent.trim();
+        if(colIdx === 0) fields[i].dtype = val;
+        if(colIdx === 1) fields[i].allowed = val;
+        if(colIdx === 2) fields[i].description = val;
+      });
+    });
 
-    tbody.appendChild(tr);
+    row.appendChild(cField);
+    row.appendChild(cDType);
+    row.appendChild(cAllowed);
+    row.appendChild(cDesc);
+    body.appendChild(row);
   });
-
-  // delegate changes (keep state in `fields`)
-  tbody.addEventListener("blur", (ev) => {
-    const t = ev.target;
-    if(!t.classList.contains("editable")) return;
-    const row = Number(t.dataset.row);
-    const key = t.dataset.key;
-    if(!Number.isFinite(row) || !key) return;
-    fields[row][key] = t.textContent.trim();
-  }, true);
 }
 
+/* ======== QUESTIONS RENDER ======== */
 function renderQuestions(qs){
-  const root = $("qGrid");
-  root.innerHTML = "";
-  qs.forEach((q, i) => {
-    const card = document.createElement("div");
-    card.className = "qcard";
-    const h = document.createElement("h4");
-    h.textContent = `Question ${i+1}`;
-    const p = document.createElement("div");
-    p.style.marginBottom = "6px";
-    p.textContent = q.text || q.question || "";
-    const ta = document.createElement("textarea");
-    ta.placeholder = "Your answer (optional)";
-    ta.value = q.answer || "";
-    ta.addEventListener("input", () => { q.answer = ta.value; });
-    card.append(h, p, ta);
-    root.appendChild(card);
-  });
-}
+  $("qCount").textContent = qs.length;
+  const wrap = $("qWrap");
+  wrap.innerHTML = "";
 
-function renderDesignGrid(dslObj){
-  const grid = $("grid");
-  grid.innerHTML = "";
-  if(!dslObj || !dslObj.pages || !dslObj.pages[0] || !Array.isArray(dslObj.pages[0].tiles)){
-    setMsg("cMsg", "No tiles returned in DSL. Edit the schema/answers and try again.", "err");
+  if(!qs?.length){
+    wrap.innerHTML = `<div class="muted">No questions returned.</div>`;
     return;
   }
-  const tiles = dslObj.pages[0].tiles;
 
-  // position tiles in a 12x9 grid
-  grid.style.setProperty("--gridCols", 12);
-  grid.style.setProperty("--gridRows", 9);
+  qs.forEach((q, idx) => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.marginBottom = "10px";
+    const title = document.createElement("div");
+    title.innerHTML = `<strong>Question ${idx+1}</strong>`;
+    const text = document.createElement("div");
+    text.style.margin = "6px 0 8px";
+    text.textContent = (q.text || q).toString();
+    const ta = document.createElement("textarea");
+    ta.placeholder = "Your answer (optional)";
+    ta.addEventListener("input", () => answers[idx] = ta.value);
+    card.appendChild(title); card.appendChild(text); card.appendChild(ta);
+    wrap.appendChild(card);
+  });
+}
 
-  const toPct = (val, total) => `${(val/total)*100}%`;
+/* ======== PREVIEW RENDER ======== */
+function renderPreview(dslObj){
+  const canvas = $("previewCanvas");
+  canvas.innerHTML = "";
 
-  tiles.forEach((t) => {
-    // sanitize & defaults
-    const x = Math.max(0, Number(t.x||0));
-    const y = Math.max(0, Number(t.y||0));
-    const w = Math.max(1, Number(t.w||3));
-    const h = Math.max(1, Number(t.h||3));
-    const div = document.createElement("div");
-    div.className = "tile";
-    div.style.left   = toPct(x, 12);
-    div.style.top    = toPct(y, 9);
-    div.style.width  = toPct(w, 12);
-    div.style.height = toPct(h, 9);
-    const label = document.createElement("div");
-    label.className = "title";
-    label.textContent = t.title || `${t.type||"tile"}`;
-    div.appendChild(label);
-    grid.appendChild(div);
+  const pg = dslObj?.pages?.[0];
+  const tiles = pg?.tiles || [];
+
+  if(!tiles.length){
+    const msg = document.createElement("div");
+    msg.className = "preview-empty";
+    msg.textContent = "No tiles in the design yet.";
+    canvas.appendChild(msg);
+    return;
+  }
+
+  // draw tiles; grid is 12x9
+  const cols = 12, rows = 9;
+
+  tiles.forEach(t => {
+    const w = Math.min(t.w || 3, cols);
+    const h = Math.min(t.h || 3, rows);
+    const x = Math.min(t.x || 0, cols-1);
+    const y = Math.min(t.y || 0, rows-1);
+
+    const tile = document.createElement("div");
+    tile.className = "tile";
+    tile.style.left = `${(x/cols)*100}%`;
+    tile.style.top = `${(y/rows)*100}%`;
+    tile.style.width = `${(w/cols)*100}%`;
+    tile.style.height = `${(h/rows)*100}%`;
+
+    const th = document.createElement("div");
+    th.className = "t-h";
+    th.textContent = t.title || `${t.type || 'tile'}`.toUpperCase();
+    const tb = document.createElement("div");
+    tb.className = "t-b";
+    tb.textContent = t.type ? `Type: ${t.type}` : "Placeholder";
+    tile.appendChild(th); tile.appendChild(tb);
+    canvas.appendChild(tile);
   });
 }
 
@@ -304,35 +337,17 @@ async function onProfile(){
       throw new Error(data?.error || text || `HTTP ${r.status}`);
     }
 
-    // Accept either `field_map.tables[0].fields` or legacy `{schema_table|fields}`
-    const detected =
-      data?.field_map?.tables?.[0]?.fields ||
-      data?.schema_table ||
-      data?.fields || [];
+    // normalize keys from the backend
+    schemaFields = data.fields || data.schema_table || [];
+    questions = (data.questions || []).map(q => (typeof q === "string" ? {text:q} : q));
 
-    // Normalize to editable rows
-    fields = detected.map(x => ({
-      field: x.field || x.name || "",
-      dtype: (x.dtype || x.type || "").toString(),
-      allowed: (x.allowed || x.constraint || "").toString(),
-      description: (x.description || "").toString()
-    }));
-
-    questions = (data.questions || []).map((q, i) => ({
-      id: q.id || `q${i+1}`,
-      text: q.text || q.question || "",
-      answer: q.answer || ""
-    }));
-
-    $("fldCount").textContent = fields.length;
-    $("qCount").textContent = questions.length;
-
-    renderFieldsTable(fields);
-    renderQuestions(questions);
-
-    setMsg("aMsg", `Profiling complete. Detected ${fields.length} fields • ${questions.length} questions`, "ok");
+    // show steps
+    renderFieldMap(schemaFields);
     show("stepB", true);
-    show("stepC", false);
+    renderQuestions(questions);
+    show("stepC", true);
+
+    setMsg("aMsg", `Profiling complete. Detected ${schemaFields.length} fields • ${questions.length} questions`, "ok");
   }catch(e){
     console.error(e);
     setMsg("aMsg", "Profiling failed. Check logs.", "err");
@@ -341,53 +356,61 @@ async function onProfile(){
   }
 }
 
-async function onDesign(){
-  const btn = $("toDesign");
-  setBusy(btn, true, "Designing…");
-  setMsg("bMsg", "");
-  try{
-    // payload is the edited fields + answers only
-    const body = {
-      schema_table: fields.map(r => ({
-        field:r.field, dtype:r.dtype, allowed:r.allowed, description:r.description
-      })),
-      answers: questions.map(q => q.answer || "").filter(Boolean)
-    };
+// “Continue to design” (just moves you to questions if not already there)
+async function onContinue(){
+  show("stepC", true);
+  $("cMsg").textContent = "You can answer any clarifying questions below. Then click Generate dashboard.";
+}
 
+// Actually request a design and draw it
+async function onGenerateDesign(){
+  const btn = $("genDesign");
+  setBusy(btn, true, "Designing…");
+  setMsg("cMsg", "");
+
+  try {
+    const payload = {
+      schema_table: schemaFields,              // include all edits
+      answers: Object.values(answers || {})    // free-text answers
+    };
     const r = await fetch(`${ORCH}/design/${encodeURIComponent(sid)}`, {
-      method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body)
+      method:"POST",
+      headers: { "Content-Type":"application/json" },
+      body: JSON.stringify(payload)
     });
     const text = await r.text();
     let data = {};
-    try { data = JSON.parse(text || "{}"); } catch {}
+    try { data = JSON.parse(text || "{}"); } catch { /* keep default */ }
+
     if(!r.ok){
       console.error("DESIGN ERROR", r.status, text);
       throw new Error(data?.error || text || `HTTP ${r.status}`);
     }
 
     dsl = data.dsl || data;
-    setMsg("bMsg", "Design created.", "ok");
-    show("stepC", true);
-    setMsg("cMsg", "Page 1 preview (layout only).", "muted");
-    renderDesignGrid(dsl);
-  }catch(e){
+    show("stepD", true);
+    renderPreview(dsl);
+    setMsg("cMsg", "Design created.", "ok");
+  } catch (e) {
     console.error(e);
-    setMsg("bMsg", "Design failed. Check logs.", "err");
-  }finally{
+    setMsg("cMsg", "Failed to create design. Check logs.", "err");
+  } finally {
     setBusy(btn, false);
   }
 }
 
 /* ======== BOOT ======== */
 (async () => {
-  try { await ensureSession(); }
-  catch(e) {
+  try {
+    await ensureSession();
+  } catch(e) {
     console.error(e);
     setMsg("aMsg", "Could not create a session. Please reload.", "err");
   }
   $("newSession").addEventListener("click", onNewSession, {passive:true});
   $("start").addEventListener("click", onProfile, {passive:true});
-  $("toDesign").addEventListener("click", onDesign, {passive:true});
+  $("toDesign").addEventListener("click", onContinue, {passive:true});
+  $("genDesign").addEventListener("click", onGenerateDesign, {passive:true});
 })();
 </script>
 </body>
