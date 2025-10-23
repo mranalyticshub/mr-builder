@@ -300,6 +300,26 @@ function renderPreview(dslObj){
   });
 }
 
+/* ======== PREVIEW FETCH (NEW) ======== */
+async function fetchPreviewTilesOrFallback(dslObj){
+  // Try backend /preview first
+  try {
+    const r = await fetch(`${ORCH}/preview/${encodeURIComponent(sid)}`, { method: "POST" });
+    if (r.ok) {
+      const j = await r.json();
+      if (Array.isArray(j.tiles) && j.tiles.length) {
+        return j.tiles;
+      }
+    }
+  } catch (e) {
+    // swallow and fall back
+    console.debug("Preview endpoint not available, falling back to DSL tiles.");
+  }
+  // Fallback to DSL tiles (if any)
+  const tiles = dslObj?.pages?.[0]?.tiles || [];
+  return tiles;
+}
+
 /* ======== WIRES ======== */
 async function onNewSession(){
   try{
@@ -388,8 +408,13 @@ async function onGenerateDesign(){
     }
 
     dsl = data.dsl || data;
+
+    // NEW: call /preview/{sid} to get normalized tiles; fallback to DSL tiles
+    const tiles = await fetchPreviewTilesOrFallback(dsl);
+    const previewPayload = { pages: [{ tiles }] };
+
     show("stepD", true);
-    renderPreview(dsl);
+    renderPreview(previewPayload);
     setMsg("cMsg", "Design created.", "ok");
   } catch (e) {
     console.error(e);
