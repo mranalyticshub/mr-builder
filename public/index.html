@@ -4,7 +4,6 @@
   <meta charset="utf-8"/>
   <title>MR Analytics Hub – Dashboard Builder</title>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-
   <style>
     :root { --gap:16px; --bg:#fff; --ink:#111; --muted:#666; --line:#e9e9e9; --ok:#0a6; --err:#b00020; }
     html, body { margin:0; padding:0; background:#fafafa; color:var(--ink);
@@ -17,24 +16,20 @@
     .sid-badge { background:#fafafa; border:1px solid #e7e7e7; padding:6px 8px; border-radius:6px; font-size:12px; }
     .card { border:1px solid var(--line); padding:16px; border-radius:10px; background:var(--bg); }
     .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
-    button { appearance:none; background:#111; color:#fff; border:0; padding:10px 14px; border-radius:8px;
-      cursor:pointer; font-weight:600; }
+    button { appearance:none; background:#111; color:#fff; border:0; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:600; }
     button.secondary { background:#f5f5f5; color:#111; border:1px solid #ddd; }
     button.ghost { background:#fff; color:#111; border:1px dashed #bbb; }
     button[disabled] { opacity:.55; cursor:not-allowed; }
-    input[type="text"], input[type="email"], select, textarea {
-      width:100%; padding:10px 12px; border-radius:8px; border:1px solid #ddd; background:#fff; }
+    input[type="text"], input[type="email"], select, textarea { width:100%; padding:10px 12px; border-radius:8px; border:1px solid #ddd; background:#fff; }
     textarea { min-height: 140px; font-family: ui-monospace, Menlo, Consolas, monospace; }
     .hidden { display:none !important; }
     .err { color:var(--err); }
     .ok { color:var(--ok); }
 
-    /* ---------- Field Map (scrollable list with sticky header) ---------- */
+    /* Field map */
     .fm-wrap { border:1px solid var(--line); border-radius:10px; overflow:hidden; background:#fff; }
     .fm-head { background:#fcfcfc; border-bottom:1px solid var(--line); }
-    .fm-head, .fm-row {
-      display:grid; grid-template-columns: 220px 140px 220px 1fr; gap:0; align-items:center;
-    }
+    .fm-head, .fm-row { display:grid; grid-template-columns: 220px 140px 220px 1fr; gap:0; align-items:center; }
     .fm-head div, .fm-row div { padding:10px 12px; border-right:1px solid var(--line); }
     .fm-head div:last-child, .fm-row div:last-child { border-right:0; }
     .fm-body { max-height: 360px; overflow:auto; }
@@ -44,34 +39,21 @@
     .fm-edit { outline: none; border-radius:6px; }
     .fm-edit:focus { box-shadow: inset 0 0 0 2px #cde9ff; background:#f6fbff; }
 
-    .grid-note { margin: 8px 0 0; }
-
-    /* ---------- Design Preview (12×9 grid, absolute tiles) ---------- */
+    /* Preview grid */
     #previewPanel { border:1px solid var(--line); border-radius:10px; background:#fff; padding:12px; }
     #previewCanvas {
-      position:relative;
-      height: 640px;           /* visible height (you can adjust) */
-      border-radius:8px;
+      position:relative; height: 640px; border-radius:8px;
       background:
         repeating-linear-gradient(to right, #f1f1f1 0 1px, transparent 1px calc(100% / 12)),
         repeating-linear-gradient(to bottom, #f1f1f1 0 1px, transparent 1px calc(100% / 9));
       overflow:hidden;
     }
-    .tile {
-      position:absolute;
-      border:1px solid #dadada;
-      border-radius:8px;
-      background: #fff;
-      display:flex; flex-direction:column;
-      box-shadow: 0 1px 0 rgba(0,0,0,.03), 0 6px 16px rgba(0,0,0,.04);
-    }
+    .tile { position:absolute; border:1px solid #dadada; border-radius:8px; background:#fff; display:flex; flex-direction:column; box-shadow: 0 1px 0 rgba(0,0,0,.03), 0 6px 16px rgba(0,0,0,.04); }
     .tile .t-h { font-weight:600; padding:8px 10px; border-bottom:1px solid #eee; }
-    .tile .t-b { padding:10px; color:#666; font-size:12px; }
-    .preview-empty {
-      position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-      color:#888; font-size:14px; background: repeating-linear-gradient(
-        45deg, #fafafa, #fafafa 12px, #fefefe 12px, #fefefe 24px);
-    }
+    .tile .t-b { padding:10px; color:#424242; font-size:12px; overflow: auto; }
+    .preview-empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#888; font-size:14px; background: repeating-linear-gradient(45deg, #fafafa, #fafafa 12px, #fefefe 12px, #fefefe 24px); }
+    table.preview { width:100%; border-collapse:collapse; font-size:12px; }
+    table.preview th, table.preview td { padding:4px 6px; border-bottom:1px solid #eee; text-align:left; }
   </style>
 </head>
 <body>
@@ -97,19 +79,13 @@
   <!-- STEP 2 -->
   <div class="card hidden" id="stepB">
     <h2>2) Field Map</h2>
-    <div class="muted grid-note">Detected <span id="fCount">0</span> fields. There are
-      <span id="qCount">0</span> questions.</div>
-
+    <div class="muted">Detected <span id="fCount">0</span> fields. There are <span id="qCount">0</span> questions.</div>
     <div class="fm-wrap" style="margin-top:8px">
       <div class="fm-head">
-        <div><strong>field</strong></div>
-        <div><strong>dtype</strong></div>
-        <div><strong>allowed</strong></div>
-        <div><strong>description</strong></div>
+        <div><strong>field</strong></div><div><strong>dtype</strong></div><div><strong>allowed</strong></div><div><strong>description</strong></div>
       </div>
       <div id="fmBody" class="fm-body"></div>
     </div>
-
     <div style="margin-top:14px; display:flex; gap:10px; align-items:center">
       <button id="toDesign" class="ghost" type="button">Continue to design</button>
       <span id="bMsg" class="muted"></span>
@@ -119,13 +95,10 @@
   <!-- STEP 3 -->
   <div class="card hidden" id="stepC">
     <h2>3) Questions</h2>
-    <div class="muted" style="margin-bottom:12px">
-      These help clarify data semantics so the dashboard fits your business (e.g., “Is <em>sales_amount</em> net or gross?”).
-    </div>
+    <div class="muted" style="margin-bottom:12px">These help clarify data semantics so the dashboard fits your business.</div>
     <div id="qWrap"></div>
-
     <div style="margin-top:14px; display:flex; gap:10px; align-items:center">
-      <button id="genDesign" class="" type="button">Generate dashboard</button>
+      <button id="genDesign" type="button">Generate dashboard</button>
       <span id="cMsg" class="muted"></span>
     </div>
   </div>
@@ -133,305 +106,167 @@
   <!-- STEP 4 -->
   <div class="card hidden" id="stepD">
     <h2>4) Design & Preview</h2>
-    <div id="previewPanel">
-      <div id="previewCanvas"></div>
-    </div>
-    <div class="muted" style="margin-top:8px">Page 1 preview (layout only).</div>
+    <div id="previewPanel"><div id="previewCanvas"></div></div>
+    <div class="muted" style="margin-top:8px">Page 1 preview.</div>
   </div>
 </div>
 
 <script>
-/* ======== CONFIG ======== */
 const ORCH = "https://mr-orchestrator-585407302606.europe-west2.run.app";
 
-/* ======== HELPERS ======== */
 const $ = (id) => document.getElementById(id);
 function setMsg(id, text, cls="muted"){ const el=$(id); if(!el) return; el.className=cls; el.textContent = text||""; }
 function show(id, flag){ $(id).classList.toggle("hidden", !flag); }
-function setBusy(btn, on, label="Working…"){
-  if(!btn) return;
-  btn.disabled = !!on;
-  if(on){ btn.dataset._t = btn.textContent; btn.textContent = label; }
-  else if(btn.dataset._t){ btn.textContent = btn.dataset._t; delete btn.dataset._t; }
-}
+function setBusy(btn, on, label="Working…"){ if(!btn) return; btn.disabled = !!on; if(on){ btn.dataset._t=btn.textContent; btn.textContent=label; } else if(btn.dataset._t){ btn.textContent=btn.dataset._t; delete btn.dataset._t; } }
 function readQuery(k){ const p = new URLSearchParams(location.search); return p.get(k); }
 function cookieGet(name){ return (`; ${document.cookie}`).split(`; ${name}=`).pop().split(';')[0] || ""; }
 function cookieSet(name, value){ document.cookie = `${name}=${value}; Max-Age=3600; Path=/; SameSite=None; Secure`; }
 function cookieDel(name){ document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=None; Secure`; }
 
-/* ======== STATE ======== */
-let sid = null;
-let schemaFields = [];    // full list of fields
-let questions = [];       // llm questions
-let answers = {};         // free-text answers keyed by idx
-let dsl = null;           // returned dashboard DSL
+let sid = null, schemaFields = [], questions = [], answers = {}, dsl = null;
 
-/* ======== SESSION ======== */
 async function createSession(){
-  let r = await fetch(`${ORCH}/session`, {
-    method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({prompt:""})
-  });
-  if(r.status === 422){ r = await fetch(`${ORCH}/session`, { method:"POST" }); }
-  const j = await r.json();
-  const newSid = j.sid || j.session_id;
-  if(!newSid) throw new Error("No sid in /session response");
-  cookieSet("mr_sid", newSid);
-  sid = newSid;
-  $("sidBadge").textContent = sid;
-  return sid;
+  let r = await fetch(`${ORCH}/session`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({prompt:""}) });
+  if(r.status===422){ r = await fetch(`${ORCH}/session`, { method:"POST" }); }
+  const j = await r.json(); sid = j.sid || j.session_id; cookieSet("mr_sid", sid); $("sidBadge").textContent = sid; return sid;
 }
-
 async function ensureSession(){
-  if(readQuery("new") === "1"){ cookieDel("mr_sid"); }
-  const urlSid = (readQuery("sid") || "").trim();
-  const ckSid  = (cookieGet("mr_sid") || "").trim();
-  if(urlSid){ sid = urlSid; cookieSet("mr_sid", sid); $("sidBadge").textContent = sid; return sid; }
-  if(ckSid){ sid = ckSid; $("sidBadge").textContent = sid; return sid; }
+  if(readQuery("new")==="1"){ cookieDel("mr_sid"); }
+  const urlSid=(readQuery("sid")||"").trim(), ckSid=(cookieGet("mr_sid")||"").trim();
+  if(urlSid){ sid=urlSid; cookieSet("mr_sid", sid); $("sidBadge").textContent = sid; return sid; }
+  if(ckSid){ sid=ckSid; $("sidBadge").textContent = sid; return sid; }
   return await createSession();
 }
 
-/* ======== FIELD MAP RENDER ======== */
+/* Field Map */
 function renderFieldMap(fields){
   $("fCount").textContent = fields.length;
-  const body = $("fmBody");
-  body.innerHTML = "";
-
+  const body = $("fmBody"); body.innerHTML = "";
   fields.forEach((f,i) => {
-    const row = document.createElement("div");
-    row.className = "fm-row";
-    const cField = document.createElement("div");
-    cField.textContent = f.field ?? f.name ?? "";
-    const cDType = document.createElement("div");
-    const cAllowed = document.createElement("div");
-    const cDesc = document.createElement("div");
-
-    // editable cells
-    cDType.textContent = f.dtype ?? "";
-    cAllowed.textContent = f.allowed ?? "";
-    cDesc.textContent = f.description ?? "";
-
+    const row=document.createElement("div"); row.className="fm-row";
+    const cField=document.createElement("div"); cField.textContent=f.field ?? f.name ?? "";
+    const cDType=document.createElement("div"); const cAllowed=document.createElement("div"); const cDesc=document.createElement("div");
+    cDType.textContent=f.dtype ?? ""; cAllowed.textContent=f.allowed ?? ""; cDesc.textContent=f.description ?? "";
     [cDType,cAllowed,cDesc].forEach((cell, colIdx) => {
-      cell.contentEditable = "true";
-      cell.classList.add("fm-edit");
+      cell.contentEditable="true"; cell.classList.add("fm-edit");
       cell.addEventListener("blur", () => {
         const val = cell.textContent.trim();
-        if(colIdx === 0) fields[i].dtype = val;
-        if(colIdx === 1) fields[i].allowed = val;
-        if(colIdx === 2) fields[i].description = val;
+        if(colIdx===0) fields[i].dtype = val;
+        if(colIdx===1) fields[i].allowed = val;
+        if(colIdx===2) fields[i].description = val;
       });
     });
-
-    row.appendChild(cField);
-    row.appendChild(cDType);
-    row.appendChild(cAllowed);
-    row.appendChild(cDesc);
-    body.appendChild(row);
+    row.append(cField,cDType,cAllowed,cDesc); body.appendChild(row);
   });
 }
 
-/* ======== QUESTIONS RENDER ======== */
+/* Questions */
 function renderQuestions(qs){
   $("qCount").textContent = qs.length;
-  const wrap = $("qWrap");
-  wrap.innerHTML = "";
-
-  if(!qs?.length){
-    wrap.innerHTML = `<div class="muted">No questions returned.</div>`;
-    return;
-  }
-
+  const wrap = $("qWrap"); wrap.innerHTML = "";
+  if(!qs?.length){ wrap.innerHTML = `<div class="muted">No questions returned.</div>`; return; }
   qs.forEach((q, idx) => {
-    const card = document.createElement("div");
-    card.className = "card";
-    card.style.marginBottom = "10px";
-    const title = document.createElement("div");
-    title.innerHTML = `<strong>Question ${idx+1}</strong>`;
-    const text = document.createElement("div");
-    text.style.margin = "6px 0 8px";
-    text.textContent = (q.text || q).toString();
-    const ta = document.createElement("textarea");
-    ta.placeholder = "Your answer (optional)";
-    ta.addEventListener("input", () => answers[idx] = ta.value);
-    card.appendChild(title); card.appendChild(text); card.appendChild(ta);
-    wrap.appendChild(card);
+    const card=document.createElement("div"); card.className="card"; card.style.marginBottom="10px";
+    const title=document.createElement("div"); title.innerHTML=`<strong>Question ${idx+1}</strong>`;
+    const text=document.createElement("div"); text.style.margin="6px 0 8px"; text.textContent=(q.text||q).toString();
+    const ta=document.createElement("textarea"); ta.placeholder="Your answer (optional)";
+    ta.addEventListener("input", ()=>answers[idx]=ta.value);
+    card.append(title,text,ta); wrap.appendChild(card);
   });
 }
 
-/* ======== PREVIEW RENDER ======== */
-function renderPreview(dslObj){
-  const canvas = $("previewCanvas");
-  canvas.innerHTML = "";
-
-  const pg = dslObj?.pages?.[0];
-  const tiles = pg?.tiles || [];
-
-  if(!tiles.length){
-    const msg = document.createElement("div");
-    msg.className = "preview-empty";
-    msg.textContent = "No tiles in the design yet.";
-    canvas.appendChild(msg);
-    return;
-  }
-
-  // draw tiles; grid is 12x9
-  const cols = 12, rows = 9;
+/* Preview rendering – now uses t.data */
+function renderPreview(dslLike){
+  const canvas = $("previewCanvas"); canvas.innerHTML = "";
+  const tiles = dslLike?.pages?.[0]?.tiles || [];
+  if(!tiles.length){ const msg=document.createElement("div"); msg.className="preview-empty"; msg.textContent="No tiles in the design yet."; canvas.appendChild(msg); return; }
+  const cols=12, rows=9;
 
   tiles.forEach(t => {
-    const w = Math.min(t.w || 3, cols);
-    const h = Math.min(t.h || 3, rows);
-    const x = Math.min(t.x || 0, cols-1);
-    const y = Math.min(t.y || 0, rows-1);
+    const w=Math.min(t.w||3, cols), h=Math.min(t.h||3, rows), x=Math.min(t.x||0, cols-1), y=Math.min(t.y||0, rows-1);
+    const tile=document.createElement("div"); tile.className="tile";
+    tile.style.left=`${(x/cols)*100}%`; tile.style.top=`${(y/rows)*100}%`; tile.style.width=`${(w/cols)*100}%`; tile.style.height=`${(h/rows)*100}%`;
+    const th=document.createElement("div"); th.className="t-h"; th.textContent=t.title || (t.type||'tile').toUpperCase();
+    const tb=document.createElement("div"); tb.className="t-b";
 
-    const tile = document.createElement("div");
-    tile.className = "tile";
-    tile.style.left = `${(x/cols)*100}%`;
-    tile.style.top = `${(y/rows)*100}%`;
-    tile.style.width = `${(w/cols)*100}%`;
-    tile.style.height = `${(h/rows)*100}%`;
+    const d=t.data || {};
+    if (t.type==="kpi" && d.value != null) {
+      tb.style.fontSize="28px"; tb.style.fontWeight="700"; tb.textContent=Number(d.value).toLocaleString();
+    } else if ((t.type==="bar"||t.type==="line"||t.type==="pie") && Array.isArray(d.labels) && Array.isArray(d.values)) {
+      const pre=document.createElement("div"); pre.style.whiteSpace="pre-wrap"; pre.style.fontFamily="ui-monospace, Menlo, monospace";
+      pre.textContent=d.labels.map((lbl,i)=>`${lbl}: ${d.values[i]}`).join("\n"); tb.appendChild(pre);
+    } else if (t.type==="table" && Array.isArray(d.rows)) {
+      const table=document.createElement("table"); table.className="preview";
+      if (d.rows.length) {
+        const cols=Object.keys(d.rows[0]); const thead=document.createElement("thead"); const trh=document.createElement("tr");
+        cols.forEach(c=>{ const thd=document.createElement("th"); thd.textContent=c; trh.appendChild(thd); }); thead.appendChild(trh); table.appendChild(thead);
+        const tbody=document.createElement("tbody");
+        d.rows.forEach(r=>{ const tr=document.createElement("tr"); cols.forEach(c=>{ const td=document.createElement("td"); td.textContent=(r[c]??"").toString(); tr.appendChild(td); }); tbody.appendChild(tr); });
+        table.appendChild(tbody);
+      }
+      tb.appendChild(table);
+    } else {
+      tb.textContent = t.type ? `Type: ${t.type}` : "Placeholder";
+    }
 
-    const th = document.createElement("div");
-    th.className = "t-h";
-    th.textContent = t.title || `${t.type || 'tile'}`.toUpperCase();
-    const tb = document.createElement("div");
-    tb.className = "t-b";
-    tb.textContent = t.type ? `Type: ${t.type}` : "Placeholder";
-    tile.appendChild(th); tile.appendChild(tb);
-    canvas.appendChild(tile);
+    tile.append(th,tb); canvas.appendChild(tile);
   });
 }
 
-/* ======== PREVIEW FETCH (NEW) ======== */
+/* Fetch preview tiles (backend), else fall back to bare DSL tiles */
 async function fetchPreviewTilesOrFallback(dslObj){
-  // Try backend /preview first
   try {
     const r = await fetch(`${ORCH}/preview/${encodeURIComponent(sid)}`, { method: "POST" });
     if (r.ok) {
       const j = await r.json();
-      if (Array.isArray(j.tiles) && j.tiles.length) {
-        return j.tiles;
-      }
+      if (Array.isArray(j.tiles) && j.tiles.length) return j.tiles;
     }
-  } catch (e) {
-    // swallow and fall back
-    console.debug("Preview endpoint not available, falling back to DSL tiles.");
-  }
-  // Fallback to DSL tiles (if any)
-  const tiles = dslObj?.pages?.[0]?.tiles || [];
-  return tiles;
+  } catch(e){ console.debug("Preview endpoint unavailable; falling back.", e); }
+  return dslObj?.pages?.[0]?.tiles || [];
 }
 
-/* ======== WIRES ======== */
+/* Wires */
 async function onNewSession(){
-  try{
-    setBusy($("newSession"), true, "Starting…");
-    cookieDel("mr_sid");
-    await createSession();
-    setMsg("aMsg", "New session started.", "ok");
-  }catch(e){
-    console.error(e);
-    setMsg("aMsg", "Could not start a new session.", "err");
-  }finally{
-    setBusy($("newSession"), false);
-  }
+  try{ setBusy($("newSession"), true, "Starting…"); cookieDel("mr_sid"); await createSession(); setMsg("aMsg", "New session started.", "ok"); }
+  catch(e){ console.error(e); setMsg("aMsg","Could not start a new session.","err"); }
+  finally{ setBusy($("newSession"), false); }
 }
 
 async function onProfile(){
-  const btn = $("start");
-  setBusy(btn, true, "Profiling…");
-  setMsg("aMsg", "");
+  const btn=$("start"); setBusy(btn,true,"Profiling…"); setMsg("aMsg","");
   try{
     await ensureSession();
-
-    const fd = new FormData();
-    fd.append("prompt", ($("prompt").value || "").toString());
-    const f = $("file").files[0];
-    if(f) fd.append("file", f);
-
-    const r = await fetch(`${ORCH}/profile/${encodeURIComponent(sid)}`, { method:"POST", body: fd });
-    const text = await r.text();
-    let data = {};
-    try { data = JSON.parse(text || "{}"); } catch { /* keep default */ }
-
-    if(!r.ok){
-      console.error("PROFILE ERROR", r.status, text);
-      throw new Error(data?.error || text || `HTTP ${r.status}`);
-    }
-
-    // normalize keys from the backend
-    schemaFields = data.fields || data.schema_table || [];
-    questions = (data.questions || []).map(q => (typeof q === "string" ? {text:q} : q));
-
-    // show steps
-    renderFieldMap(schemaFields);
-    show("stepB", true);
-    renderQuestions(questions);
-    show("stepC", true);
-
+    const fd=new FormData(); fd.append("prompt", ($("prompt").value||"").toString()); const f=$("file").files[0]; if(f) fd.append("file", f);
+    const r=await fetch(`${ORCH}/profile/${encodeURIComponent(sid)}`, { method:"POST", body: fd }); const text=await r.text(); let data={}; try{ data=JSON.parse(text||"{}"); }catch{}
+    if(!r.ok){ console.error("PROFILE ERROR", r.status, text); throw new Error(data?.error || text || `HTTP ${r.status}`); }
+    schemaFields = data.fields || data.schema_table || []; questions = (data.questions||[]).map(q => (typeof q==="string"?{text:q}:q));
+    renderFieldMap(schemaFields); show("stepB",true); renderQuestions(questions); show("stepC",true);
     setMsg("aMsg", `Profiling complete. Detected ${schemaFields.length} fields • ${questions.length} questions`, "ok");
-  }catch(e){
-    console.error(e);
-    setMsg("aMsg", "Profiling failed. Check logs.", "err");
-  }finally{
-    setBusy(btn, false);
-  }
+  }catch(e){ console.error(e); setMsg("aMsg","Profiling failed. Check logs.","err"); }
+  finally{ setBusy(btn,false); }
 }
 
-// “Continue to design” (just moves you to questions if not already there)
-async function onContinue(){
-  show("stepC", true);
-  $("cMsg").textContent = "You can answer any clarifying questions below. Then click Generate dashboard.";
-}
+async function onContinue(){ show("stepC", true); $("cMsg").textContent="Answer any clarifying questions below, then Generate dashboard."; }
 
-// Actually request a design and draw it
 async function onGenerateDesign(){
-  const btn = $("genDesign");
-  setBusy(btn, true, "Designing…");
-  setMsg("cMsg", "");
-
-  try {
-    const payload = {
-      schema_table: schemaFields,              // include all edits
-      answers: Object.values(answers || {})    // free-text answers
-    };
-    const r = await fetch(`${ORCH}/design/${encodeURIComponent(sid)}`, {
-      method:"POST",
-      headers: { "Content-Type":"application/json" },
-      body: JSON.stringify(payload)
-    });
-    const text = await r.text();
-    let data = {};
-    try { data = JSON.parse(text || "{}"); } catch { /* keep default */ }
-
-    if(!r.ok){
-      console.error("DESIGN ERROR", r.status, text);
-      throw new Error(data?.error || text || `HTTP ${r.status}`);
-    }
-
+  const btn=$("genDesign"); setBusy(btn,true,"Designing…"); setMsg("cMsg","");
+  try{
+    const payload={ schema_table: schemaFields, answers: Object.values(answers||{}) };
+    const r=await fetch(`${ORCH}/design/${encodeURIComponent(sid)}`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(payload) });
+    const text=await r.text(); let data={}; try{ data=JSON.parse(text||"{}"); }catch{}
+    if(!r.ok){ console.error("DESIGN ERROR", r.status, text); throw new Error(data?.error || text || `HTTP ${r.status}`); }
     dsl = data.dsl || data;
-
-    // NEW: call /preview/{sid} to get normalized tiles; fallback to DSL tiles
     const tiles = await fetchPreviewTilesOrFallback(dsl);
-    const previewPayload = { pages: [{ tiles }] };
-
     show("stepD", true);
-    renderPreview(previewPayload);
-    setMsg("cMsg", "Design created.", "ok");
-  } catch (e) {
-    console.error(e);
-    setMsg("cMsg", "Failed to create design. Check logs.", "err");
-  } finally {
-    setBusy(btn, false);
-  }
+    renderPreview({ pages: [{ tiles }] });
+    setMsg("cMsg","Design created.","ok");
+  } catch(e){ console.error(e); setMsg("cMsg","Failed to create design. Check logs.","err"); }
+  finally{ setBusy(btn,false); }
 }
 
-/* ======== BOOT ======== */
+/* Boot */
 (async () => {
-  try {
-    await ensureSession();
-  } catch(e) {
-    console.error(e);
-    setMsg("aMsg", "Could not create a session. Please reload.", "err");
-  }
+  try { await ensureSession(); } catch(e){ console.error(e); setMsg("aMsg","Could not create a session. Please reload.","err"); }
   $("newSession").addEventListener("click", onNewSession, {passive:true});
   $("start").addEventListener("click", onProfile, {passive:true});
   $("toDesign").addEventListener("click", onContinue, {passive:true});
