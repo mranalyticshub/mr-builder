@@ -4,6 +4,7 @@
   <meta charset="utf-8"/>
   <title>MR Analytics Hub – Dashboard Builder</title>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
+
   <style>
     :root { --gap:16px; --bg:#fff; --ink:#111; --muted:#666; --line:#e9e9e9; --ok:#0a6; --err:#b00020; }
     html, body { margin:0; padding:0; background:#fafafa; color:var(--ink);
@@ -16,25 +17,26 @@
     .sid-badge { background:#fafafa; border:1px solid #e7e7e7; padding:6px 8px; border-radius:6px; font-size:12px; }
     .card { border:1px solid var(--line); padding:16px; border-radius:10px; background:var(--bg); }
     .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
-    button { appearance:none; background:#111; color:#fff; border:0; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:600; }
+    button { appearance:none; background:#111; color:#fff; border:0; padding:10px 14px; border-radius:8px;
+      cursor:pointer; font-weight:600; }
     button.secondary { background:#f5f5f5; color:#111; border:1px solid #ddd; }
     button.ghost { background:#fff; color:#111; border:1px dashed #bbb; }
     button[disabled] { opacity:.55; cursor:not-allowed; }
-    input[type="text"], input[type="email"], select, textarea { width:100%; padding:10px 12px; border-radius:8px; border:1px solid #ddd; background:#fff; }
+    input[type="text"], input[type="email"], select, textarea {
+      width:100%; padding:10px 12px; border-radius:8px; border:1px solid #ddd; background:#fff; }
     textarea { min-height: 140px; font-family: ui-monospace, Menlo, Consolas, monospace; }
     .hidden { display:none !important; }
     .err { color:var(--err); }
     .ok { color:var(--ok); }
 
-    /* Field map */
+    /* Field Map */
     .fm-wrap { border:1px solid var(--line); border-radius:10px; overflow:hidden; background:#fff; }
     .fm-head { background:#fcfcfc; border-bottom:1px solid var(--line); }
-    .fm-head, .fm-row { display:grid; grid-template-columns: 220px 140px 220px 1fr; gap:0; align-items:center; }
+    .fm-head, .fm-row { display:grid; grid-template-columns: 220px 140px 220px 1fr; align-items:center; }
     .fm-head div, .fm-row div { padding:10px 12px; border-right:1px solid var(--line); }
     .fm-head div:last-child, .fm-row div:last-child { border-right:0; }
     .fm-body { max-height: 360px; overflow:auto; }
     .fm-row { border-bottom:1px solid var(--line); }
-    .fm-row:nth-child(odd) { background:#fff; }
     .fm-row:nth-child(even) { background:#fbfbfb; }
     .fm-edit { outline: none; border-radius:6px; }
     .fm-edit:focus { box-shadow: inset 0 0 0 2px #cde9ff; background:#f6fbff; }
@@ -48,12 +50,17 @@
         repeating-linear-gradient(to bottom, #f1f1f1 0 1px, transparent 1px calc(100% / 9));
       overflow:hidden;
     }
-    .tile { position:absolute; border:1px solid #dadada; border-radius:8px; background:#fff; display:flex; flex-direction:column; box-shadow: 0 1px 0 rgba(0,0,0,.03), 0 6px 16px rgba(0,0,0,.04); }
+    .tile { position:absolute; border:1px solid #dadada; border-radius:8px; background:#fff;
+      display:flex; flex-direction:column; box-shadow: 0 1px 0 rgba(0,0,0,.03), 0 6px 16px rgba(0,0,0,.04); }
     .tile .t-h { font-weight:600; padding:8px 10px; border-bottom:1px solid #eee; }
-    .tile .t-b { padding:10px; color:#424242; font-size:12px; overflow: auto; }
-    .preview-empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#888; font-size:14px; background: repeating-linear-gradient(45deg, #fafafa, #fafafa 12px, #fefefe 12px, #fefefe 24px); }
-    table.preview { width:100%; border-collapse:collapse; font-size:12px; }
-    table.preview th, table.preview td { padding:4px 6px; border-bottom:1px solid #eee; text-align:left; }
+    .tile .t-b { padding:10px; color:#333; font-size:12px; flex:1; overflow:hidden; }
+    .kpi { font-size:30px; font-weight:700; }
+    .chart svg { width:100%; height:100%; }
+    .preview-empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+      color:#888; font-size:14px; background: repeating-linear-gradient(45deg, #fafafa, #fafafa 12px, #fefefe 12px, #fefefe 24px); }
+    .tablewrap { overflow:auto; height:100%; }
+    .tablewrap table { width:100%; border-collapse:collapse; font-size:12px; }
+    .tablewrap th, .tablewrap td { border-bottom:1px solid #eee; padding:6px 8px; text-align:left; }
   </style>
 </head>
 <body>
@@ -62,7 +69,7 @@
     <h1 style="flex:1">Dashboard Builder</h1>
     <span class="muted">Session:</span>
     <span id="sidBadge" class="sid-badge">–</span>
-    <button id="newSession" class="secondary" type="button" title="Start a fresh session">New session</button>
+    <button id="newSession" class="secondary" type="button">New session</button>
   </div>
 
   <!-- STEP 1 -->
@@ -81,9 +88,7 @@
     <h2>2) Field Map</h2>
     <div class="muted">Detected <span id="fCount">0</span> fields. There are <span id="qCount">0</span> questions.</div>
     <div class="fm-wrap" style="margin-top:8px">
-      <div class="fm-head">
-        <div><strong>field</strong></div><div><strong>dtype</strong></div><div><strong>allowed</strong></div><div><strong>description</strong></div>
-      </div>
+      <div class="fm-head"><div><strong>field</strong></div><div><strong>dtype</strong></div><div><strong>allowed</strong></div><div><strong>description</strong></div></div>
       <div id="fmBody" class="fm-body"></div>
     </div>
     <div style="margin-top:14px; display:flex; gap:10px; align-items:center">
@@ -95,7 +100,7 @@
   <!-- STEP 3 -->
   <div class="card hidden" id="stepC">
     <h2>3) Questions</h2>
-    <div class="muted" style="margin-bottom:12px">These help clarify data semantics so the dashboard fits your business.</div>
+    <div class="muted" style="margin-bottom:12px">These clarify data semantics so the dashboard fits your business.</div>
     <div id="qWrap"></div>
     <div style="margin-top:14px; display:flex; gap:10px; align-items:center">
       <button id="genDesign" type="button">Generate dashboard</button>
@@ -117,156 +122,193 @@ const ORCH = "https://mr-orchestrator-585407302606.europe-west2.run.app";
 const $ = (id) => document.getElementById(id);
 function setMsg(id, text, cls="muted"){ const el=$(id); if(!el) return; el.className=cls; el.textContent = text||""; }
 function show(id, flag){ $(id).classList.toggle("hidden", !flag); }
-function setBusy(btn, on, label="Working…"){ if(!btn) return; btn.disabled = !!on; if(on){ btn.dataset._t=btn.textContent; btn.textContent=label; } else if(btn.dataset._t){ btn.textContent=btn.dataset._t; delete btn.dataset._t; } }
+function setBusy(btn, on, label="Working…"){
+  if(!btn) return; btn.disabled = !!on;
+  if(on){ btn.dataset._t = btn.textContent; btn.textContent = label; } else if(btn.dataset._t){ btn.textContent = btn.dataset._t; delete btn.dataset._t; }
+}
 function readQuery(k){ const p = new URLSearchParams(location.search); return p.get(k); }
 function cookieGet(name){ return (`; ${document.cookie}`).split(`; ${name}=`).pop().split(';')[0] || ""; }
 function cookieSet(name, value){ document.cookie = `${name}=${value}; Max-Age=3600; Path=/; SameSite=None; Secure`; }
 function cookieDel(name){ document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=None; Secure`; }
 
-let sid = null, schemaFields = [], questions = [], answers = {}, dsl = null;
+let sid = null;
+let schemaFields = [];
+let questions = [];
+let answers = {};
+let dsl = null;
 
 async function createSession(){
   let r = await fetch(`${ORCH}/session`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({prompt:""}) });
-  if(r.status===422){ r = await fetch(`${ORCH}/session`, { method:"POST" }); }
-  const j = await r.json(); sid = j.sid || j.session_id; cookieSet("mr_sid", sid); $("sidBadge").textContent = sid; return sid;
+  if(r.status === 422){ r = await fetch(`${ORCH}/session`, { method:"POST" }); }
+  const j = await r.json(); const newSid = j.sid || j.session_id;
+  cookieSet("mr_sid", newSid); sid = newSid; $("sidBadge").textContent = sid; return sid;
 }
 async function ensureSession(){
   if(readQuery("new")==="1"){ cookieDel("mr_sid"); }
-  const urlSid=(readQuery("sid")||"").trim(), ckSid=(cookieGet("mr_sid")||"").trim();
-  if(urlSid){ sid=urlSid; cookieSet("mr_sid", sid); $("sidBadge").textContent = sid; return sid; }
-  if(ckSid){ sid=ckSid; $("sidBadge").textContent = sid; return sid; }
+  const urlSid = (readQuery("sid")||"").trim(); const ckSid = (cookieGet("mr_sid")||"").trim();
+  if(urlSid){ sid=urlSid; cookieSet("mr_sid", sid); $("sidBadge").textContent=sid; return sid; }
+  if(ckSid){ sid=ckSid; $("sidBadge").textContent=sid; return sid; }
   return await createSession();
 }
 
-/* Field Map */
+/* ---------- Field map ---------- */
 function renderFieldMap(fields){
   $("fCount").textContent = fields.length;
   const body = $("fmBody"); body.innerHTML = "";
   fields.forEach((f,i) => {
-    const row=document.createElement("div"); row.className="fm-row";
-    const cField=document.createElement("div"); cField.textContent=f.field ?? f.name ?? "";
-    const cDType=document.createElement("div"); const cAllowed=document.createElement("div"); const cDesc=document.createElement("div");
-    cDType.textContent=f.dtype ?? ""; cAllowed.textContent=f.allowed ?? ""; cDesc.textContent=f.description ?? "";
+    const row = document.createElement("div"); row.className="fm-row";
+    const cField = document.createElement("div"); cField.textContent = f.field ?? f.name ?? "";
+    const cDType = document.createElement("div"); const cAllowed = document.createElement("div"); const cDesc = document.createElement("div");
+    cDType.textContent = f.dtype ?? ""; cAllowed.textContent = f.allowed ?? ""; cDesc.textContent = f.description ?? "";
     [cDType,cAllowed,cDesc].forEach((cell, colIdx) => {
-      cell.contentEditable="true"; cell.classList.add("fm-edit");
-      cell.addEventListener("blur", () => {
-        const val = cell.textContent.trim();
-        if(colIdx===0) fields[i].dtype = val;
-        if(colIdx===1) fields[i].allowed = val;
-        if(colIdx===2) fields[i].description = val;
-      });
+      cell.contentEditable = "true"; cell.classList.add("fm-edit");
+      cell.addEventListener("blur", () => { const val = cell.textContent.trim();
+        if(colIdx===0) fields[i].dtype = val; if(colIdx===1) fields[i].allowed = val; if(colIdx===2) fields[i].description = val; });
     });
     row.append(cField,cDType,cAllowed,cDesc); body.appendChild(row);
   });
 }
 
-/* Questions */
+/* ---------- Questions ---------- */
 function renderQuestions(qs){
-  $("qCount").textContent = qs.length;
-  const wrap = $("qWrap"); wrap.innerHTML = "";
+  $("qCount").textContent = qs.length; const wrap = $("qWrap"); wrap.innerHTML = "";
   if(!qs?.length){ wrap.innerHTML = `<div class="muted">No questions returned.</div>`; return; }
-  qs.forEach((q, idx) => {
+  qs.forEach((q,idx) => {
     const card=document.createElement("div"); card.className="card"; card.style.marginBottom="10px";
-    const title=document.createElement("div"); title.innerHTML=`<strong>Question ${idx+1}</strong>`;
-    const text=document.createElement("div"); text.style.margin="6px 0 8px"; text.textContent=(q.text||q).toString();
-    const ta=document.createElement("textarea"); ta.placeholder="Your answer (optional)";
-    ta.addEventListener("input", ()=>answers[idx]=ta.value);
-    card.append(title,text,ta); wrap.appendChild(card);
+    card.innerHTML = `<div><strong>Question ${idx+1}</strong></div><div style="margin:6px 0 8px">${(q.text||q)}</div>`;
+    const ta=document.createElement("textarea"); ta.placeholder="Your answer (optional)"; ta.addEventListener("input",()=>answers[idx]=ta.value);
+    card.appendChild(ta); wrap.appendChild(card);
   });
 }
 
-/* Preview rendering – now uses t.data */
-function renderPreview(dslLike){
-  const canvas = $("previewCanvas"); canvas.innerHTML = "";
-  const tiles = dslLike?.pages?.[0]?.tiles || [];
-  if(!tiles.length){ const msg=document.createElement("div"); msg.className="preview-empty"; msg.textContent="No tiles in the design yet."; canvas.appendChild(msg); return; }
-  const cols=12, rows=9;
+/* ---------- Tiny SVG charts ---------- */
+function svgBar(labels, values){
+  const w=800,h=300,pad=30; const n = Math.max(1, values.length);
+  const max = Math.max(...values.map(v=>isFinite(v)?v:0), 1);
+  const bw = (w - pad*2) / n;
+  let bars = "";
+  values.forEach((v,i)=>{
+    const bh = (h - pad*2) * (v/max);
+    const x = pad + i*bw, y = h-pad-bh;
+    bars += `<rect x="${x}" y="${y}" width="${bw*0.8}" height="${bh}" rx="3"></rect>`;
+  });
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><g fill="#ddd"><rect x="0" y="${h-pad}" width="${w}" height="1"/></g><g fill="#7aa2ff">${bars}</g></svg>`;
+}
+function svgLine(labels, values){
+  const w=800,h=300,pad=30;
+  const n=Math.max(1,values.length); const max=Math.max(...values.map(v=>isFinite(v)?v:0),1);
+  const step=(w-pad*2)/Math.max(1,n-1);
+  let pts=[]; values.forEach((v,i)=>{ const x=pad+i*step, y=h-pad-(h-pad*2)*(v/max); pts.push(`${x},${y}`); });
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <polyline fill="none" stroke="#7aa2ff" stroke-width="2" points="${pts.join(" ")}" />
+  </svg>`;
+}
+function svgPie(labels, values){
+  const w=300,h=300,r=120,cx=150,cy=150; const sum=values.reduce((a,b)=>a+(isFinite(b)?b:0),0)||1;
+  let a0=0, segs="";
+  values.forEach((v,i)=>{
+    const theta = (v/sum)*2*Math.PI; const a1=a0+theta;
+    const x0=cx+r*Math.cos(a0), y0=cy+r*Math.sin(a0);
+    const x1=cx+r*Math.cos(a1), y1=cy+r*Math.sin(a1);
+    const large = theta>Math.PI?1:0;
+    segs += `<path d="M ${cx},${cy} L ${x0},${y0} A ${r},${r} 0 ${large} 1 ${x1},${y1} Z" fill="hsl(${(i*47)%360} 70% 60%)"></path>`;
+    a0=a1;
+  });
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">${segs}</svg>`;
+}
 
-  tiles.forEach(t => {
+/* ---------- Preview renderer ---------- */
+function renderPreviewPayload(tiles){
+  const canvas = $("previewCanvas"); canvas.innerHTML = "";
+  if(!tiles?.length){
+    const msg = document.createElement("div"); msg.className="preview-empty"; msg.textContent="No tiles in the design yet."; canvas.appendChild(msg); return;
+  }
+  const cols=12, rows=9;
+  tiles.forEach(t=>{
     const w=Math.min(t.w||3, cols), h=Math.min(t.h||3, rows), x=Math.min(t.x||0, cols-1), y=Math.min(t.y||0, rows-1);
     const tile=document.createElement("div"); tile.className="tile";
-    tile.style.left=`${(x/cols)*100}%`; tile.style.top=`${(y/rows)*100}%`; tile.style.width=`${(w/cols)*100}%`; tile.style.height=`${(h/rows)*100}%`;
-    const th=document.createElement("div"); th.className="t-h"; th.textContent=t.title || (t.type||'tile').toUpperCase();
+    tile.style.left=`${(x/cols)*100}%`; tile.style.top=`${(y/rows)*100}%`;
+    tile.style.width=`${(w/cols)*100}%`; tile.style.height=`${(h/rows)*100}%`;
+    const th=document.createElement("div"); th.className="t-h"; th.textContent=t.title || (t.type||"").toUpperCase();
     const tb=document.createElement("div"); tb.className="t-b";
-
-    const d=t.data || {};
-    if (t.type==="kpi" && d.value != null) {
-      tb.style.fontSize="28px"; tb.style.fontWeight="700"; tb.textContent=Number(d.value).toLocaleString();
-    } else if ((t.type==="bar"||t.type==="line"||t.type==="pie") && Array.isArray(d.labels) && Array.isArray(d.values)) {
-      const pre=document.createElement("div"); pre.style.whiteSpace="pre-wrap"; pre.style.fontFamily="ui-monospace, Menlo, monospace";
-      pre.textContent=d.labels.map((lbl,i)=>`${lbl}: ${d.values[i]}`).join("\n"); tb.appendChild(pre);
-    } else if (t.type==="table" && Array.isArray(d.rows)) {
-      const table=document.createElement("table"); table.className="preview";
-      if (d.rows.length) {
-        const cols=Object.keys(d.rows[0]); const thead=document.createElement("thead"); const trh=document.createElement("tr");
-        cols.forEach(c=>{ const thd=document.createElement("th"); thd.textContent=c; trh.appendChild(thd); }); thead.appendChild(trh); table.appendChild(thead);
-        const tbody=document.createElement("tbody");
-        d.rows.forEach(r=>{ const tr=document.createElement("tr"); cols.forEach(c=>{ const td=document.createElement("td"); td.textContent=(r[c]??"").toString(); tr.appendChild(td); }); tbody.appendChild(tr); });
-        table.appendChild(tbody);
-      }
-      tb.appendChild(table);
-    } else {
-      tb.textContent = t.type ? `Type: ${t.type}` : "Placeholder";
+    const d = t.data || {};
+    if(d.kpi){ tb.innerHTML = `<div class="kpi">${Number(d.kpi.value).toLocaleString()}</div>`; }
+    else if(d.series){ 
+      const labels=d.series.labels||[], values=d.series.values||[];
+      const box=document.createElement("div"); box.className="chart"; box.style.width="100%"; box.style.height="100%";
+      if((t.type||"") === "line") box.innerHTML = svgLine(labels,values);
+      else if((t.type||"") === "pie") box.innerHTML = svgPie(labels,values);
+      else box.innerHTML = svgBar(labels,values);
+      tb.appendChild(box);
     }
-
+    else if(d.table){
+      const wrap=document.createElement("div"); wrap.className="tablewrap";
+      const cols=d.table.columns||[]; const rows=d.table.rows||[];
+      let html="<table><thead><tr>"+cols.map(c=>`<th>${c}</th>`).join("")+"</tr></thead><tbody>";
+      rows.forEach(r=>{ html+="<tr>"+r.map(v=>`<td>${(v??"")}</td>`).join("")+"</tr>"; });
+      html+="</tbody></table>"; wrap.innerHTML=html; tb.appendChild(wrap);
+    }
+    else { tb.textContent="No data."; }
     tile.append(th,tb); canvas.appendChild(tile);
   });
 }
 
-/* Fetch preview tiles (backend), else fall back to bare DSL tiles */
-async function fetchPreviewTilesOrFallback(dslObj){
-  try {
-    const r = await fetch(`${ORCH}/preview/${encodeURIComponent(sid)}`, { method: "POST" });
-    if (r.ok) {
-      const j = await r.json();
-      if (Array.isArray(j.tiles) && j.tiles.length) return j.tiles;
-    }
-  } catch(e){ console.debug("Preview endpoint unavailable; falling back.", e); }
-  return dslObj?.pages?.[0]?.tiles || [];
+/* ---------- Fetch preview tiles ---------- */
+async function fetchPreviewTilesOrFallback(){
+  try{
+    const r = await fetch(`${ORCH}/preview/${encodeURIComponent(sid)}`, { method:"POST" });
+    if(r.ok){ const j = await r.json(); if(Array.isArray(j.tiles)) return j.tiles; }
+  }catch(e){ console.debug("Preview fallback", e); }
+  // fallback (no data available) — render layout only
+  const tiles = (dsl?.pages?.[0]?.tiles||[]).map(t=>({...t, data:null}));
+  return tiles;
 }
 
-/* Wires */
+/* ---------- Wires ---------- */
 async function onNewSession(){
-  try{ setBusy($("newSession"), true, "Starting…"); cookieDel("mr_sid"); await createSession(); setMsg("aMsg", "New session started.", "ok"); }
-  catch(e){ console.error(e); setMsg("aMsg","Could not start a new session.","err"); }
+  try{ setBusy($("newSession"), true, "Starting…"); cookieDel("mr_sid"); await createSession(); setMsg("aMsg","New session started.","ok"); }
+  catch{ setMsg("aMsg","Could not start a new session.","err"); }
   finally{ setBusy($("newSession"), false); }
 }
 
 async function onProfile(){
-  const btn=$("start"); setBusy(btn,true,"Profiling…"); setMsg("aMsg","");
+  const btn = $("start"); setBusy(btn,true,"Profiling…"); setMsg("aMsg","");
   try{
     await ensureSession();
-    const fd=new FormData(); fd.append("prompt", ($("prompt").value||"").toString()); const f=$("file").files[0]; if(f) fd.append("file", f);
-    const r=await fetch(`${ORCH}/profile/${encodeURIComponent(sid)}`, { method:"POST", body: fd }); const text=await r.text(); let data={}; try{ data=JSON.parse(text||"{}"); }catch{}
-    if(!r.ok){ console.error("PROFILE ERROR", r.status, text); throw new Error(data?.error || text || `HTTP ${r.status}`); }
-    schemaFields = data.fields || data.schema_table || []; questions = (data.questions||[]).map(q => (typeof q==="string"?{text:q}:q));
-    renderFieldMap(schemaFields); show("stepB",true); renderQuestions(questions); show("stepC",true);
+    const fd = new FormData(); fd.append("prompt", ($("prompt").value||"").toString());
+    const f = $("file").files[0]; if(f) fd.append("file", f);
+    const r = await fetch(`${ORCH}/profile/${encodeURIComponent(sid)}`, { method:"POST", body: fd });
+    const text = await r.text(); let data={}; try{ data=JSON.parse(text||"{}"); }catch{}
+    if(!r.ok) throw new Error(data?.error || text || `HTTP ${r.status}`);
+    schemaFields = data.fields || data.schema_table || []; questions = (data.questions || []).map(q=> (typeof q==="string"?{text:q}:q));
+    renderFieldMap(schemaFields); show("stepB", true); renderQuestions(questions); show("stepC", true);
     setMsg("aMsg", `Profiling complete. Detected ${schemaFields.length} fields • ${questions.length} questions`, "ok");
   }catch(e){ console.error(e); setMsg("aMsg","Profiling failed. Check logs.","err"); }
   finally{ setBusy(btn,false); }
 }
 
-async function onContinue(){ show("stepC", true); $("cMsg").textContent="Answer any clarifying questions below, then Generate dashboard."; }
+async function onContinue(){
+  show("stepC", true); $("cMsg").textContent="Answer any clarifying questions, then Generate dashboard.";
+}
 
 async function onGenerateDesign(){
-  const btn=$("genDesign"); setBusy(btn,true,"Designing…"); setMsg("cMsg","");
+  const btn = $("genDesign"); setBusy(btn,true,"Designing…"); setMsg("cMsg","");
   try{
-    const payload={ schema_table: schemaFields, answers: Object.values(answers||{}) };
-    const r=await fetch(`${ORCH}/design/${encodeURIComponent(sid)}`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(payload) });
-    const text=await r.text(); let data={}; try{ data=JSON.parse(text||"{}"); }catch{}
-    if(!r.ok){ console.error("DESIGN ERROR", r.status, text); throw new Error(data?.error || text || `HTTP ${r.status}`); }
+    const payload = { schema_table: schemaFields, answers: Object.values(answers||{}) };
+    const r = await fetch(`${ORCH}/design/${encodeURIComponent(sid)}`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(payload) });
+    const text = await r.text(); let data={}; try{ data=JSON.parse(text||"{}"); }catch{}
+    if(!r.ok) throw new Error(data?.error || text || `HTTP ${r.status}`);
     dsl = data.dsl || data;
-    const tiles = await fetchPreviewTilesOrFallback(dsl);
-    show("stepD", true);
-    renderPreview({ pages: [{ tiles }] });
-    setMsg("cMsg","Design created.","ok");
-  } catch(e){ console.error(e); setMsg("cMsg","Failed to create design. Check logs.","err"); }
+    const tiles = await fetchPreviewTilesOrFallback();
+    show("stepD", true); renderPreviewPayload(tiles);
+    setMsg("cMsg", "Design created.", "ok");
+  }catch(e){ console.error(e); setMsg("cMsg","Failed to create design. Check logs.","err"); }
   finally{ setBusy(btn,false); }
 }
 
-/* Boot */
+/* ---------- Boot ---------- */
 (async () => {
-  try { await ensureSession(); } catch(e){ console.error(e); setMsg("aMsg","Could not create a session. Please reload.","err"); }
+  try { await ensureSession(); } catch(e) { console.error(e); setMsg("aMsg","Could not create a session. Please reload.","err"); }
   $("newSession").addEventListener("click", onNewSession, {passive:true});
   $("start").addEventListener("click", onProfile, {passive:true});
   $("toDesign").addEventListener("click", onContinue, {passive:true});
