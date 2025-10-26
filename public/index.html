@@ -88,8 +88,16 @@
     <h2>2) Field Map</h2>
     <div class="muted">Detected <span id="fCount">0</span> fields. There are <span id="qCount">0</span> questions.</div>
     <div class="fm-wrap" style="margin-top:8px">
-      <div class="fm-head"><div><strong>field</strong></div><div><strong>dtype</strong></div><div><strong>allowed</strong></div><div><strong>description</strong></div></div>
+      <div class="fm-head">
+        <div><strong>field</strong></div>
+        <div><strong>dtype</strong></div>
+        <div><strong>allowed</strong></div>
+        <div><strong>description</strong></div>
+      </div>
       <div id="fmBody" class="fm-body"></div>
+    </div>
+    <div style="margin-top:14px; display:flex; gap:10px; align-items:center">
+      <span id="bMsg" class="muted"></span>
     </div>
   </div>
 
@@ -158,8 +166,12 @@ function renderFieldMap(fields){
     cDType.textContent = f.dtype ?? ""; cAllowed.textContent = f.allowed ?? ""; cDesc.textContent = f.description ?? "";
     [cDType,cAllowed,cDesc].forEach((cell, colIdx) => {
       cell.contentEditable = "true"; cell.classList.add("fm-edit");
-      cell.addEventListener("blur", () => { const val = cell.textContent.trim();
-        if(colIdx===0) fields[i].dtype = val; if(colIdx===1) fields[i].allowed = val; if(colIdx===2) fields[i].description = val; });
+      cell.addEventListener("blur", () => {
+        const val = cell.textContent.trim();
+        if(colIdx===0) fields[i].dtype = val;
+        if(colIdx===1) fields[i].allowed = val;
+        if(colIdx===2) fields[i].description = val;
+      });
     });
     row.append(cField,cDType,cAllowed,cDesc); body.appendChild(row);
   });
@@ -229,7 +241,7 @@ function renderPreviewPayload(tiles){
     const tb=document.createElement("div"); tb.className="t-b";
     const d = t.data || {};
     if(d.kpi){ tb.innerHTML = `<div class="kpi">${Number(d.kpi.value).toLocaleString()}</div>`; }
-    else if(d.series){ 
+    else if(d.series){
       const labels=d.series.labels||[], values=d.series.values||[];
       const box=document.createElement("div"); box.className="chart"; box.style.width="100%"; box.style.height="100%";
       if((t.type||"") === "line") box.innerHTML = svgLine(labels,values);
@@ -275,7 +287,8 @@ async function onProfile(){
     const r = await fetch(`${ORCH}/profile/${encodeURIComponent(sid)}`, { method:"POST", body: fd });
     const text = await r.text(); let data={}; try{ data=JSON.parse(text||"{}"); }catch{}
     if(!r.ok) throw new Error(data?.error || text || `HTTP ${r.status}`);
-    schemaFields = data.fields || data.schema_table || []; questions = (data.questions || []).map(q=> (typeof q==="string"?{text:q}:q));
+    schemaFields = data.fields || data.schema_table || [];
+    questions = (data.questions || []).map(q=> (typeof q==="string"?{text:q}:q));
     renderFieldMap(schemaFields); show("stepB", true); renderQuestions(questions); show("stepC", true);
     setMsg("aMsg", `Profiling complete. Detected ${schemaFields.length} fields • ${questions.length} questions`, "ok");
   }catch(e){ console.error(e); setMsg("aMsg","Profiling failed. Check logs.","err"); }
@@ -286,7 +299,9 @@ async function onGenerateDesign(){
   const btn = $("genDesign"); setBusy(btn,true,"Designing…"); setMsg("cMsg","");
   try{
     const payload = { schema_table: schemaFields, answers: Object.values(answers||{}) };
-    const r = await fetch(`${ORCH}/design/${encodeURIComponent(sid)}`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(payload) });
+    const r = await fetch(`${ORCH}/design/${encodeURIComponent(sid)}`, {
+      method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(payload)
+    });
     const text = await r.text(); let data={}; try{ data=JSON.parse(text||"{}"); }catch{}
     if(!r.ok) throw new Error(data?.error || text || `HTTP ${r.status}`);
     dsl = data.dsl || data;
