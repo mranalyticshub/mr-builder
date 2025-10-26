@@ -91,10 +91,6 @@
       <div class="fm-head"><div><strong>field</strong></div><div><strong>dtype</strong></div><div><strong>allowed</strong></div><div><strong>description</strong></div></div>
       <div id="fmBody" class="fm-body"></div>
     </div>
-    <div style="margin-top:14px; display:flex; gap:10px; align-items:center">
-      <button id="toDesign" class="ghost" type="button">Continue to design</button>
-      <span id="bMsg" class="muted"></span>
-    </div>
   </div>
 
   <!-- STEP 3 -->
@@ -259,7 +255,6 @@ async function fetchPreviewTilesOrFallback(){
     const r = await fetch(`${ORCH}/preview/${encodeURIComponent(sid)}`, { method:"POST" });
     if(r.ok){ const j = await r.json(); if(Array.isArray(j.tiles)) return j.tiles; }
   }catch(e){ console.debug("Preview fallback", e); }
-  // fallback (no data available) — render layout only
   const tiles = (dsl?.pages?.[0]?.tiles||[]).map(t=>({...t, data:null}));
   return tiles;
 }
@@ -287,10 +282,6 @@ async function onProfile(){
   finally{ setBusy(btn,false); }
 }
 
-async function onContinue(){
-  show("stepC", true); $("cMsg").textContent="Answer any clarifying questions, then Generate dashboard.";
-}
-
 async function onGenerateDesign(){
   const btn = $("genDesign"); setBusy(btn,true,"Designing…"); setMsg("cMsg","");
   try{
@@ -311,7 +302,6 @@ async function onGenerateDesign(){
   try { await ensureSession(); } catch(e) { console.error(e); setMsg("aMsg","Could not create a session. Please reload.","err"); }
   $("newSession").addEventListener("click", onNewSession, {passive:true});
   $("start").addEventListener("click", onProfile, {passive:true});
-  $("toDesign").addEventListener("click", onContinue, {passive:true});
   $("genDesign").addEventListener("click", onGenerateDesign, {passive:true});
 })();
 </script>
