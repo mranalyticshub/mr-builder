@@ -24,7 +24,7 @@
     button[disabled] { opacity:.55; cursor:not-allowed; }
     input[type="text"], input[type="email"], select, textarea {
       width:100%; padding:10px 12px; border-radius:8px; border:1px solid #ddd; background:#fff; }
-    textarea { min-height: 140px; font-family: ui-monospace, Menlo, Consolas, monospace; }
+    textarea { min-height: 120px; font-family: ui-monospace, Menlo, Consolas, monospace; }
     .hidden { display:none !important; }
     .err { color:var(--err); }
     .ok { color:var(--ok); }
@@ -42,9 +42,10 @@
     .fm-edit:focus { box-shadow: inset 0 0 0 2px #cde9ff; background:#f6fbff; }
 
     /* Preview grid */
+    #previewToolbar { display:flex; gap:8px; align-items:center; margin:8px 0 10px; }
     #previewPanel { border:1px solid var(--line); border-radius:10px; background:#fff; padding:12px; }
     #previewCanvas {
-      position:relative; height: 640px; border-radius:8px;
+      position:relative; height: 720px; border-radius:8px;
       background:
         repeating-linear-gradient(to right, #f1f1f1 0 1px, transparent 1px calc(100% / 12)),
         repeating-linear-gradient(to bottom, #f1f1f1 0 1px, transparent 1px calc(100% / 9));
@@ -52,15 +53,32 @@
     }
     .tile { position:absolute; border:1px solid #dadada; border-radius:8px; background:#fff;
       display:flex; flex-direction:column; box-shadow: 0 1px 0 rgba(0,0,0,.03), 0 6px 16px rgba(0,0,0,.04); }
-    .tile .t-h { font-weight:600; padding:8px 10px; border-bottom:1px solid #eee; }
-    .tile .t-b { padding:10px; color:#333; font-size:12px; flex:1; overflow:hidden; }
+    .tile .t-h { font-weight:600; padding:8px 10px; border-bottom:1px solid #eee; cursor:move; user-select:none; display:flex; justify-content:space-between; align-items:center;}
+    .tile .t-b { padding:10px; color:#333; font-size:12px; flex:1; overflow:hidden; position:relative; }
     .kpi { font-size:30px; font-weight:700; }
     .chart svg { width:100%; height:100%; }
+    .legend { position:absolute; top:6px; right:6px; background:rgba(255,255,255,.85); border:1px solid #eee; border-radius:6px; padding:4px 6px; font-size:11px;}
+    .tooltip { position:absolute; pointer-events:none; background:#111; color:#fff; font-size:11px; padding:4px 6px; border-radius:4px; transform:translate(-50%,-120%); white-space:nowrap; display:none; }
     .preview-empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
       color:#888; font-size:14px; background: repeating-linear-gradient(45deg, #fafafa, #fafafa 12px, #fefefe 12px, #fefefe 24px); }
     .tablewrap { overflow:auto; height:100%; }
     .tablewrap table { width:100%; border-collapse:collapse; font-size:12px; }
     .tablewrap th, .tablewrap td { border-bottom:1px solid #eee; padding:6px 8px; text-align:left; }
+
+    /* resize handle */
+    .handle { position:absolute; width:14px; height:14px; right:2px; bottom:2px; cursor:nwse-resize; background:linear-gradient(135deg, transparent 50%, #ccc 50%); border-radius:3px; }
+
+    /* Prompt to edit */
+    .promptbar { display:flex; gap:8px; align-items:flex-start; margin-top:12px; }
+    .promptbar textarea { min-height: 80px; }
+
+    /* Print (PDF) */
+    @media print {
+      .row, #stepA, #stepB, #stepC, .promptbar, #previewToolbar { display:none !important; }
+      #stepD { border:0; }
+      #previewCanvas { height: auto; min-height: 900px; }
+      .tile { box-shadow:none; border:1px solid #ddd; }
+    }
   </style>
 </head>
 <body>
@@ -88,12 +106,7 @@
     <h2>2) Field Map</h2>
     <div class="muted">Detected <span id="fCount">0</span> fields. There are <span id="qCount">0</span> questions.</div>
     <div class="fm-wrap" style="margin-top:8px">
-      <div class="fm-head">
-        <div><strong>field</strong></div>
-        <div><strong>dtype</strong></div>
-        <div><strong>allowed</strong></div>
-        <div><strong>description</strong></div>
-      </div>
+      <div class="fm-head"><div><strong>field</strong></div><div><strong>dtype</strong></div><div><strong>allowed</strong></div><div><strong>description</strong></div></div>
       <div id="fmBody" class="fm-body"></div>
     </div>
     <div style="margin-top:14px; display:flex; gap:10px; align-items:center">
@@ -115,8 +128,21 @@
   <!-- STEP 4 -->
   <div class="card hidden" id="stepD">
     <h2>4) Design & Preview</h2>
+
+    <div id="previewToolbar">
+      <button id="clearFilters" class="ghost" type="button" title="Clear all dashboard filters">Clear filters</button>
+      <button id="saveLayout" class="ghost" type="button" title="Persist current tile positions">Save layout</button>
+      <button id="exportPdf" class="secondary" type="button" title="Export as PDF">Export PDF</button>
+      <span id="dMsg" class="muted"></span>
+    </div>
+
     <div id="previewPanel"><div id="previewCanvas"></div></div>
-    <div class="muted" style="margin-top:8px">Page 1 preview.</div>
+    <div class="muted" style="margin-top:8px">Click chart elements to filter. Drag/resize tiles to customise.</div>
+
+    <div class="promptbar">
+      <textarea id="changeText" placeholder="Ask for changes in plain English, e.g. 'Make the bar chart show units by channel and add a pie of revenue share.'"></textarea>
+      <button id="applyChange" type="button">Apply change</button>
+    </div>
   </div>
 </div>
 
@@ -140,6 +166,8 @@ let schemaFields = [];
 let questions = [];
 let answers = {};
 let dsl = null;
+let currentFilters = []; // [{field, op, values}]
+let localLayout = {};   // tileId -> {x,y,w,h}
 
 async function createSession(){
   let r = await fetch(`${ORCH}/session`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({prompt:""}) });
@@ -166,12 +194,8 @@ function renderFieldMap(fields){
     cDType.textContent = f.dtype ?? ""; cAllowed.textContent = f.allowed ?? ""; cDesc.textContent = f.description ?? "";
     [cDType,cAllowed,cDesc].forEach((cell, colIdx) => {
       cell.contentEditable = "true"; cell.classList.add("fm-edit");
-      cell.addEventListener("blur", () => {
-        const val = cell.textContent.trim();
-        if(colIdx===0) fields[i].dtype = val;
-        if(colIdx===1) fields[i].allowed = val;
-        if(colIdx===2) fields[i].description = val;
-      });
+      cell.addEventListener("blur", () => { const val = cell.textContent.trim();
+        if(colIdx===0) fields[i].dtype = val; if(colIdx===1) fields[i].allowed = val; if(colIdx===2) fields[i].description = val; });
     });
     row.append(cField,cDType,cAllowed,cDesc); body.appendChild(row);
   });
@@ -189,65 +213,127 @@ function renderQuestions(qs){
   });
 }
 
-/* ---------- Tiny SVG charts ---------- */
-function svgBar(labels, values){
-  const w=800,h=300,pad=30; const n = Math.max(1, values.length);
+/* ---------- Tiny SVG charts with axes/legend/tooltip ---------- */
+function axisify(svgW, svgH, pad, xLabel, yLabel){
+  return `
+    <g stroke="#ddd"><line x1="${pad}" y1="${svgH-pad}" x2="${svgW-pad}" y2="${svgH-pad}"/>
+                     <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${svgH-pad}"/></g>
+    <text x="${(svgW)/2}" y="${svgH-4}" font-size="11" text-anchor="middle" fill="#666">${xLabel||""}</text>
+    <text x="12" y="${(svgH)/2}" font-size="11" text-anchor="middle" fill="#666" transform="rotate(-90 12,${(svgH)/2})">${yLabel||""}</text>`;
+}
+function svgBar(labels, values, xLabel, yLabel, onPoint){
+  const w=800,h=300,pad=36; const n = Math.max(1, values.length);
   const max = Math.max(...values.map(v=>isFinite(v)?v:0), 1);
   const bw = (w - pad*2) / n;
   let bars = "";
   values.forEach((v,i)=>{
     const bh = (h - pad*2) * (v/max);
     const x = pad + i*bw, y = h-pad-bh;
-    bars += `<rect x="${x}" y="${y}" width="${bw*0.8}" height="${bh}" rx="3"></rect>`;
+    bars += `<rect data-idx="${i}" x="${x+4}" y="${y}" width="${Math.max(2, bw*0.8-8)}" height="${bh}" rx="3" fill="#7aa2ff"></rect>
+             <text x="${x+bw/2}" y="${h-pad+12}" font-size="10" fill="#777" text-anchor="middle">${(labels[i]??"")}</text>`;
   });
-  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><g fill="#ddd"><rect x="0" y="${h-pad}" width="${w}" height="1"/></g><g fill="#7aa2ff">${bars}</g></svg>`;
-}
-function svgLine(labels, values){
-  const w=800,h=300,pad=30;
-  const n=Math.max(1,values.length); const max=Math.max(...values.map(v=>isFinite(v)?v:0),1);
-  const step=(w-pad*2)/Math.max(1,n-1);
-  let pts=[]; values.forEach((v,i)=>{ const x=pad+i*step, y=h-pad-(h-pad*2)*(v/max); pts.push(`${x},${y}`); });
   return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    ${axisify(w,h,pad,xLabel,yLabel)}
+    ${bars}
+  </svg>`;
+}
+function svgLine(labels, values, xLabel, yLabel){
+  const w=800,h=300,pad=36; const n=Math.max(1,values.length); const max=Math.max(...values.map(v=>isFinite(v)?v:0),1);
+  const step=(w-pad*2)/Math.max(1,n-1);
+  let pts=[], dots="";
+  values.forEach((v,i)=>{ const x=pad+i*step, y=h-pad-(h-pad*2)*(v/max); pts.push(`${x},${y}`); dots += `<circle data-idx="${i}" cx="${x}" cy="${y}" r="3" fill="#7aa2ff"></circle>`; });
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    ${axisify(w,h,36,xLabel,yLabel)}
     <polyline fill="none" stroke="#7aa2ff" stroke-width="2" points="${pts.join(" ")}" />
+    ${dots}
   </svg>`;
 }
 function svgPie(labels, values){
-  const w=300,h=300,r=120,cx=150,cy=150; const sum=values.reduce((a,b)=>a+(isFinite(b)?b:0),0)||1;
+  const w=320,h=300,r=110,cx=140,cy=150; const sum=values.reduce((a,b)=>a+(isFinite(b)?b:0),0)||1;
   let a0=0, segs="";
   values.forEach((v,i)=>{
     const theta = (v/sum)*2*Math.PI; const a1=a0+theta;
     const x0=cx+r*Math.cos(a0), y0=cy+r*Math.sin(a0);
     const x1=cx+r*Math.cos(a1), y1=cy+r*Math.sin(a1);
     const large = theta>Math.PI?1:0;
-    segs += `<path d="M ${cx},${cy} L ${x0},${y0} A ${r},${r} 0 ${large} 1 ${x1},${y1} Z" fill="hsl(${(i*47)%360} 70% 60%)"></path>`;
+    const hue = (i*47)%360;
+    segs += `<path data-idx="${i}" d="M ${cx},${cy} L ${x0},${y0} A ${r},${r} 0 ${large} 1 ${x1},${y1} Z" fill="hsl(${hue} 70% 60%)"></path>`;
     a0=a1;
   });
-  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">${segs}</svg>`;
+  const legend = labels.map((l,i)=>`<div><span style="display:inline-block;width:10px;height:10px;background:hsl(${(i*47)%360} 70% 60%);margin-right:6px;border-radius:2px"></span>${l}</div>`).join("");
+  return `<div style="display:flex;gap:8px;height:100%">
+    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">${segs}</svg>
+    <div class="legend">${legend}</div>
+  </div>`;
 }
 
-/* ---------- Preview renderer ---------- */
+/* ---------- Preview + interactivity ---------- */
+function snap(v, grid){ return Math.max(0, Math.round(v*grid)/grid); }
+
 function renderPreviewPayload(tiles){
   const canvas = $("previewCanvas"); canvas.innerHTML = "";
   if(!tiles?.length){
     const msg = document.createElement("div"); msg.className="preview-empty"; msg.textContent="No tiles in the design yet."; canvas.appendChild(msg); return;
   }
   const cols=12, rows=9;
+
   tiles.forEach(t=>{
+    const id = t.id || Math.random().toString(36).slice(2);
     const w=Math.min(t.w||3, cols), h=Math.min(t.h||3, rows), x=Math.min(t.x||0, cols-1), y=Math.min(t.y||0, rows-1);
-    const tile=document.createElement("div"); tile.className="tile";
-    tile.style.left=`${(x/cols)*100}%`; tile.style.top=`${(y/rows)*100}%`;
-    tile.style.width=`${(w/cols)*100}%`; tile.style.height=`${(h/rows)*100}%`;
-    const th=document.createElement("div"); th.className="t-h"; th.textContent=t.title || (t.type||"").toUpperCase();
+    const tile=document.createElement("div"); tile.className="tile"; tile.dataset.id=id;
+    const pos = localLayout[id] || {x,y,w,h};
+    tile.style.left=`${(pos.x/cols)*100}%`; tile.style.top=`${(pos.y/rows)*100}%`;
+    tile.style.width=`${(pos.w/cols)*100}%`; tile.style.height=`${(pos.h/rows)*100}%`;
+
+    const th=document.createElement("div"); th.className="t-h";
+    const titleSpan = document.createElement("span"); titleSpan.textContent = t.title || (t.type||"").toUpperCase();
+    const sizeSpan = document.createElement("span"); sizeSpan.className="muted"; sizeSpan.style.fontSize="11px";
+    sizeSpan.textContent = `${pos.w}×${pos.h}`;
+    th.append(titleSpan,sizeSpan);
+
     const tb=document.createElement("div"); tb.className="t-b";
     const d = t.data || {};
-    if(d.kpi){ tb.innerHTML = `<div class="kpi">${Number(d.kpi.value).toLocaleString()}</div>`; }
+
+    // Tooltip element
+    const tip = document.createElement("div"); tip.className="tooltip"; tb.appendChild(tip);
+    const showTip = (x,y,txt)=>{ tip.style.left=`${x}px`; tip.style.top=`${y}px`; tip.textContent=txt; tip.style.display="block"; };
+    const hideTip = ()=>{ tip.style.display="none"; };
+
+    if(d.kpi){
+      tb.innerHTML = `<div class="kpi">${Number(d.kpi.value).toLocaleString()}</div>`;
+    }
     else if(d.series){
       const labels=d.series.labels||[], values=d.series.values||[];
+      const xLab=d.series.x_label||"", yLab=d.series.y_label||"";
       const box=document.createElement("div"); box.className="chart"; box.style.width="100%"; box.style.height="100%";
-      if((t.type||"") === "line") box.innerHTML = svgLine(labels,values);
-      else if((t.type||"") === "pie") box.innerHTML = svgPie(labels,values);
-      else box.innerHTML = svgBar(labels,values);
-      tb.appendChild(box);
+      let svgHtml="";
+      if((t.type||"") === "line") svgHtml = svgLine(labels,values,xLab,yLab);
+      else if((t.type||"") === "pie") svgHtml = svgPie(labels,values);
+      else svgHtml = svgBar(labels,values,xLab,yLab);
+      box.innerHTML = svgHtml; tb.appendChild(box);
+
+      // Hover + click handlers for cross-filter
+      box.addEventListener("mousemove", (ev)=>{
+        const target = ev.target.closest("[data-idx]");
+        if(!target) { hideTip(); return; }
+        const idx = +target.getAttribute("data-idx")||0;
+        const label = labels[idx] ?? ""; const val = values[idx] ?? 0;
+        showTip(ev.offsetX, ev.offsetY, `${label}: ${Number(val).toLocaleString()}`);
+      });
+      box.addEventListener("mouseleave", hideTip);
+      box.addEventListener("click", (ev)=>{
+        const el = ev.target.closest("[data-idx]");
+        if(!el) return;
+        const idx = +el.getAttribute("data-idx")||0;
+        const field = xLab || t.title || "category";
+        const value = labels[idx];
+        if(!value) return;
+        // toggle filter
+        const k = JSON.stringify({field,op:"eq",values:[String(value)]});
+        const i = currentFilters.findIndex(f=>JSON.stringify(f)===k);
+        if(i>=0) currentFilters.splice(i,1); else currentFilters.push({field,op:"eq",values:[String(value)]});
+        refreshPreview();
+      });
     }
     else if(d.table){
       const wrap=document.createElement("div"); wrap.className="tablewrap";
@@ -257,18 +343,50 @@ function renderPreviewPayload(tiles){
       html+="</tbody></table>"; wrap.innerHTML=html; tb.appendChild(wrap);
     }
     else { tb.textContent="No data."; }
-    tile.append(th,tb); canvas.appendChild(tile);
+
+    // Drag + resize
+    const handle=document.createElement("div"); handle.className="handle";
+    tile.append(th,tb,handle); canvas.appendChild(tile);
+
+    let startX=0,startY=0,startL=0,startT=0,startW=0,startH=0, dragging=false, resizing=false;
+
+    th.addEventListener("mousedown", (e)=>{ dragging=true; startX=e.clientX; startY=e.clientY;
+      const r=tile.getBoundingClientRect(), c=canvas.getBoundingClientRect();
+      startL=r.left-c.left; startT=r.top-c.top; startW=r.width; startH=r.height; e.preventDefault(); });
+    handle.addEventListener("mousedown", (e)=>{ resizing=true; startX=e.clientX; startY=e.clientY;
+      const r=tile.getBoundingClientRect(), c=canvas.getBoundingClientRect();
+      startL=r.left-c.left; startT=r.top-c.top; startW=r.width; startH=r.height; e.preventDefault(); });
+
+    window.addEventListener("mousemove", (e)=>{
+      if(!dragging && !resizing) return;
+      const c=canvas.getBoundingClientRect();
+      let dx=e.clientX-startX, dy=e.clientY-startY;
+      let nl=startL, nt=startT, nw=startW, nh=startH;
+      if(dragging){ nl = Math.max(0, Math.min(startL+dx, c.width-20)); nt = Math.max(0, Math.min(startT+dy, c.height-20)); }
+      if(resizing){ nw = Math.max(80, startW+dx); nh = Math.max(80, startH+dy); }
+      // snap to grid
+      const gx = Math.round((nl/c.width)*cols), gy = Math.round((nt/c.height)*rows);
+      const gw = Math.max(1, Math.round((nw/c.width)*cols)), gh = Math.max(1, Math.round((nh/c.height)*rows));
+      tile.style.left = `${(gx/cols)*100}%`; tile.style.top = `${(gy/rows)*100}%`;
+      tile.style.width= `${(gw/cols)*100}%`; tile.style.height=`${(gh/rows)*100}%`;
+      localLayout[id] = {x:gx,y:gy,w:gw,h:gh};
+    });
+    window.addEventListener("mouseup", ()=>{ dragging=false; resizing=false; });
   });
 }
 
-/* ---------- Fetch preview tiles ---------- */
-async function fetchPreviewTilesOrFallback(){
+/* ---------- Fetch preview tiles (with filters) ---------- */
+async function refreshPreview(){
   try{
-    const r = await fetch(`${ORCH}/preview/${encodeURIComponent(sid)}`, { method:"POST" });
-    if(r.ok){ const j = await r.json(); if(Array.isArray(j.tiles)) return j.tiles; }
-  }catch(e){ console.debug("Preview fallback", e); }
+    const r = await fetch(`${ORCH}/preview/${encodeURIComponent(sid)}`, {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({filters: currentFilters})
+    });
+    if(r.ok){ const j = await r.json(); if(Array.isArray(j.tiles)) { renderPreviewPayload(j.tiles); return; } }
+  }catch(e){ console.debug("Preview refresh fallback", e); }
+  // fallback — render layout only
   const tiles = (dsl?.pages?.[0]?.tiles||[]).map(t=>({...t, data:null}));
-  return tiles;
+  renderPreviewPayload(tiles);
 }
 
 /* ---------- Wires ---------- */
@@ -287,8 +405,7 @@ async function onProfile(){
     const r = await fetch(`${ORCH}/profile/${encodeURIComponent(sid)}`, { method:"POST", body: fd });
     const text = await r.text(); let data={}; try{ data=JSON.parse(text||"{}"); }catch{}
     if(!r.ok) throw new Error(data?.error || text || `HTTP ${r.status}`);
-    schemaFields = data.fields || data.schema_table || [];
-    questions = (data.questions || []).map(q=> (typeof q==="string"?{text:q}:q));
+    schemaFields = data.fields || data.schema_table || []; questions = (data.questions || []).map(q=> (typeof q==="string"?{text:q}:q));
     renderFieldMap(schemaFields); show("stepB", true); renderQuestions(questions); show("stepC", true);
     setMsg("aMsg", `Profiling complete. Detected ${schemaFields.length} fields • ${questions.length} questions`, "ok");
   }catch(e){ console.error(e); setMsg("aMsg","Profiling failed. Check logs.","err"); }
@@ -299,18 +416,47 @@ async function onGenerateDesign(){
   const btn = $("genDesign"); setBusy(btn,true,"Designing…"); setMsg("cMsg","");
   try{
     const payload = { schema_table: schemaFields, answers: Object.values(answers||{}) };
-    const r = await fetch(`${ORCH}/design/${encodeURIComponent(sid)}`, {
-      method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(payload)
-    });
+    const r = await fetch(`${ORCH}/design/${encodeURIComponent(sid)}`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(payload) });
     const text = await r.text(); let data={}; try{ data=JSON.parse(text||"{}"); }catch{}
     if(!r.ok) throw new Error(data?.error || text || `HTTP ${r.status}`);
     dsl = data.dsl || data;
-    const tiles = await fetchPreviewTilesOrFallback();
-    show("stepD", true); renderPreviewPayload(tiles);
+    show("stepD", true); currentFilters = []; localLayout = {};
+    await refreshPreview();
     setMsg("cMsg", "Design created.", "ok");
   }catch(e){ console.error(e); setMsg("cMsg","Failed to create design. Check logs.","err"); }
   finally{ setBusy(btn,false); }
 }
+
+async function onApplyChange(){
+  const btn = $("applyChange"); setBusy(btn,true,"Updating…"); setMsg("dMsg","");
+  try{
+    const change = ($("changeText").value||"").trim(); if(!change){ setMsg("dMsg","Type a change first."); return; }
+    const r = await fetch(`${ORCH}/edit/${encodeURIComponent(sid)}`, {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ change })
+    });
+    const j = await r.json(); dsl = j.dsl || dsl;
+    await refreshPreview();
+    setMsg("dMsg","Change applied.","ok"); $("changeText").value="";
+  }catch(e){ console.error(e); setMsg("dMsg","Could not apply change.","err"); }
+  finally{ setBusy(btn,false); }
+}
+
+async function onSaveLayout(){
+  // Build instruction text for the LLM editor
+  const tiles = (dsl?.pages?.[0]?.tiles||[]).map(t=>{
+    const pos = localLayout[t.id] || {x:t.x,y:t.y,w:t.w,h:t.h};
+    return {id:t.id, x:pos.x, y:pos.y, w:pos.w, h:pos.h};
+  });
+  const instruction = "Update tile positions and sizes exactly to this list: " + JSON.stringify(tiles);
+  const r = await fetch(`${ORCH}/edit/${encodeURIComponent(sid)}`, {
+    method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ change: instruction })
+  });
+  try{ const j = await r.json(); dsl = j.dsl || dsl; setMsg("dMsg","Layout saved.","ok"); }catch(e){ setMsg("dMsg","Layout save failed.","err"); }
+}
+
+function onClearFilters(){ currentFilters=[]; refreshPreview(); }
+function onExportPdf(){ window.print(); }
 
 /* ---------- Boot ---------- */
 (async () => {
@@ -318,6 +464,10 @@ async function onGenerateDesign(){
   $("newSession").addEventListener("click", onNewSession, {passive:true});
   $("start").addEventListener("click", onProfile, {passive:true});
   $("genDesign").addEventListener("click", onGenerateDesign, {passive:true});
+  $("applyChange").addEventListener("click", onApplyChange, {passive:true});
+  $("saveLayout").addEventListener("click", onSaveLayout, {passive:true});
+  $("clearFilters").addEventListener("click", onClearFilters, {passive:true});
+  $("exportPdf").addEventListener("click", onExportPdf, {passive:true});
 })();
 </script>
 </body>
