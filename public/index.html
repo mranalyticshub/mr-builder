@@ -74,9 +74,10 @@
 
     /* Print (PDF) */
     @media print {
-      .row, #stepA, #stepB, #stepC, .promptbar, #previewToolbar { display:none !important; }
-      #stepD { border:0; }
-      #previewCanvas { height: auto; min-height: 900px; }
+      body * { visibility:hidden !important; }
+      #previewPanel, #previewPanel * { visibility:visible !important; }
+      #previewPanel { position:fixed; inset:0; margin:0; border:0; box-shadow:none; padding:0; }
+      #previewCanvas { height:auto; min-height:900px; background:none; }
       .tile { box-shadow:none; border:1px solid #ddd; }
     }
   </style>
@@ -169,6 +170,16 @@ let dsl = null;
 let currentFilters = []; // [{field, op, values}]
 let localLayout = {};   // tileId -> {x,y,w,h}
 
+/* ------- palette helper (reads dsl.theme.palette) ------- */
+function getPalette(){
+  const def = ["#7aa2ff","#ffc107","#ff6b6b","#4dd0e1","#9ccc65","#ab47bc","#ffa726"];
+  try{
+    const pal = dsl?.theme?.palette;
+    if(Array.isArray(pal) && pal.length) return pal;
+  }catch(e){}
+  return def;
+}
+
 async function createSession(){
   let r = await fetch(`${ORCH}/session`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({prompt:""}) });
   if(r.status === 422){ r = await fetch(`${ORCH}/session`, { method:"POST" }); }
@@ -213,7 +224,7 @@ function renderQuestions(qs){
   });
 }
 
-/* ---------- Tiny SVG charts with axes/legend/tooltip ---------- */
+/* ---------- SVG chart helpers (now palette-aware + axes) ---------- */
 function axisify(svgW, svgH, pad, xLabel, yLabel){
   return `
     <g stroke="#ddd"><line x1="${pad}" y1="${svgH-pad}" x2="${svgW-pad}" y2="${svgH-pad}"/>
@@ -221,7 +232,8 @@ function axisify(svgW, svgH, pad, xLabel, yLabel){
     <text x="${(svgW)/2}" y="${svgH-4}" font-size="11" text-anchor="middle" fill="#666">${xLabel||""}</text>
     <text x="12" y="${(svgH)/2}" font-size="11" text-anchor="middle" fill="#666" transform="rotate(-90 12,${(svgH)/2})">${yLabel||""}</text>`;
 }
-function svgBar(labels, values, xLabel, yLabel, onPoint){
+function svgBar(labels, values, xLabel, yLabel){
+  const palette = getPalette();
   const w=800,h=300,pad=36; const n = Math.max(1, values.length);
   const max = Math.max(...values.map(v=>isFinite(v)?v:0), 1);
   const bw = (w - pad*2) / n;
@@ -229,7 +241,8 @@ function svgBar(labels, values, xLabel, yLabel, onPoint){
   values.forEach((v,i)=>{
     const bh = (h - pad*2) * (v/max);
     const x = pad + i*bw, y = h-pad-bh;
-    bars += `<rect data-idx="${i}" x="${x+4}" y="${y}" width="${Math.max(2, bw*0.8-8)}" height="${bh}" rx="3" fill="#7aa2ff"></rect>
+    const fill = palette[i % palette.length];
+    bars += `<rect data-idx="${i}" x="${x+4}" y="${y}" width="${Math.max(2, bw*0.8-8)}" height="${bh}" rx="3" fill="${fill}"></rect>
              <text x="${x+bw/2}" y="${h-pad+12}" font-size="10" fill="#777" text-anchor="middle">${(labels[i]??"")}</text>`;
   });
   return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
@@ -238,17 +251,20 @@ function svgBar(labels, values, xLabel, yLabel, onPoint){
   </svg>`;
 }
 function svgLine(labels, values, xLabel, yLabel){
+  const palette = getPalette();
+  const stroke = palette[0] || "#7aa2ff";
   const w=800,h=300,pad=36; const n=Math.max(1,values.length); const max=Math.max(...values.map(v=>isFinite(v)?v:0),1);
   const step=(w-pad*2)/Math.max(1,n-1);
   let pts=[], dots="";
-  values.forEach((v,i)=>{ const x=pad+i*step, y=h-pad-(h-pad*2)*(v/max); pts.push(`${x},${y}`); dots += `<circle data-idx="${i}" cx="${x}" cy="${y}" r="3" fill="#7aa2ff"></circle>`; });
+  values.forEach((v,i)=>{ const x=pad+i*step, y=h-pad-(h-pad*2)*(v/max); pts.push(`${x},${y}`); dots += `<circle data-idx="${i}" cx="${x}" cy="${y}" r="3" fill="${stroke}"></circle>`; });
   return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
     ${axisify(w,h,36,xLabel,yLabel)}
-    <polyline fill="none" stroke="#7aa2ff" stroke-width="2" points="${pts.join(" ")}" />
+    <polyline fill="none" stroke="${stroke}" stroke-width="2" points="${pts.join(" ")}" />
     ${dots}
   </svg>`;
 }
 function svgPie(labels, values){
+  const palette = getPalette();
   const w=320,h=300,r=110,cx=140,cy=150; const sum=values.reduce((a,b)=>a+(isFinite(b)?b:0),0)||1;
   let a0=0, segs="";
   values.forEach((v,i)=>{
@@ -256,11 +272,11 @@ function svgPie(labels, values){
     const x0=cx+r*Math.cos(a0), y0=cy+r*Math.sin(a0);
     const x1=cx+r*Math.cos(a1), y1=cy+r*Math.sin(a1);
     const large = theta>Math.PI?1:0;
-    const hue = (i*47)%360;
-    segs += `<path data-idx="${i}" d="M ${cx},${cy} L ${x0},${y0} A ${r},${r} 0 ${large} 1 ${x1},${y1} Z" fill="hsl(${hue} 70% 60%)"></path>`;
+    const fill = palette[i % palette.length];
+    segs += `<path data-idx="${i}" d="M ${cx},${cy} L ${x0},${y0} A ${r},${r} 0 ${large} 1 ${x1},${y1} Z" fill="${fill}"></path>`;
     a0=a1;
   });
-  const legend = labels.map((l,i)=>`<div><span style="display:inline-block;width:10px;height:10px;background:hsl(${(i*47)%360} 70% 60%);margin-right:6px;border-radius:2px"></span>${l}</div>`).join("");
+  const legend = labels.map((l,i)=>`<div><span style="display:inline-block;width:10px;height:10px;background:${palette[i%palette.length]};margin-right:6px;border-radius:2px"></span>${l}</div>`).join("");
   return `<div style="display:flex;gap:8px;height:100%">
     <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">${segs}</svg>
     <div class="legend">${legend}</div>
@@ -268,8 +284,6 @@ function svgPie(labels, values){
 }
 
 /* ---------- Preview + interactivity ---------- */
-function snap(v, grid){ return Math.max(0, Math.round(v*grid)/grid); }
-
 function renderPreviewPayload(tiles){
   const canvas = $("previewCanvas"); canvas.innerHTML = "";
   if(!tiles?.length){
@@ -375,14 +389,18 @@ function renderPreviewPayload(tiles){
   });
 }
 
-/* ---------- Fetch preview tiles (with filters) ---------- */
+/* ---------- Fetch preview tiles (keeps DSL for theme) ---------- */
 async function refreshPreview(){
   try{
     const r = await fetch(`${ORCH}/preview/${encodeURIComponent(sid)}`, {
       method:"POST", headers:{ "Content-Type":"application/json" },
       body: JSON.stringify({filters: currentFilters})
     });
-    if(r.ok){ const j = await r.json(); if(Array.isArray(j.tiles)) { renderPreviewPayload(j.tiles); return; } }
+    if(r.ok){
+      const j = await r.json();
+      if (j.dsl) dsl = j.dsl;                 // <— keep theme/layout from backend
+      if (Array.isArray(j.tiles)) { renderPreviewPayload(j.tiles); return; }
+    }
   }catch(e){ console.debug("Preview refresh fallback", e); }
   // fallback — render layout only
   const tiles = (dsl?.pages?.[0]?.tiles||[]).map(t=>({...t, data:null}));
@@ -443,7 +461,6 @@ async function onApplyChange(){
 }
 
 async function onSaveLayout(){
-  // Build instruction text for the LLM editor
   const tiles = (dsl?.pages?.[0]?.tiles||[]).map(t=>{
     const pos = localLayout[t.id] || {x:t.x,y:t.y,w:t.w,h:t.h};
     return {id:t.id, x:pos.x, y:pos.y, w:pos.w, h:pos.h};
