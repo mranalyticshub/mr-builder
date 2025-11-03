@@ -224,7 +224,7 @@ function renderQuestions(qs){
   });
 }
 
-/* ---------- SVG chart helpers (now palette-aware + axes) ---------- */
+/* ---------- SVG chart helpers (palette-aware + axes) ---------- */
 function axisify(svgW, svgH, pad, xLabel, yLabel){
   return `
     <g stroke="#ddd"><line x1="${pad}" y1="${svgH-pad}" x2="${svgW-pad}" y2="${svgH-pad}"/>
