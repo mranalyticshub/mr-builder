@@ -7,7 +7,7 @@
 
   <style>
     :root { --gap:16px; --bg:#fff; --ink:#111; --muted:#666; --line:#e9e9e9; --ok:#0a6; --err:#b00020; }
-    html, body { margin:0; padding:0; background:#fafafa; color:var(--ink);
+    html, body { margin:0; padding:0; background:#f6f7f9; color:var(--ink);
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial; }
     .wrap { max-width: 1240px; margin: 0 auto; padding: 24px; }
     h1 { margin: 0 0 16px; font-size: 38px; letter-spacing:.2px }
@@ -15,7 +15,7 @@
     .muted { color:var(--muted); font-size:13px; }
     .row { display:flex; align-items:center; gap:12px; }
     .sid-badge { background:#fafafa; border:1px solid #e7e7e7; padding:6px 8px; border-radius:6px; font-size:12px; }
-    .card { border:1px solid var(--line); padding:16px; border-radius:10px; background:var(--bg); }
+    .card { border:1px solid var(--line); padding:16px; border-radius:12px; background:var(--bg); box-shadow: 0 4px 20px rgba(0,0,0,.04);}
     .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
     button { appearance:none; background:#111; color:#fff; border:0; padding:10px 14px; border-radius:8px;
       cursor:pointer; font-weight:600; }
@@ -43,21 +43,22 @@
 
     /* Preview grid */
     #previewToolbar { display:flex; gap:8px; align-items:center; margin:8px 0 10px; }
-    #previewPanel { border:1px solid var(--line); border-radius:10px; background:#fff; padding:12px; }
+    #previewPanel { border:1px solid var(--line); border-radius:12px; background:#fff; padding:12px; }
     #previewCanvas {
-      position:relative; height: 720px; border-radius:8px;
+      position:relative; height: 720px; border-radius:10px;
       background:
-        repeating-linear-gradient(to right, #f1f1f1 0 1px, transparent 1px calc(100% / 12)),
-        repeating-linear-gradient(to bottom, #f1f1f1 0 1px, transparent 1px calc(100% / 9));
+        repeating-linear-gradient(to right, #f3f3f3 0 1px, transparent 1px calc(100% / 12)),
+        repeating-linear-gradient(to bottom, #f3f3f3 0 1px, transparent 1px calc(100% / 9));
       overflow:hidden;
     }
-    .tile { position:absolute; border:1px solid #dadada; border-radius:8px; background:#fff;
-      display:flex; flex-direction:column; box-shadow: 0 1px 0 rgba(0,0,0,.03), 0 6px 16px rgba(0,0,0,.04); }
-    .tile .t-h { font-weight:600; padding:8px 10px; border-bottom:1px solid #eee; cursor:move; user-select:none; display:flex; justify-content:space-between; align-items:center;}
-    .tile .t-b { padding:10px; color:#333; font-size:12px; flex:1; overflow:hidden; position:relative; }
-    .kpi { font-size:30px; font-weight:700; }
+    .tile { position:absolute; border:1px solid #dadada; border-radius:10px; background:#fff;
+      display:flex; flex-direction:column; box-shadow: 0 1px 0 rgba(0,0,0,.03), 0 8px 20px rgba(0,0,0,.05); }
+    .tile .t-h { font-weight:700; padding:8px 10px; border-bottom:1px solid #eee; cursor:move; user-select:none; display:flex; justify-content:space-between; align-items:center;}
+    .tile .t-b { padding:8px; color:#333; font-size:12px; flex:1; overflow:hidden; position:relative; }
+    .kpi { font-size:34px; font-weight:800; letter-spacing:.3px; }
+    .kpi-sub { margin-top:4px; font-size:11px; color:#666; }
     .chart svg { width:100%; height:100%; }
-    .legend { position:absolute; top:6px; right:6px; background:rgba(255,255,255,.85); border:1px solid #eee; border-radius:6px; padding:4px 6px; font-size:11px;}
+    .legend { position:absolute; top:6px; right:6px; background:rgba(255,255,255,.9); border:1px solid #eee; border-radius:6px; padding:4px 6px; font-size:11px;}
     .tooltip { position:absolute; pointer-events:none; background:#111; color:#fff; font-size:11px; padding:4px 6px; border-radius:4px; transform:translate(-50%,-120%); white-space:nowrap; display:none; }
     .preview-empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
       color:#888; font-size:14px; background: repeating-linear-gradient(45deg, #fafafa, #fafafa 12px, #fefefe 12px, #fefefe 24px); }
@@ -172,7 +173,7 @@ let localLayout = {};   // tileId -> {x,y,w,h}
 
 /* ------- palette helper (reads dsl.theme.palette) ------- */
 function getPalette(){
-  const def = ["#7aa2ff","#ffc107","#ff6b6b","#4dd0e1","#9ccc65","#ab47bc","#ffa726"];
+  const def = ["#7aa2ff","#ffc107","#ff6b6b","#4dd0e1","#9ccc65","#ab47bc","#ffa726","#26a69a","#8d6e63"];
   try{
     const pal = dsl?.theme?.palette;
     if(Array.isArray(pal) && pal.length) return pal;
@@ -180,89 +181,88 @@ function getPalette(){
   return def;
 }
 
-async function createSession(){
-  let r = await fetch(`${ORCH}/session`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({prompt:""}) });
-  if(r.status === 422){ r = await fetch(`${ORCH}/session`, { method:"POST" }); }
-  const j = await r.json(); const newSid = j.sid || j.session_id;
-  cookieSet("mr_sid", newSid); sid = newSid; $("sidBadge").textContent = sid; return sid;
+/* ------- number formatting with currency support ------- */
+function formatVal(v, fmt){
+  const currency = !!(fmt?.currency);
+  if(currency){
+    try { return new Intl.NumberFormat('en-GB', {style:'currency', currency:'GBP', maximumFractionDigits: 0}).format(v); }
+    catch(e){ return "£" + Number(v).toLocaleString("en-GB"); }
+  }
+  const abs = Math.abs(v);
+  if(abs >= 1e9) return (v/1e9).toFixed(1)+"B";
+  if(abs >= 1e6) return (v/1e6).toFixed(1)+"M";
+  if(abs >= 1e3) return (v/1e3).toFixed(1)+"K";
+  return Number(v).toLocaleString("en-GB");
 }
-async function ensureSession(){
-  if(readQuery("new")==="1"){ cookieDel("mr_sid"); }
-  const urlSid = (readQuery("sid")||"").trim(); const ckSid = (cookieGet("mr_sid")||"").trim();
-  if(urlSid){ sid=urlSid; cookieSet("mr_sid", sid); $("sidBadge").textContent=sid; return sid; }
-  if(ckSid){ sid=ckSid; $("sidBadge").textContent=sid; return sid; }
-  return await createSession();
-}
-
-/* ---------- Field map ---------- */
-function renderFieldMap(fields){
-  $("fCount").textContent = fields.length;
-  const body = $("fmBody"); body.innerHTML = "";
-  fields.forEach((f,i) => {
-    const row = document.createElement("div"); row.className="fm-row";
-    const cField = document.createElement("div"); cField.textContent = f.field ?? f.name ?? "";
-    const cDType = document.createElement("div"); const cAllowed = document.createElement("div"); const cDesc = document.createElement("div");
-    cDType.textContent = f.dtype ?? ""; cAllowed.textContent = f.allowed ?? ""; cDesc.textContent = f.description ?? "";
-    [cDType,cAllowed,cDesc].forEach((cell, colIdx) => {
-      cell.contentEditable = "true"; cell.classList.add("fm-edit");
-      cell.addEventListener("blur", () => { const val = cell.textContent.trim();
-        if(colIdx===0) fields[i].dtype = val; if(colIdx===1) fields[i].allowed = val; if(colIdx===2) fields[i].description = val; });
-    });
-    row.append(cField,cDType,cAllowed,cDesc); body.appendChild(row);
-  });
+function formatPct(p){
+  if(p === null || p === undefined) return "–";
+  const sign = p >= 0 ? "+" : "";
+  return sign + p.toFixed(1) + "%";
 }
 
-/* ---------- Questions ---------- */
-function renderQuestions(qs){
-  $("qCount").textContent = qs.length; const wrap = $("qWrap"); wrap.innerHTML = "";
-  if(!qs?.length){ wrap.innerHTML = `<div class="muted">No questions returned.</div>`; return; }
-  qs.forEach((q,idx) => {
-    const card=document.createElement("div"); card.className="card"; card.style.marginBottom="10px";
-    card.innerHTML = `<div><strong>Question ${idx+1}</strong></div><div style="margin:6px 0 8px">${(q.text||q)}</div>`;
-    const ta=document.createElement("textarea"); ta.placeholder="Your answer (optional)"; ta.addEventListener("input",()=>answers[idx]=ta.value);
-    card.appendChild(ta); wrap.appendChild(card);
-  });
+/* ---------- Axis + grid helpers (numbers & ticks) ---------- */
+function axisLayer(w,h,pad, xLabel, yLabel, yMax, fmt){
+  const ticks = 4;
+  let lines = `<g stroke="#e6e6e6">`;
+  for(let i=0;i<=ticks;i++){
+    const y = h - pad - (h - pad*2) * (i/ticks);
+    lines += `<line x1="${pad}" y1="${y}" x2="${w-pad}" y2="${y}"></line>`;
+    const val = (yMax * (i/ticks));
+    lines += `<text x="${pad-6}" y="${y+4}" font-size="10" text-anchor="end" fill="#777">${formatVal(val, fmt)}</text>`;
+  }
+  lines += `</g>`;
+  const axes = `
+    <g stroke="#cfcfcf"><line x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${h-pad}"/>
+                        <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${h-pad}"/></g>
+    <text x="${(w)/2}" y="${h-4}" font-size="11" text-anchor="middle" fill="#666">${xLabel||""}</text>
+    <text x="12" y="${(h)/2}" font-size="11" text-anchor="middle" fill="#666" transform="rotate(-90 12,${(h)/2})">${yLabel||""}</text>`;
+  return lines + axes;
 }
 
-/* ---------- SVG chart helpers (palette-aware + axes) ---------- */
-function axisify(svgW, svgH, pad, xLabel, yLabel){
-  return `
-    <g stroke="#ddd"><line x1="${pad}" y1="${svgH-pad}" x2="${svgW-pad}" y2="${svgH-pad}"/>
-                     <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${svgH-pad}"/></g>
-    <text x="${(svgW)/2}" y="${svgH-4}" font-size="11" text-anchor="middle" fill="#666">${xLabel||""}</text>
-    <text x="12" y="${(svgH)/2}" font-size="11" text-anchor="middle" fill="#666" transform="rotate(-90 12,${(svgH)/2})">${yLabel||""}</text>`;
-}
-function svgBar(labels, values, xLabel, yLabel){
+function svgBar(labels, values, xLabel, yLabel, fmt){
   const palette = getPalette();
-  const w=800,h=300,pad=36; const n = Math.max(1, values.length);
-  const max = Math.max(...values.map(v=>isFinite(v)?v:0), 1);
-  const bw = (w - pad*2) / n;
-  let bars = "";
+  const w=800,h=300,pad=32; const n=Math.max(1, values.length);
+  const max=Math.max(...values.map(v=>isFinite(v)?v:0), 1);
+  const bw=(w-pad*2)/n;
+  let bars="";
+  const stepLabel = Math.max(1, Math.ceil(n/8));
   values.forEach((v,i)=>{
-    const bh = (h - pad*2) * (v/max);
-    const x = pad + i*bw, y = h-pad-bh;
-    const fill = palette[i % palette.length];
-    bars += `<rect data-idx="${i}" x="${x+4}" y="${y}" width="${Math.max(2, bw*0.8-8)}" height="${bh}" rx="3" fill="${fill}"></rect>
-             <text x="${x+bw/2}" y="${h-pad+12}" font-size="10" fill="#777" text-anchor="middle">${(labels[i]??"")}</text>`;
+    const bh=(h-pad*2)*(v/max);
+    const x=pad+i*bw, y=h-pad-bh;
+    const fill=palette[i%palette.length];
+    bars += `<rect data-idx="${i}" x="${x+3}" y="${y}" width="${Math.max(2, bw*0.8-6)}" height="${bh}" rx="3" fill="${fill}"></rect>`;
+    if(i%stepLabel===0){
+      bars += `<text x="${x+bw/2}" y="${h-pad+12}" font-size="10" fill="#777" text-anchor="middle">${(labels[i]??"")}</text>`;
+    }
   });
   return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
-    ${axisify(w,h,pad,xLabel,yLabel)}
+    ${axisLayer(w,h,pad,xLabel,yLabel,max,fmt)}
     ${bars}
   </svg>`;
 }
-function svgLine(labels, values, xLabel, yLabel){
+
+function svgLine(labels, values, xLabel, yLabel, fmt){
   const palette = getPalette();
   const stroke = palette[0] || "#7aa2ff";
-  const w=800,h=300,pad=36; const n=Math.max(1,values.length); const max=Math.max(...values.map(v=>isFinite(v)?v:0),1);
+  const w=800,h=300,pad=32; const n=Math.max(1,values.length); const max=Math.max(...values.map(v=>isFinite(v)?v:0),1);
   const step=(w-pad*2)/Math.max(1,n-1);
-  let pts=[], dots="";
-  values.forEach((v,i)=>{ const x=pad+i*step, y=h-pad-(h-pad*2)*(v/max); pts.push(`${x},${y}`); dots += `<circle data-idx="${i}" cx="${x}" cy="${y}" r="3" fill="${stroke}"></circle>`; });
+  let pts=[], dots="", xTicks="";
+  const stepLabel = Math.max(1, Math.ceil(n/8));
+  values.forEach((v,i)=>{
+    const x=pad+i*step, y=h-pad-(h-pad*2)*(v/max);
+    pts.push(`${x},${y}`);
+    dots += `<circle data-idx="${i}" cx="${x}" cy="${y}" r="3" fill="${stroke}"></circle>`;
+    if(i%stepLabel===0){
+      xTicks += `<text x="${x}" y="${h-pad+12}" font-size="10" fill="#777" text-anchor="middle">${labels[i]||""}</text>`;
+    }
+  });
   return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
-    ${axisify(w,h,36,xLabel,yLabel)}
+    ${axisLayer(w,h,pad,xLabel,yLabel,max,fmt)}
     <polyline fill="none" stroke="${stroke}" stroke-width="2" points="${pts.join(" ")}" />
-    ${dots}
+    ${dots}${xTicks}
   </svg>`;
 }
+
 function svgPie(labels, values){
   const palette = getPalette();
   const w=320,h=300,r=110,cx=140,cy=150; const sum=values.reduce((a,b)=>a+(isFinite(b)?b:0),0)||1;
@@ -314,17 +314,35 @@ function renderPreviewPayload(tiles){
     const hideTip = ()=>{ tip.style.display="none"; };
 
     if(d.kpi){
-      tb.innerHTML = `<div class="kpi">${Number(d.kpi.value).toLocaleString()}</div>`;
+      const val = d.kpi.value ?? 0;
+      const fmt = d.kpi.format || {};
+      tb.innerHTML = `<div class="kpi">${formatVal(val, fmt)}</div>`;
+      // If we have any comparison coming from a paired time-series, show lightweight subtitle (client-side only if present later)
     }
     else if(d.series){
       const labels=d.series.labels||[], values=d.series.values||[];
       const xLab=d.series.x_label||"", yLab=d.series.y_label||"";
+      const fmt=d.series.format||{};
       const box=document.createElement("div"); box.className="chart"; box.style.width="100%"; box.style.height="100%";
       let svgHtml="";
-      if((t.type||"") === "line") svgHtml = svgLine(labels,values,xLab,yLab);
+      if((t.type||"") === "line") svgHtml = svgLine(labels,values,xLab,yLab,fmt);
       else if((t.type||"") === "pie") svgHtml = svgPie(labels,values);
-      else svgHtml = svgBar(labels,values,xLab,yLab);
+      else svgHtml = svgBar(labels,values,xLab,yLab,fmt);
       box.innerHTML = svgHtml; tb.appendChild(box);
+
+      // small comparison ribbon if available
+      const comp = d.series.compare_prev_period || d.series.compare_prev_year;
+      if(comp){
+        const isYoY = !!d.series.compare_prev_year;
+        const meta = isYoY ? d.series.compare_prev_year : d.series.compare_prev_period;
+        const pct = formatPct(meta.pct);
+        const tone = (meta.pct ?? 0) >= 0 ? "ok" : "err";
+        const lbl = isYoY ? "vs prev year" : "vs previous period";
+        const sub = document.createElement("div");
+        sub.className = "kpi-sub " + tone;
+        sub.textContent = `${pct} ${lbl}`;
+        tb.appendChild(sub);
+      }
 
       // Hover + click handlers for cross-filter
       box.addEventListener("mousemove", (ev)=>{
@@ -332,7 +350,7 @@ function renderPreviewPayload(tiles){
         if(!target) { hideTip(); return; }
         const idx = +target.getAttribute("data-idx")||0;
         const label = labels[idx] ?? ""; const val = values[idx] ?? 0;
-        showTip(ev.offsetX, ev.offsetY, `${label}: ${Number(val).toLocaleString()}`);
+        showTip(ev.offsetX, ev.offsetY, `${label}: ${formatVal(val, fmt)}`);
       });
       box.addEventListener("mouseleave", hideTip);
       box.addEventListener("click", (ev)=>{
@@ -389,7 +407,7 @@ function renderPreviewPayload(tiles){
   });
 }
 
-/* ---------- Fetch preview tiles (keeps DSL for theme) ---------- */
+/* ---------- Fetch preview tiles (now also receives DSL for theme) ---------- */
 async function refreshPreview(){
   try{
     const r = await fetch(`${ORCH}/preview/${encodeURIComponent(sid)}`, {
@@ -398,16 +416,29 @@ async function refreshPreview(){
     });
     if(r.ok){
       const j = await r.json();
-      if (j.dsl) dsl = j.dsl;                 // <— keep theme/layout from backend
+      if (j.dsl) dsl = j.dsl;
       if (Array.isArray(j.tiles)) { renderPreviewPayload(j.tiles); return; }
     }
   }catch(e){ console.debug("Preview refresh fallback", e); }
-  // fallback — render layout only
   const tiles = (dsl?.pages?.[0]?.tiles||[]).map(t=>({...t, data:null}));
   renderPreviewPayload(tiles);
 }
 
 /* ---------- Wires ---------- */
+async function createSession(){
+  let r = await fetch(`${ORCH}/session`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({prompt:""}) });
+  if(r.status === 422){ r = await fetch(`${ORCH}/session`, { method:"POST" }); }
+  const j = await r.json(); const newSid = j.sid || j.session_id;
+  cookieSet("mr_sid", newSid); sid = newSid; $("sidBadge").textContent = sid; return sid;
+}
+async function ensureSession(){
+  if(readQuery("new")==="1"){ cookieDel("mr_sid"); }
+  const urlSid = (readQuery("sid")||"").trim(); const ckSid = (cookieGet("mr_sid")||"").trim();
+  if(urlSid){ sid=urlSid; cookieSet("mr_sid", sid); $("sidBadge").textContent=sid; return sid; }
+  if(ckSid){ sid=ckSid; $("sidBadge").textContent=sid; return sid; }
+  return await createSession();
+}
+
 async function onNewSession(){
   try{ setBusy($("newSession"), true, "Starting…"); cookieDel("mr_sid"); await createSession(); setMsg("aMsg","New session started.","ok"); }
   catch{ setMsg("aMsg","Could not start a new session.","err"); }
@@ -428,6 +459,34 @@ async function onProfile(){
     setMsg("aMsg", `Profiling complete. Detected ${schemaFields.length} fields • ${questions.length} questions`, "ok");
   }catch(e){ console.error(e); setMsg("aMsg","Profiling failed. Check logs.","err"); }
   finally{ setBusy(btn,false); }
+}
+
+function renderFieldMap(fields){
+  $("fCount").textContent = fields.length;
+  const body = $("fmBody"); body.innerHTML = "";
+  fields.forEach((f,i) => {
+    const row = document.createElement("div"); row.className="fm-row";
+    const cField = document.createElement("div"); cField.textContent = f.field ?? f.name ?? "";
+    const cDType = document.createElement("div"); const cAllowed = document.createElement("div"); const cDesc = document.createElement("div");
+    cDType.textContent = f.dtype ?? ""; cAllowed.textContent = f.allowed ?? ""; cDesc.textContent = f.description ?? "";
+    [cDType,cAllowed,cDesc].forEach((cell, colIdx) => {
+      cell.contentEditable = "true"; cell.classList.add("fm-edit");
+      cell.addEventListener("blur", () => { const val = cell.textContent.trim();
+        if(colIdx===0) fields[i].dtype = val; if(colIdx===1) fields[i].allowed = val; if(colIdx===2) fields[i].description = val; });
+    });
+    row.append(cField,cDType,cAllowed,cDesc); body.appendChild(row);
+  });
+}
+
+function renderQuestions(qs){
+  $("qCount").textContent = qs.length; const wrap = $("qWrap"); wrap.innerHTML = "";
+  if(!qs?.length){ wrap.innerHTML = `<div class="muted">No questions returned.</div>`; return; }
+  qs.forEach((q,idx) => {
+    const card=document.createElement("div"); card.className="card"; card.style.marginBottom="10px";
+    card.innerHTML = `<div><strong>Question ${idx+1}</strong></div><div style="margin:6px 0 8px">${(q.text||q)}</div>`;
+    const ta=document.createElement("textarea"); ta.placeholder="Your answer (optional)"; ta.addEventListener("input",()=>answers[idx]=ta.value);
+    card.appendChild(ta); wrap.appendChild(card);
+  });
 }
 
 async function onGenerateDesign(){
