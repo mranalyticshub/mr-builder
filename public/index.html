@@ -21,7 +21,7 @@
     button.secondary { background:#f5f5f5; color:#111; border:1px solid #ddd; }
     button.ghost { background:#fff; color:#111; border:1px dashed #bbb; }
     button[disabled] { opacity:.55; cursor:not-allowed; }
-    input[type="text"], input[type="email"], select, textarea { width:100%; padding:10px 12px; border-radius:8px; border:1px solid #ddd; background:#fff; }
+    input[type="text"], input[type="email"], input[type="date"], select, textarea { width:100%; padding:10px 12px; border-radius:8px; border:1px solid #ddd; background:#fff; }
     textarea { min-height: 120px; font-family: ui-monospace, Menlo, Consolas, monospace; }
     .hidden { display:none !important; }
     .err { color:var(--err); }
@@ -40,7 +40,7 @@
     .fm-edit:focus { box-shadow: inset 0 0 0 2px #cde9ff; background:#f6fbff; }
 
     /* Preview grid */
-    #previewToolbar { display:flex; gap:8px; align-items:center; margin:8px 0 10px; }
+    #previewToolbar { display:flex; gap:8px; align-items:center; margin:8px 0 10px; flex-wrap: wrap; }
     #previewPanel { border:1px solid var(--line); border-radius:10px; background:#fff; padding:12px; }
     #previewCanvas {
       position:relative; height: 720px; border-radius:8px;
@@ -70,6 +70,7 @@
     /* Prompt to edit */
     .promptbar { display:flex; gap:8px; align-items:flex-start; margin-top:12px; }
     .promptbar textarea { min-height: 80px; }
+    .chip { font-size:11px; background:#f1f5f9; border:1px solid #e5e7eb; border-radius:999px; padding:4px 8px; }
   </style>
 </head>
 <body>
@@ -121,7 +122,12 @@
     <h2>4) Design & Preview</h2>
 
     <div id="previewToolbar">
+      <span class="chip">Filters</span>
+      <label class="muted">Start <input id="drStart" type="date" style="width:auto"></label>
+      <label class="muted">End <input id="drEnd" type="date" style="width:auto"></label>
+      <button id="applyDateRange" class="ghost" type="button" title="Apply date range">Apply</button>
       <button id="clearFilters" class="ghost" type="button" title="Clear all dashboard filters">Clear filters</button>
+      <span style="flex:1"></span>
       <button id="saveLayout" class="ghost" type="button" title="Persist current tile positions">Save layout</button>
       <button id="exportPdf" class="secondary" type="button" title="Export as PDF">Export PDF</button>
       <span id="dMsg" class="muted"></span>
@@ -149,7 +155,7 @@ function setBusy(btn, on, label="Working…"){
 }
 function readQuery(k){ const p = new URLSearchParams(location.search); return p.get(k); }
 function cookieGet(name){ return (`; ${document.cookie}`).split(`; ${name}=`).pop().split(';')[0] || ""; }
-function cookieSet(name, value){ document.cookie = `${name}=${value}; Max-Age=3600; Path=/; SameSite=None; Secure`; }
+function cookieSet(name, value){ document.cookie = `${name}=${value}; Max-Age=43200; Path=/; SameSite=None; Secure`; } // 12h
 function cookieDel(name){ document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=None; Secure`; }
 
 let sid = null;
@@ -157,7 +163,7 @@ let schemaFields = [];
 let questions = [];
 let answers = {};
 let dsl = null;
-let currentFilters = []; // [{field, op, values}]
+let currentFilters = { rules: [] , date_range: null }; // unified model for server
 let localLayout = {};   // tileId -> {x,y,w,h}
 
 /* ------- palette helper (reads dsl.theme.palette) ------- */
@@ -213,11 +219,12 @@ function renderQuestions(qs){
 }
 
 /* ---------- SVG chart helpers with numeric axes ---------- */
-function fmtCurrency(n){ try{ return getCurrency()+Number(n).toLocaleString(); }catch{ return String(n); } }
-function axisify(svgW, svgH, pad, xLabel, yLabel, yTicks=[]){
+function axisify(svgW, svgH, pad, xLabel, yLabel, yTicks=[], yTicksFmt=[]){
+  const t0 = yTicks[0] ?? 0, t2 = (yTicks[2] ?? 1);
   const ticks = (yTicks||[]).map((v,i)=>{
-    const y = svgH-pad-((svgH-pad*2)*((v - (yTicks[0]||0))/((yTicks[2]||1)-(yTicks[0]||0) || 1)));
-    return `<g><line x1="${pad-4}" y1="${y}" x2="${svgW-pad}" y2="${y}" stroke="#f0f0f0"/><text x="${pad-8}" y="${y+4}" font-size="10" fill="#888" text-anchor="end">${v.toLocaleString()}</text></g>`;
+    const y = svgH-pad-((svgH-pad*2)*((v - t0)/((t2 - t0) || 1)));
+    const label = (yTicksFmt && yTicksFmt[i] != null) ? yTicksFmt[i] : (v?.toLocaleString?.() ?? String(v));
+    return `<g><line x1="${pad-4}" y1="${y}" x2="${svgW-pad}" y2="${y}" stroke="#f0f0f0"/><text x="${pad-8}" y="${y+4}" font-size="10" fill="#888" text-anchor="end">${label}</text></g>`;
   }).join("");
   return `
     <g stroke="#ddd"><line x1="${pad}" y1="${svgH-pad}" x2="${svgW-pad}" y2="${svgH-pad}"/>
@@ -226,7 +233,7 @@ function axisify(svgW, svgH, pad, xLabel, yLabel, yTicks=[]){
     <text x="${(svgW)/2}" y="${svgH-4}" font-size="11" text-anchor="middle" fill="#666">${xLabel||""}</text>
     <text x="12" y="${(svgH)/2}" font-size="11" text-anchor="middle" fill="#666" transform="rotate(-90 12,${(svgH)/2})">${yLabel||""}</text>`;
 }
-function svgBar(labels, values, xLabel, yLabel, yTicks){
+function svgBar(labels, values, xLabel, yLabel, yTicks, yTicksFmt){
   const palette = getPalette();
   const w=800,h=300,pad=40; const n = Math.max(1, values.length);
   const max = Math.max(...values.map(v=>isFinite(v)?v:0), 1);
@@ -240,11 +247,11 @@ function svgBar(labels, values, xLabel, yLabel, yTicks){
              <text x="${x+bw/2}" y="${h-pad+12}" font-size="10" fill="#777" text-anchor="middle">${(labels[i]??"")}</text>`;
   });
   return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
-    ${axisify(w,h,pad,xLabel,yLabel,yTicks)}
+    ${axisify(w,h,pad,xLabel,yLabel,yTicks,yTicksFmt)}
     ${bars}
   </svg>`;
 }
-function svgLine(labels, values, xLabel, yLabel, yTicks){
+function svgLine(labels, values, xLabel, yLabel, yTicks, yTicksFmt){
   const palette = getPalette();
   const stroke = palette[0] || "#7aa2ff";
   const w=800,h=300,pad=40; const n=Math.max(1,values.length); const max=Math.max(...values.map(v=>isFinite(v)?v:0),1);
@@ -252,7 +259,7 @@ function svgLine(labels, values, xLabel, yLabel, yTicks){
   let pts=[], dots="";
   values.forEach((v,i)=>{ const x=pad+i*step, y=h-pad-(h-pad*2)*(v/max); pts.push(`${x},${y}`); dots += `<circle data-idx="${i}" cx="${x}" cy="${y}" r="3" fill="${stroke}"></circle>`; });
   return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
-    ${axisify(w,h,pad,xLabel,yLabel,yTicks)}
+    ${axisify(w,h,pad,xLabel,yLabel,yTicks,yTicksFmt)}
     <polyline fill="none" stroke="${stroke}" stroke-width="2" points="${pts.join(" ")}" />
     ${dots}
   </svg>`;
@@ -317,13 +324,13 @@ function renderPreviewPayload(tiles){
       }
     }
     else if(d.series){
-      const labels=d.series.labels||[], values=d.series.values||[], ticks=d.series.y_ticks||[];
+      const labels=d.series.labels||[], values=d.series.values||[], ticks=d.series.y_ticks||[], ticksFmt=d.series.y_ticks_fmt||[];
       const xLab=d.series.x_label||"", yLab=d.series.y_label||"";
       const box=document.createElement("div"); box.className="chart"; box.style.width="100%"; box.style.height="100%";
       let svgHtml="";
-      if((t.type||"") === "line") svgHtml = svgLine(labels,values,xLab,yLab,ticks);
+      if((t.type||"") === "line") svgHtml = svgLine(labels,values,xLab,yLab,ticks,ticksFmt);
       else if((t.type||"") === "pie") svgHtml = svgPie(labels,values);
-      else svgHtml = svgBar(labels,values,xLab,yLab,ticks);
+      else svgHtml = svgBar(labels,values,xLab,yLab,ticks,ticksFmt);
       box.innerHTML = svgHtml; tb.appendChild(box);
 
       box.addEventListener("mousemove", (ev)=>{
@@ -340,8 +347,8 @@ function renderPreviewPayload(tiles){
         const field = xLab || t.title || "category";
         const value = labels[idx]; if(!value) return;
         const k = JSON.stringify({field,op:"eq",values:[String(value)]});
-        const i = currentFilters.findIndex(f=>JSON.stringify(f)===k);
-        if(i>=0) currentFilters.splice(i,1); else currentFilters.push({field,op:"eq",values:[String(value)]});
+        const i = currentFilters.rules.findIndex(f=>JSON.stringify(f)===k);
+        if(i>=0) currentFilters.rules.splice(i,1); else currentFilters.rules.push({field,op:"eq",values:[String(value)]});
         refreshPreview();
       });
     }
@@ -431,7 +438,7 @@ async function onGenerateDesign(){
     const text = await r.text(); let data={}; try{ data=JSON.parse(text||"{}"); }catch{}
     if(!r.ok) throw new Error(data?.error || text || `HTTP ${r.status}`);
     dsl = data.dsl || data;
-    show("stepD", true); currentFilters = []; localLayout = {};
+    show("stepD", true); currentFilters = { rules: [], date_range: null }; localLayout = {};
     await refreshPreview();
     setMsg("cMsg", "Design created.", "ok");
   }catch(e){ console.error(e); setMsg("cMsg","Failed to create design. Check logs.","err"); }
@@ -464,7 +471,17 @@ async function onSaveLayout(){
   try{ const j = await r.json(); dsl = j.dsl || dsl; setMsg("dMsg","Layout saved.","ok"); }catch(e){ setMsg("dMsg","Layout save failed.","err"); }
 }
 
-function onClearFilters(){ currentFilters=[]; refreshPreview(); }
+function onClearFilters(){
+  currentFilters = { rules: [], date_range: null };
+  $("drStart").value = ""; $("drEnd").value = "";
+  refreshPreview();
+}
+function onApplyDateRange(){
+  const s = $("drStart").value || null;
+  const e = $("drEnd").value || null;
+  currentFilters.date_range = (s || e) ? { start: s, end: e } : null;
+  refreshPreview();
+}
 function onExportPdf(){ window.print(); }
 
 /* ---------- Boot ---------- */
@@ -477,6 +494,7 @@ function onExportPdf(){ window.print(); }
   $("saveLayout").addEventListener("click", onSaveLayout, {passive:true});
   $("clearFilters").addEventListener("click", onClearFilters, {passive:true});
   $("exportPdf").addEventListener("click", onExportPdf, {passive:true});
+  $("applyDateRange").addEventListener("click", onApplyDateRange, {passive:true});
 })();
 </script>
 </body>
