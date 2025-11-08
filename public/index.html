@@ -6,22 +6,27 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
 
   <style>
-    :root { --gap:16px; --bg:#fff; --ink:#111; --muted:#666; --line:#e9e9e9; --ok:#0a6; --err:#b00020; }
-    html, body { margin:0; padding:0; background:#fafafa; color:var(--ink);
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial; }
+    :root {
+      --gap:16px; --bg:#fff; --ink:#111; --muted:#666; --line:#e9e9e9; --ok:#0a6; --err:#b00020;
+      --card-shadow: 0 1px 0 rgba(0,0,0,.03), 0 8px 22px rgba(0,0,0,.06);
+    }
+    html, body { margin:0; padding:0; background:#f6f7f9; color:var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial; }
     .wrap { max-width: 1240px; margin: 0 auto; padding: 24px; }
-    h1 { margin: 0 0 16px; font-size: 38px; letter-spacing:.2px }
-    h2 { margin: 0 0 10px; }
+    h1 { margin: 0 0 16px; font-size: 34px; letter-spacing:.2px; font-weight:800; }
+    h2 { margin: 0 0 10px; font-weight:700; }
     .muted { color:var(--muted); font-size:13px; }
     .row { display:flex; align-items:center; gap:12px; }
-    .sid-badge { background:#fafafa; border:1px solid #e7e7e7; padding:6px 8px; border-radius:6px; font-size:12px; }
-    .card { border:1px solid var(--line); padding:16px; border-radius:10px; background:var(--bg); }
+    .sid-badge { background:#fff; border:1px solid #e7e7e7; padding:6px 8px; border-radius:6px; font-size:12px; }
+    .card { border:1px solid var(--line); padding:16px; border-radius:12px; background:var(--bg); box-shadow: var(--card-shadow); }
     .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
-    button { appearance:none; background:#111; color:#fff; border:0; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:600; }
+    button { appearance:none; background:#111; color:#fff; border:0; padding:10px 14px; border-radius:10px; cursor:pointer; font-weight:700; }
     button.secondary { background:#f5f5f5; color:#111; border:1px solid #ddd; }
     button.ghost { background:#fff; color:#111; border:1px dashed #bbb; }
     button[disabled] { opacity:.55; cursor:not-allowed; }
-    input[type="text"], input[type="email"], input[type="date"], select, textarea { width:100%; padding:10px 12px; border-radius:8px; border:1px solid #ddd; background:#fff; }
+    input[type="text"], input[type="email"], input[type="date"], select, textarea {
+      width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff;
+    }
     textarea { min-height: 120px; font-family: ui-monospace, Menlo, Consolas, monospace; }
     .hidden { display:none !important; }
     .err { color:var(--err); }
@@ -40,25 +45,25 @@
     .fm-edit:focus { box-shadow: inset 0 0 0 2px #cde9ff; background:#f6fbff; }
 
     /* Preview grid */
-    #previewToolbar { display:flex; gap:8px; align-items:center; margin:8px 0 10px; flex-wrap: wrap; }
-    #previewPanel { border:1px solid var(--line); border-radius:10px; background:#fff; padding:12px; }
+    #previewToolbar { display:flex; gap:8px; align-items:center; margin:8px 0 10px; flex-wrap:wrap; }
+    #previewPanel { border:1px solid var(--line); border-radius:12px; background:#fff; padding:12px; box-shadow: var(--card-shadow); }
     #previewCanvas {
-      position:relative; height: 720px; border-radius:8px;
+      position:relative; height: 720px; border-radius:10px;
       background:
-        repeating-linear-gradient(to right, #f6f6f6 0 1px, transparent 1px calc(100% / 12)),
-        repeating-linear-gradient(to bottom, #f6f6f6 0 1px, transparent 1px calc(100% / 9));
+        repeating-linear-gradient(to right, #f4f5f7 0 1px, transparent 1px calc(100% / 12)),
+        repeating-linear-gradient(to bottom, #f4f5f7 0 1px, transparent 1px calc(100% / 9));
       overflow:hidden;
     }
-    .tile { position:absolute; border:1px solid #dadada; border-radius:8px; background:#fff;
-      display:flex; flex-direction:column; box-shadow: 0 1px 0 rgba(0,0,0,.03), 0 6px 16px rgba(0,0,0,.04); }
-    .tile .t-h { font-weight:600; padding:8px 10px; border-bottom:1px solid #eee; cursor:move; user-select:none; display:flex; justify-content:space-between; align-items:center;}
+    .tile { position:absolute; border:1px solid #dde1e6; border-radius:12px; background:#fff;
+      display:flex; flex-direction:column; box-shadow: var(--card-shadow); }
+    .tile .t-h { font-weight:700; padding:10px 12px; border-bottom:1px solid #eef0f3; cursor:move; user-select:none; display:flex; justify-content:space-between; align-items:center;}
     .tile .t-b { padding:10px; color:#333; font-size:12px; flex:1; overflow:hidden; position:relative; }
-    .kpi { font-size:32px; font-weight:800; letter-spacing:.3px }
+    .kpi { font-size:34px; font-weight:900; letter-spacing:.2px }
     .kpi-delta { margin-top:4px; font-size:12px; color:#0a6 }
     .kpi-delta.neg { color:#b00020 }
     .chart svg { width:100%; height:100%; }
-    .legend { position:absolute; top:6px; right:6px; background:rgba(255,255,255,.88); border:1px solid #eee; border-radius:6px; padding:4px 6px; font-size:11px;}
-    .tooltip { position:absolute; pointer-events:none; background:#111; color:#fff; font-size:11px; padding:4px 6px; border-radius:4px; transform:translate(-50%,-120%); white-space:nowrap; display:none; }
+    .legend { position:absolute; top:6px; right:6px; background:rgba(255,255,255,.92); border:1px solid #eee; border-radius:8px; padding:6px 8px; font-size:11px; box-shadow: var(--card-shadow); }
+    .tooltip { position:absolute; pointer-events:none; background:#111; color:#fff; font-size:11px; padding:6px 8px; border-radius:6px; transform:translate(-50%,-120%); white-space:nowrap; display:none; }
     .preview-empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#888; font-size:14px; background: repeating-linear-gradient(45deg, #fafafa, #fafafa 12px, #fefefe 12px, #fefefe 24px); }
     .tablewrap { overflow:auto; height:100%; }
     .tablewrap table { width:100%; border-collapse:collapse; font-size:12px; }
@@ -70,7 +75,7 @@
     /* Prompt to edit */
     .promptbar { display:flex; gap:8px; align-items:flex-start; margin-top:12px; }
     .promptbar textarea { min-height: 80px; }
-    .chip { font-size:11px; background:#f1f5f9; border:1px solid #e5e7eb; border-radius:999px; padding:4px 8px; }
+    .pill { padding:8px 10px; border:1px dashed #cfd6dd; border-radius:10px; background:#fafbfc; }
   </style>
 </head>
 <body>
@@ -122,12 +127,13 @@
     <h2>4) Design & Preview</h2>
 
     <div id="previewToolbar">
-      <span class="chip">Filters</span>
-      <label class="muted">Start <input id="drStart" type="date" style="width:auto"></label>
-      <label class="muted">End <input id="drEnd" type="date" style="width:auto"></label>
-      <button id="applyDateRange" class="ghost" type="button" title="Apply date range">Apply</button>
+      <div class="pill">Filters</div>
+      <span class="muted">Start</span>
+      <input id="dateStart" type="date" style="width:auto"/>
+      <span class="muted">End</span>
+      <input id="dateEnd" type="date" style="width:auto"/>
+      <button id="applyDate" class="secondary" type="button">Apply</button>
       <button id="clearFilters" class="ghost" type="button" title="Clear all dashboard filters">Clear filters</button>
-      <span style="flex:1"></span>
       <button id="saveLayout" class="ghost" type="button" title="Persist current tile positions">Save layout</button>
       <button id="exportPdf" class="secondary" type="button" title="Export as PDF">Export PDF</button>
       <span id="dMsg" class="muted"></span>
@@ -155,7 +161,7 @@ function setBusy(btn, on, label="Working…"){
 }
 function readQuery(k){ const p = new URLSearchParams(location.search); return p.get(k); }
 function cookieGet(name){ return (`; ${document.cookie}`).split(`; ${name}=`).pop().split(';')[0] || ""; }
-function cookieSet(name, value){ document.cookie = `${name}=${value}; Max-Age=43200; Path=/; SameSite=None; Secure`; } // 12h
+function cookieSet(name, value){ document.cookie = `${name}=${value}; Max-Age=3600; Path=/; SameSite=None; Secure`; }
 function cookieDel(name){ document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=None; Secure`; }
 
 let sid = null;
@@ -163,30 +169,17 @@ let schemaFields = [];
 let questions = [];
 let answers = {};
 let dsl = null;
-let currentFilters = { rules: [] , date_range: null }; // unified model for server
+let currentFilters = []; // [{field, op, values}]
 let localLayout = {};   // tileId -> {x,y,w,h}
+let dateRange = null;   // {start, end}
 
 /* ------- palette helper (reads dsl.theme.palette) ------- */
 function getPalette(){
-  const def = ["#7aa2ff","#ffc107","#ff6b6b","#4dd0e1","#9ccc65","#ab47bc","#ffa726"];
+  const def = ["#5B8FF9","#61DDAA","#65789B","#F6BD16","#7262FD","#78D3F8","#9661BC"];
   try{ const pal = dsl?.theme?.palette; if(Array.isArray(pal) && pal.length) return pal; }catch(e){}
   return def;
 }
 function getCurrency(){ return dsl?.theme?.currency || "£"; }
-
-async function createSession(){
-  let r = await fetch(`${ORCH}/session`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({prompt:""}) });
-  if(r.status === 422){ r = await fetch(`${ORCH}/session`, { method:"POST" }); }
-  const j = await r.json(); const newSid = j.sid || j.session_id;
-  cookieSet("mr_sid", newSid); sid = newSid; $("sidBadge").textContent = sid; return sid;
-}
-async function ensureSession(){
-  if(readQuery("new")==="1"){ cookieDel("mr_sid"); }
-  const urlSid = (readQuery("sid")||"").trim(); const ckSid = (cookieGet("mr_sid")||"").trim();
-  if(urlSid){ sid=urlSid; cookieSet("mr_sid", sid); $("sidBadge").textContent=sid; return sid; }
-  if(ckSid){ sid=ckSid; $("sidBadge").textContent=sid; return sid; }
-  return await createSession();
-}
 
 /* ---------- Field map ---------- */
 function renderFieldMap(fields){
@@ -218,49 +211,57 @@ function renderQuestions(qs){
   });
 }
 
-/* ---------- SVG chart helpers with numeric axes ---------- */
+/* ---------- SVG chart helpers: nicer axes + formatting ---------- */
 function axisify(svgW, svgH, pad, xLabel, yLabel, yTicks=[], yTicksFmt=[]){
-  const t0 = yTicks[0] ?? 0, t2 = (yTicks[2] ?? 1);
-  const ticks = (yTicks||[]).map((v,i)=>{
-    const y = svgH-pad-((svgH-pad*2)*((v - t0)/((t2 - t0) || 1)));
-    const label = (yTicksFmt && yTicksFmt[i] != null) ? yTicksFmt[i] : (v?.toLocaleString?.() ?? String(v));
-    return `<g><line x1="${pad-4}" y1="${y}" x2="${svgW-pad}" y2="${y}" stroke="#f0f0f0"/><text x="${pad-8}" y="${y+4}" font-size="10" fill="#888" text-anchor="end">${label}</text></g>`;
+  const y0 = yTicks[0] ?? 0, y2 = yTicks[2] ?? 1;
+  const grid = (yTicks||[]).map((v,i)=>{
+    const y = svgH-pad-((svgH-pad*2)*((v - y0)/((y2 - y0) || 1)));
+    const txt = yTicksFmt[i] ?? (v.toLocaleString());
+    return `<g shape-rendering="crispEdges">
+      <line x1="${pad}" y1="${y}" x2="${svgW-pad}" y2="${y}" stroke="#efeff1"/>
+      <text x="${pad-8}" y="${y+4}" font-size="10" fill="#6b7280" text-anchor="end">${txt}</text>
+    </g>`;
   }).join("");
   return `
-    <g stroke="#ddd"><line x1="${pad}" y1="${svgH-pad}" x2="${svgW-pad}" y2="${svgH-pad}"/>
-                     <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${svgH-pad}"/></g>
-    ${ticks}
-    <text x="${(svgW)/2}" y="${svgH-4}" font-size="11" text-anchor="middle" fill="#666">${xLabel||""}</text>
-    <text x="12" y="${(svgH)/2}" font-size="11" text-anchor="middle" fill="#666" transform="rotate(-90 12,${(svgH)/2})">${yLabel||""}</text>`;
+    <g shape-rendering="crispEdges">
+      <line x1="${pad}" y1="${svgH-pad}" x2="${svgW-pad}" y2="${svgH-pad}" stroke="#dcdfe4"/>
+      <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${svgH-pad}" stroke="#dcdfe4"/>
+    </g>
+    ${grid}
+    <text x="${(svgW)/2}" y="${svgH-6}" font-size="11" text-anchor="middle" fill="#6b7280">${xLabel||""}</text>
+    <text x="12" y="${(svgH)/2}" font-size="11" text-anchor="middle" fill="#6b7280" transform="rotate(-90 12,${(svgH)/2})">${yLabel||""}</text>`;
 }
 function svgBar(labels, values, xLabel, yLabel, yTicks, yTicksFmt){
   const palette = getPalette();
-  const w=800,h=300,pad=40; const n = Math.max(1, values.length);
+  const w=800,h=320,pad=44; const n = Math.max(1, values.length);
   const max = Math.max(...values.map(v=>isFinite(v)?v:0), 1);
+  const min = Math.min(...values.map(v=>isFinite(v)?v:0), 0);
   const bw = (w - pad*2) / n;
   let bars = "";
   values.forEach((v,i)=>{
-    const bh = (h - pad*2) * (v/max);
+    const ratio = (v - min)/((max - min) || 1);
+    const bh = (h - pad*2) * ratio;
     const x = pad + i*bw, y = h-pad-bh;
     const fill = palette[i % palette.length];
-    bars += `<rect data-idx="${i}" x="${x+4}" y="${y}" width="${Math.max(2, bw*0.8-8)}" height="${bh}" rx="3" fill="${fill}"></rect>
-             <text x="${x+bw/2}" y="${h-pad+12}" font-size="10" fill="#777" text-anchor="middle">${(labels[i]??"")}</text>`;
+    bars += `<rect data-idx="${i}" x="${x+6}" y="${y}" width="${Math.max(6, bw*0.82-12)}" height="${bh}"
+              rx="6" fill="${fill}" opacity=".95"></rect>
+             <text x="${x+bw/2}" y="${h-pad+14}" font-size="10" fill="#6b7280" text-anchor="middle">${(labels[i]??"")}</text>`;
   });
   return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
     ${axisify(w,h,pad,xLabel,yLabel,yTicks,yTicksFmt)}
-    ${bars}
+    <g>${bars}</g>
   </svg>`;
 }
 function svgLine(labels, values, xLabel, yLabel, yTicks, yTicksFmt){
   const palette = getPalette();
-  const stroke = palette[0] || "#7aa2ff";
-  const w=800,h=300,pad=40; const n=Math.max(1,values.length); const max=Math.max(...values.map(v=>isFinite(v)?v:0),1);
+  const stroke = palette[0] || "#5B8FF9";
+  const w=800,h=320,pad=44; const n=Math.max(1,values.length); const max=Math.max(...values.map(v=>isFinite(v)?v:0),1);
   const step=(w-pad*2)/Math.max(1,n-1);
   let pts=[], dots="";
-  values.forEach((v,i)=>{ const x=pad+i*step, y=h-pad-(h-pad*2)*(v/max); pts.push(`${x},${y}`); dots += `<circle data-idx="${i}" cx="${x}" cy="${y}" r="3" fill="${stroke}"></circle>`; });
+  values.forEach((v,i)=>{ const x=pad+i*step, y=h-pad-(h-pad*2)*(v/max); pts.push(`${x},${y}`); dots += `<circle data-idx="${i}" cx="${x}" cy="${y}" r="3.5" fill="${stroke}" stroke="#fff" stroke-width="1.5"></circle>`; });
   return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
     ${axisify(w,h,pad,xLabel,yLabel,yTicks,yTicksFmt)}
-    <polyline fill="none" stroke="${stroke}" stroke-width="2" points="${pts.join(" ")}" />
+    <polyline fill="none" stroke="${stroke}" stroke-width="2.5" stroke-linecap="round" points="${pts.join(" ")}" />
     ${dots}
   </svg>`;
 }
@@ -274,10 +275,12 @@ function svgPie(labels, values){
     const x1=cx+r*Math.cos(a1), y1=cy+r*Math.sin(a1);
     const large = theta>Math.PI?1:0;
     const fill = palette[i % palette.length];
-    segs += `<path data-idx="${i}" d="M ${cx},${cy} L ${x0},${y0} A ${r},${r} 0 ${large} 1 ${x1},${y1} Z" fill="${fill}"></path>`;
+    segs += `<path data-idx="${i}" d="M ${cx},${cy} L ${x0},${y0} A ${r},${r} 0 ${large} 1 ${x1},${y1} Z" fill="${fill}" opacity=".95"></path>`;
     a0=a1;
   });
-  const legend = labels.map((l,i)=>`<div><span style="display:inline-block;width:10px;height:10px;background:${palette[i%palette.length]};margin-right:6px;border-radius:2px"></span>${l}</div>`).join("");
+  const legend = labels.map((l,i)=>`<div style="display:flex;align-items:center;gap:6px;margin:2px 0">
+      <span style="display:inline-block;width:10px;height:10px;background:${palette[i%palette.length]};border-radius:3px;border:1px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.05)"></span>${l}
+    </div>`).join("");
   return `<div style="display:flex;gap:8px;height:100%">
     <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">${segs}</svg>
     <div class="legend">${legend}</div>
@@ -319,12 +322,13 @@ function renderPreviewPayload(tiles){
       if(d.kpi.delta){
         const pct = d.kpi.delta.pct; const delta = document.createElement("div");
         const good = (pct||0) >= 0; delta.className = "kpi-delta " + (good? "pos":"neg");
-        delta.textContent = (pct==null) ? "" : `${good ? "▲" : "▼"} ${pct.toFixed(1)}% vs prev 30d`;
+        delta.textContent = (pct==null) ? "" : `${good ? "▲" : "▼"} ${pct.toFixed(1)}% vs prior period`;
         tb.appendChild(delta);
       }
     }
     else if(d.series){
-      const labels=d.series.labels||[], values=d.series.values||[], ticks=d.series.y_ticks||[], ticksFmt=d.series.y_ticks_fmt||[];
+      const labels=d.series.labels||[], values=d.series.values||[];
+      const ticks=d.series.y_ticks||[], ticksFmt=d.series.y_ticks_fmt||[];
       const xLab=d.series.x_label||"", yLab=d.series.y_label||"";
       const box=document.createElement("div"); box.className="chart"; box.style.width="100%"; box.style.height="100%";
       let svgHtml="";
@@ -347,8 +351,8 @@ function renderPreviewPayload(tiles){
         const field = xLab || t.title || "category";
         const value = labels[idx]; if(!value) return;
         const k = JSON.stringify({field,op:"eq",values:[String(value)]});
-        const i = currentFilters.rules.findIndex(f=>JSON.stringify(f)===k);
-        if(i>=0) currentFilters.rules.splice(i,1); else currentFilters.rules.push({field,op:"eq",values:[String(value)]});
+        const i = currentFilters.findIndex(f=>JSON.stringify(f)===k);
+        if(i>=0) currentFilters.splice(i,1); else currentFilters.push({field,op:"eq",values:[String(value)]});
         refreshPreview();
       });
     }
@@ -393,9 +397,10 @@ function renderPreviewPayload(tiles){
 /* ---------- Fetch preview tiles (keep dsl for theme) ---------- */
 async function refreshPreview(){
   try{
+    const payload = { filters: { date_range: dateRange, others: currentFilters } };
     const r = await fetch(`${ORCH}/preview/${encodeURIComponent(sid)}`, {
       method:"POST", headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({filters: currentFilters})
+      body: JSON.stringify(payload)
     });
     if(r.ok){
       const j = await r.json();
@@ -408,6 +413,20 @@ async function refreshPreview(){
 }
 
 /* ---------- Wires ---------- */
+async function createSession(){
+  let r = await fetch(`${ORCH}/session`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({prompt:""}) });
+  if(r.status === 422){ r = await fetch(`${ORCH}/session`, { method:"POST" }); }
+  const j = await r.json(); const newSid = j.sid || j.session_id;
+  cookieSet("mr_sid", newSid); sid = newSid; $("sidBadge").textContent = sid; return sid;
+}
+async function ensureSession(){
+  if(readQuery("new")==="1"){ cookieDel("mr_sid"); }
+  const urlSid = (readQuery("sid")||"").trim(); const ckSid = (cookieGet("mr_sid")||"").trim();
+  if(urlSid){ sid=urlSid; cookieSet("mr_sid", sid); $("sidBadge").textContent=sid; return sid; }
+  if(ckSid){ sid=ckSid; $("sidBadge").textContent=sid; return sid; }
+  return await createSession();
+}
+
 async function onNewSession(){
   try{ setBusy($("newSession"), true, "Starting…"); cookieDel("mr_sid"); await createSession(); setMsg("aMsg","New session started.","ok"); }
   catch{ setMsg("aMsg","Could not start a new session.","err"); }
@@ -438,7 +457,7 @@ async function onGenerateDesign(){
     const text = await r.text(); let data={}; try{ data=JSON.parse(text||"{}"); }catch{}
     if(!r.ok) throw new Error(data?.error || text || `HTTP ${r.status}`);
     dsl = data.dsl || data;
-    show("stepD", true); currentFilters = { rules: [], date_range: null }; localLayout = {};
+    show("stepD", true); currentFilters = []; localLayout = {};
     await refreshPreview();
     setMsg("cMsg", "Design created.", "ok");
   }catch(e){ console.error(e); setMsg("cMsg","Failed to create design. Check logs.","err"); }
@@ -472,14 +491,13 @@ async function onSaveLayout(){
 }
 
 function onClearFilters(){
-  currentFilters = { rules: [], date_range: null };
-  $("drStart").value = ""; $("drEnd").value = "";
+  currentFilters=[]; dateRange=null;
+  $("dateStart").value = ""; $("dateEnd").value = "";
   refreshPreview();
 }
-function onApplyDateRange(){
-  const s = $("drStart").value || null;
-  const e = $("drEnd").value || null;
-  currentFilters.date_range = (s || e) ? { start: s, end: e } : null;
+function onApplyDate(){
+  const s = $("dateStart").value || null; const e = $("dateEnd").value || null;
+  if(s || e){ dateRange = { start: s, end: e }; } else { dateRange = null; }
   refreshPreview();
 }
 function onExportPdf(){ window.print(); }
@@ -493,8 +511,8 @@ function onExportPdf(){ window.print(); }
   $("applyChange").addEventListener("click", onApplyChange, {passive:true});
   $("saveLayout").addEventListener("click", onSaveLayout, {passive:true});
   $("clearFilters").addEventListener("click", onClearFilters, {passive:true});
+  $("applyDate").addEventListener("click", onApplyDate, {passive:true});
   $("exportPdf").addEventListener("click", onExportPdf, {passive:true});
-  $("applyDateRange").addEventListener("click", onApplyDateRange, {passive:true});
 })();
 </script>
 </body>
