@@ -417,6 +417,38 @@
       align-items:center;
       flex-wrap:wrap;
     }
+
+    /* Pie layout improvements */
+    .pie-layout {
+      display:flex;
+      gap:12px;
+      height:100%;
+      align-items:center;
+      justify-content:center;
+    }
+    .pie-svg {
+      flex:0 0 auto;
+      max-width:160px;
+    }
+    .pie-legend {
+      font-size:11px;
+      padding:6px 8px;
+      border-radius:10px;
+      background:#f9fafb;
+      border:1px solid #e5e7eb;
+      max-width:160px;
+      overflow-y:auto;
+      max-height:100%;
+    }
+    .tile.narrow .pie-layout {
+      flex-direction:column;
+    }
+    .tile.narrow .pie-svg {
+      max-width:120px;
+    }
+    .tile.narrow .pie-legend {
+      max-width:100%;
+    }
   </style>
 </head>
 <body>
@@ -664,7 +696,7 @@ function axisify(svgW, svgH, pad, xLabel, yLabel, yTicks=[], yTicksFmt=[]){
     return `
       <g>
         <line x1="${pad}" y1="${y}" x2="${svgW-pad}" y2="${y}" stroke="#e5e7eb" />
-        <text x="${pad-6}" y="${y+3}" font-size="10" fill="#6b7280" text-anchor="end">${label}</text>
+        <text x="${pad-6}" y="${y+3}" font-size="11" fill="#6b7280" text-anchor="end">${label}</text>
       </g>`;
   }).join("");
 
@@ -675,14 +707,14 @@ function axisify(svgW, svgH, pad, xLabel, yLabel, yTicks=[], yTicksFmt=[]){
       <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${svgH-pad}" />
     </g>
     ${ticks}
-    <text x="${(svgW)/2}" y="${svgH-4}" font-size="11" text-anchor="middle" fill="#6b7280">${xLabel||""}</text>
-    <text x="14" y="${(svgH)/2}" font-size="11" text-anchor="middle" fill="#6b7280" transform="rotate(-90 14,${(svgH)/2})">${yLabelAdj}</text>
+    <text x="${(svgW)/2}" y="${svgH-4}" font-size="12" text-anchor="middle" fill="#6b7280">${xLabel||""}</text>
+    <text x="14" y="${(svgH)/2}" font-size="12" text-anchor="middle" fill="#6b7280" transform="rotate(-90 14,${(svgH)/2})">${yLabelAdj}</text>
   `;
 }
 
 function svgBar(labels, values, xLabel, yLabel, yTicks, yTicksFmt){
   const palette = getPalette();
-  const w=880, h=280, pad=42;
+  const w=880, h=280, pad=48;
   const n = Math.max(1, values.length);
   const max = Math.max(...values.map(v=>isFinite(v)?v:0), 1);
   const bw = (w - pad*2) / n;
@@ -693,10 +725,10 @@ function svgBar(labels, values, xLabel, yLabel, yTicks, yTicksFmt){
     const y = h - pad - bh;
     const fill = palette[i % palette.length];
     const label = labels[i] ?? "";
-    const showLabel = n <= 12 || i % Math.ceil(n / 12) === 0;
+    const showLabel = n <= 14 || i % Math.ceil(n / 14) === 0;
     bars += `
       <rect data-idx="${i}" x="${x+5}" y="${y}" width="${Math.max(4, bw*0.78)}" height="${bh}" rx="4" fill="${fill}"></rect>
-      ${showLabel ? `<text x="${x + bw/2}" y="${h-pad+12}" font-size="9" fill="#6b7280" text-anchor="middle">${label}</text>` : ""}
+      ${showLabel ? `<text x="${x + bw/2}" y="${h-pad+14}" font-size="10" fill="#6b7280" text-anchor="middle">${label}</text>` : ""}
     `;
   });
 
@@ -711,7 +743,7 @@ function svgBar(labels, values, xLabel, yLabel, yTicks, yTicksFmt){
 function svgLine(labels, values, xLabel, yLabel, yTicks, yTicksFmt){
   const palette = getPalette();
   const stroke = palette[0] || "#6366f1";
-  const w=880, h=280, pad=42;
+  const w=880, h=280, pad=48;
   const n=Math.max(1,values.length);
   const max=Math.max(...values.map(v=>isFinite(v)?v:0),1);
   const step=(w-pad*2)/Math.max(1,n-1);
@@ -734,7 +766,7 @@ function svgLine(labels, values, xLabel, yLabel, yTicks, yTicksFmt){
 
 function svgPie(labels, values){
   const palette = getPalette();
-  const w=360,h=260,r=88,cx=130,cy=135;
+  const w=260,h=260,r=90,cx=130,cy=130;
   const sum = values.reduce((a,b)=>a+(isFinite(b)?b:0),0) || 1;
   let a0=0, segs="";
   values.forEach((v,i)=>{
@@ -755,9 +787,9 @@ function svgPie(labels, values){
       <span>${l}</span>
     </div>`).join("");
   return `
-    <div style="display:flex;gap:12px;height:100%;align-items:center;justify-content:center;">
-      <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">${segs}</svg>
-      <div style="font-size:11px;padding:6px 8px;border-radius:10px;background:#f9fafb;border:1px solid #e5e7eb;max-width:140px;">
+    <div class="pie-layout">
+      <svg class="pie-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">${segs}</svg>
+      <div class="pie-legend">
         ${legend}
       </div>
     </div>
@@ -795,13 +827,20 @@ function renderPreviewPayload(tiles){
     tile.style.width  = `${(pos.w/cols)*100}%`;
     tile.style.height = `${(pos.h/rows)*100}%`;
 
+    if(pos.w <= 3){
+      tile.classList.add("narrow");
+    }
+
     const th = document.createElement("div");
     th.className = "t-h";
     const titleSpan = document.createElement("span");
     titleSpan.textContent = t.title || (t.type||"").toUpperCase();
+    titleSpan.title = `Tile id: ${id}`;
+
     const sizeSpan = document.createElement("span");
     sizeSpan.className = "muted";
-    sizeSpan.textContent = `${pos.w}×${pos.h}`;
+    sizeSpan.textContent = `${pos.w}×${pos.h} · ${id}`;
+
     th.append(titleSpan,sizeSpan);
 
     const tb = document.createElement("div");
@@ -849,7 +888,7 @@ function renderPreviewPayload(tiles){
       let xLab=d.series.x_label||"";
       let yLab=d.series.y_label||"";
 
-      // crude heuristic: attach currency to y-label if metric name suggests money
+      // attach currency to y-label if metric name suggests money
       if(/amount|revenue|sales|profit|turnover/i.test(yLab)){
         yLab = `${yLab} (${getCurrency()})`;
       }
@@ -879,11 +918,10 @@ function renderPreviewPayload(tiles){
       });
       box.addEventListener("mouseleave", hideTip);
 
-      // clicking to filter will be wired once backend supports it
+      // placeholder for future cross-filter behaviour
       box.addEventListener("click", (ev)=>{
         const el = ev.target.closest("[data-idx]");
         if(!el) return;
-        // placeholder for future cross-filter behaviour
       });
     }
     else if(d.table){
@@ -961,7 +999,6 @@ async function refreshPreview(){
     const body = {
       filters: {
         date_range: (startVal || endVal) ? { start: startVal, end: endVal } : null,
-        // keep a placeholder for future category filters
         categories: currentFilters
       }
     };
