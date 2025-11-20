@@ -734,9 +734,10 @@ function svgLine(labels, values, xLabel, yLabel, yTicks, yTicksFmt){
 
 function svgPie(labels, values){
   const palette = getPalette();
-  const w=360,h=260,r=88,cx=130,cy=135;
+  const w = 260, h = 220, r = 80, cx = 110, cy = 110;
   const sum = values.reduce((a,b)=>a+(isFinite(b)?b:0),0) || 1;
-  let a0=0, segs="";
+
+  let a0 = 0, segs = "";
   values.forEach((v,i)=>{
     const theta = (v/sum)*2*Math.PI;
     const a1 = a0 + theta;
@@ -749,15 +750,21 @@ function svgPie(labels, values){
     segs += `<path data-idx="${i}" d="M ${cx},${cy} L ${x0},${y0} A ${r},${r} 0 ${large} 1 ${x1},${y1} Z" fill="${fill}" />`;
     a0 = a1;
   });
+
   const legend = labels.map((l,i)=>`
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:11px;">
       <span style="width:10px;height:10px;border-radius:3px;background:${palette[i%palette.length]}"></span>
       <span>${l}</span>
     </div>`).join("");
+
   return `
-    <div style="display:flex;gap:12px;height:100%;align-items:center;justify-content:center;">
-      <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">${segs}</svg>
-      <div style="font-size:11px;padding:6px 8px;border-radius:10px;background:#f9fafb;border:1px solid #e5e7eb;max-width:140px;">
+    <div style="display:flex;gap:8px;align-items:center;justify-content:center;width:100%;height:100%;">
+      <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet"
+           style="flex:0 0 auto;max-width:55%;height:auto;">
+        ${segs}
+      </svg>
+      <div style="font-size:11px;padding:4px 6px;border-radius:10px;background:#f9fafb;
+                  border:1px solid #e5e7eb;flex:0 0 auto;max-width:45%;word-break:break-word;">
         ${legend}
       </div>
     </div>
