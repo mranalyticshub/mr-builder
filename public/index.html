@@ -787,10 +787,12 @@ function renderPreviewPayload(tiles){
   tiles.forEach(t=>{
     const id = t.id || Math.random().toString(36).slice(2);
     const base = { w: t.w || 3, h: t.h || 3, x: t.x || 0, y: t.y || 0 };
-    const w = Math.min(base.w, cols);
-    const h = Math.min(base.h, rows);
-    const x = Math.min(base.x, cols-1);
-    const y = Math.min(base.y, rows-1);
+
+    // clamp so tiles never extend beyond the 12×9 grid
+    let x = Math.max(0, Math.min(base.x, cols - 1));
+    let y = Math.max(0, Math.min(base.y, rows - 1));
+    let w = Math.max(2, Math.min(base.w, cols - x));
+    let h = Math.max(2, Math.min(base.h, rows - y));
 
     const tile = document.createElement("div");
     tile.className = "tile";
@@ -945,10 +947,15 @@ function renderPreviewPayload(tiles){
         nw = Math.max(120, startW+dx);
         nh = Math.max(120, startH+dy);
       }
-      const gx = Math.round((nl/c.width)*cols);
-      const gy = Math.round((nt/c.height)*rows);
-      const gw = Math.max(2, Math.round((nw/c.width)*cols));
-      const gh = Math.max(2, Math.round((nh/c.height)*rows));
+      let gx = Math.round((nl / c.width) * cols);
+      let gy = Math.round((nt / c.height) * rows);
+      gx = Math.max(0, Math.min(gx, cols - 1));
+      gy = Math.max(0, Math.min(gy, rows - 1));
+
+      let gw = Math.max(2, Math.round((nw / c.width) * cols));
+      let gh = Math.max(2, Math.round((nh / c.height) * rows));
+      gw = Math.min(gw, cols - gx);
+      gh = Math.min(gh, rows - gy);
       tile.style.left = `${(gx/cols)*100}%`;
       tile.style.top  = `${(gy/rows)*100}%`;
       tile.style.width= `${(gw/cols)*100}%`;
@@ -1089,8 +1096,8 @@ async function onGenerateDesign(){
     show("stepD", true);
     currentFilters = [];
     localLayout = {};
-    await refreshPreview();
-    setMsg("cMsg","Design created.","ok");
+    setQuickRange("YTD");  // this sets the date fields and refreshes preview
+    setMsg("cMsg","Design created (YTD applied).","ok");
   }catch(e){
     console.error(e);
     setMsg("cMsg","Failed to create design. Check logs.","err");
