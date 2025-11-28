@@ -810,6 +810,13 @@ function renderPreviewPayload(tiles){
     return;
   }
 
+  // 🔧 If tile count changed (add/remove), reset cached layout so new tiles
+  // don’t stack underneath old ones.
+  if (Object.keys(localLayout).length &&
+      Object.keys(localLayout).length !== tiles.length) {
+    localLayout = {};
+  }
+
   const cols = 12, rows = 12;
   const autoPos = autoLayoutTiles(tiles);
 
