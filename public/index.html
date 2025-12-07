@@ -950,48 +950,54 @@ function renderPreviewPayload(tiles){
         }
       }
     }
-    else if(d.series){
-      const labels=d.series.labels||[];
-      const values=d.series.values||[];
-      const ticks=d.series.y_ticks||[];
-      const ticksFmt=d.series.y_ticks_fmt||[];
-      let xLab=d.series.x_label||"";
-      let yLab=d.series.y_label||"";
+    else if (d.series) {
+      const labels   = d.series.labels || [];
+      const values   = d.series.values || [];
+      const ticks    = d.series.y_ticks || [];
+      const ticksFmt = d.series.y_ticks_fmt || [];
+      let xLab       = d.series.x_label || "";
+      let yLab       = d.series.y_label || "";
 
-      if(/amount|revenue|sales|profit|turnover/i.test(yLab)){
+      if (/amount|revenue|sales|profit|turnover/i.test(yLab)) {
         yLab = `${yLab} (${getCurrency()})`;
       }
 
-      const box = document.createElement("div");
-      box.className = "chart";
-      box.style.width = "100%";
-      box.style.height = "100%";
+      // 🔹 If there's no data, show a helpful message and don't try to render a chart
+      if (!values.length) {
+        tb.textContent = "No data for this tile in the current date range.";
+      } else {
+        const box = document.createElement("div");
+        box.className = "chart";
+        box.style.width = "100%";
+        box.style.height = "100%";
 
-      let svgHtml = "";
-      if((t.type||"") === "line") svgHtml = svgLine(labels,values,xLab,yLab,ticks,ticksFmt);
-      else if((t.type||"") === "pie") svgHtml = svgPie(labels,values);
-      else svgHtml = svgBar(labels,values,xLab,yLab,ticks,ticksFmt);
-      box.innerHTML = svgHtml;
-      tb.appendChild(box);
+        let svgHtml = "";
+        if ((t.type || "") === "line")      svgHtml = svgLine(labels, values, xLab, yLab, ticks, ticksFmt);
+        else if ((t.type || "") === "pie")  svgHtml = svgPie(labels, values);
+        else                                svgHtml = svgBar(labels, values, xLab, yLab, ticks, ticksFmt);
 
-      box.addEventListener("mousemove", (ev)=>{
-        const target = ev.target.closest("[data-idx]");
-        if(!target){ hideTip(); return; }
-        const idx = +target.getAttribute("data-idx") || 0;
-        const label = labels[idx] ?? "";
-        const val = values[idx] ?? 0;
-        const rect = box.getBoundingClientRect();
-        const x = ev.clientX - rect.left;
-        const y = ev.clientY - rect.top;
-        showTip(x,y,`${label}: ${Number(val).toLocaleString()}`);
-      });
-      box.addEventListener("mouseleave", hideTip);
+        box.innerHTML = svgHtml;
+        tb.appendChild(box);
 
-      box.addEventListener("click", (ev)=>{
-        const el = ev.target.closest("[data-idx]");
-        if(!el) return;
-        // placeholder for future cross-filter behaviour
-      });
+        box.addEventListener("mousemove", (ev) => {
+          const target = ev.target.closest("[data-idx]");
+          if (!target) { hideTip(); return; }
+          const idx   = +target.getAttribute("data-idx") || 0;
+          const label = labels[idx] ?? "";
+          const val   = values[idx] ?? 0;
+          const rect  = box.getBoundingClientRect();
+          const x     = ev.clientX - rect.left;
+          const y     = ev.clientY - rect.top;
+          showTip(x, y, `${label}: ${Number(val).toLocaleString()}`);
+        });
+        box.addEventListener("mouseleave", hideTip);
+
+        box.addEventListener("click", (ev) => {
+          const el = ev.target.closest("[data-idx]");
+          if (!el) return;
+          // placeholder for future cross-filter behaviour
+        });
+      }
     }
     else if(d.table){
       const wrap = document.createElement("div");
