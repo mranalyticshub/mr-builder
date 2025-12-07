@@ -774,25 +774,79 @@ function svgPie(labels, values){
 /* ---------- Simple auto-layout (12-col grid, row-by-row) ---------- */
 function autoLayoutTiles(tiles) {
   const cols = 12;
-  let cursorX = 0;
-  let cursorY = 0;
-  let rowH = 0;
-  const out = {};
+  const rowUnit = 2;   // KPI row height in grid units
+
+  const kpis   = [];
+  const charts = [];
+  const tables = [];
 
   tiles.forEach(t => {
-    const id = t.id || Math.random().toString(36).slice(2);
-    const w = Math.min(t.w || 3, cols);
-    const h = Math.max(t.h || 2, 2);
+    const type = (t.type || "").toLowerCase();
+    const hasTable = t.data && t.data.table;
+    if (type === "kpi") {
+      kpis.push(t);
+    } else if (hasTable) {
+      tables.push(t);
+    } else {
+      charts.push(t);
+    }
+  });
 
-    if (cursorX + w > cols) {
-      cursorX = 0;
-      cursorY += rowH || 2;
-      rowH = 0;
+  const out = {};
+
+  // --- 1) KPI row(s) ---
+  let cursorY = 0;
+  kpis.forEach((t, idx) => {
+    const id = t.id || Math.random().toString(36).slice(2);
+    const slot = idx % 3;
+    const row  = Math.floor(idx / 3);
+    const x = slot * 4;
+    const y = row * rowUnit;       // 0, 2, 4, ...
+    out[id] = { x, y, w: 4, h: 2 };
+    cursorY = Math.max(cursorY, y + 2);
+  });
+
+  // Ensure charts start below KPI block
+  if (cursorY === 0) cursorY = rowUnit; // even if no KPIs, give a header row
+
+  // --- 2) Charts (line/bar/pie) ---
+  let cx = 0;
+  let cy = cursorY;
+
+  charts.forEach(t => {
+    const id = t.id || Math.random().toString(36).slice(2);
+    // default chart size: 6×4 for “big”, 4×4 if many charts
+    const remainingCols = cols - cx;
+    const defaultW = (charts.length <= 2 ? 6 : 4);
+    const w = Math.min(defaultW, remainingCols || cols);
+    const h = 4;
+
+    if (cx + w > cols) {
+      // new row
+      cx = 0;
+      cy += h;
     }
 
-    out[id] = { x: cursorX, y: cursorY, w, h };
-    cursorX += w;
-    rowH = Math.max(rowH, h);
+    out[id] = { x: cx, y: cy, w, h };
+    cx += w;
+  });
+
+  // bump cursor below charts
+  if (charts.length) {
+    cy += 4;
+    cx = 0;
+  }
+
+  // --- 3) Tables at the bottom, full width ---
+  tables.forEach(t => {
+    const id = t.id || Math.random().toString(36).slice(2);
+    // start new row if anything is already on this one
+    if (cx !== 0) {
+      cx = 0;
+      cy += 4;
+    }
+    out[id] = { x: 0, y: cy, w: cols, h: 4 };
+    cy += 4;
   });
 
   return out;
@@ -802,7 +856,7 @@ function autoLayoutTiles(tiles) {
 function renderPreviewPayload(tiles){
   const canvas = $("previewCanvas");
   canvas.innerHTML = "";
-  if(!tiles?.length){
+  if (!tiles?.length) {
     const msg = document.createElement("div");
     msg.className = "preview-empty";
     msg.textContent = "No tiles in the design yet. Generate a dashboard first.";
@@ -810,29 +864,34 @@ function renderPreviewPayload(tiles){
     return;
   }
 
-  // 🔧 If tile count changed (add/remove), reset cached layout so new tiles
-  // don’t stack underneath old ones.
-  if (Object.keys(localLayout).length &&
-      Object.keys(localLayout).length !== tiles.length) {
-    localLayout = {};
-  }
-
-  const cols = 12, rows = 12;
+  const cols = 12;
+  const rows = 12;
   const autoPos = autoLayoutTiles(tiles);
 
-  tiles.forEach(t=>{
+  tiles.forEach(t => {
     const id = t.id || Math.random().toString(36).slice(2);
 
-    const base = { w: t.w || 3, h: t.h || 3, x: t.x || 0, y: t.y || 0 };
-    const defaultPos = autoPos[id] || base;
-    const stored = localLayout[id] || {};
+    const base      = { w: t.w || 3, h: t.h || 3, x: t.x || 0, y: t.y || 0 };
+    const defaultPos= autoPos[id] || base;
+    let   pos       = localLayout[id] || defaultPos;
 
-    const pos = {
-      x: Math.min(stored.x ?? defaultPos.x, cols - 1),
-      y: Math.min(stored.y ?? defaultPos.y, rows - 1),
-      w: Math.min(stored.w ?? defaultPos.w, cols),
-      h: Math.min(stored.h ?? defaultPos.h, rows),
-    };
+    // hard clamp to grid
+    let w = Math.max(2, Math.min(pos.w, cols));
+    let h = Math.max(2, Math.min(pos.h, rows));
+    let x = Math.max(0, Math.min(pos.x, cols - 1));
+    let y = Math.max(0, Math.min(pos.y, rows - 1));
+
+    // ensure bottom edge stays within grid
+    if (y + h > rows) {
+      h = rows - y;
+      if (h < 2) {
+        h = 2;
+        y = Math.max(0, rows - h);
+      }
+    }
+
+    pos = { x, y, w, h };
+    localLayout[id] = pos; // normalise any old bad layout
 
     const tile = document.createElement("div");
     tile.className = "tile";
@@ -1163,7 +1222,12 @@ async function onApplyChange(){
     const j = await r.json();
     dsl = j.dsl || dsl;
     await refreshPreview();
-    setMsg("dMsg","Change applied.","ok");
+
+    if (j.notes) {
+      setMsg("dMsg", j.notes, "muted");
+    } else {
+      setMsg("dMsg","Change applied.","ok");
+    }
     $("changeText").value = "";
   }catch(e){
     console.error(e);
