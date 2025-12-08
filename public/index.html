@@ -1136,7 +1136,13 @@ async function onGenerateDesign(){
     localLayout = {};
     // default to YTD when the dashboard first appears
     setQuickRange("YTD");
-    setMsg("cMsg","Design created (YTD applied).","ok");
+
+    const notes = (dsl && Array.isArray(dsl.__notes)) ? dsl.__notes : null;
+    if (notes && notes.length) {
+      setMsg("cMsg", "Design created (YTD applied). AI notes: " + notes.join(" · "), "ok");
+    } else {
+      setMsg("cMsg","Design created (YTD applied).","ok");
+    }
   }catch(e){
     console.error(e);
     setMsg("cMsg","Failed to create design. Check logs.","err");
@@ -1163,7 +1169,13 @@ async function onApplyChange(){
     const j = await r.json();
     dsl = j.dsl || dsl;
     await refreshPreview();
-    setMsg("dMsg","Change applied.","ok");
+
+    const notes = (dsl && Array.isArray(dsl.__notes)) ? dsl.__notes : null;
+    if (notes && notes.length) {
+      setMsg("dMsg", "Change applied. AI notes: " + notes.join(" · "), "ok");
+    } else {
+      setMsg("dMsg","Change applied.","ok");
+    }
     $("changeText").value = "";
   }catch(e){
     console.error(e);
