@@ -668,15 +668,15 @@ function axisify(svgW, svgH, pad, xLabel, yLabel, yTicks=[], yTicksFmt=[]){
       </g>`;
   }).join("");
 
-  const yLabelAdj = yLabel || "";
   return `
     <g stroke="#d1d5db">
       <line x1="${pad}" y1="${svgH-pad}" x2="${svgW-pad}" y2="${svgH-pad}" />
       <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${svgH-pad}" />
     </g>
     ${ticks}
-    <text x="${(svgW)/2}" y="${svgH-4}" font-size="11" text-anchor="middle" fill="#6b7280">${xLabel||""}</text>
-    <text x="14" y="${(svgH)/2}" font-size="11" text-anchor="middle" fill="#6b7280" transform="rotate(-90 14,${(svgH)/2})">${yLabelAdj}</text>
+    <text x="${(svgW)/2}" y="${svgH-4}" font-size="10" text-anchor="middle" fill="#6b7280">${xLabel||""}</text>
+    <text x="14" y="${(svgH)/2}" font-size="10" text-anchor="middle" fill="#6b7280"
+          transform="rotate(-90 14,${(svgH)/2})">${yLabel || ""}</text>
   `;
 }
 
@@ -693,10 +693,12 @@ function svgBar(labels, values, xLabel, yLabel, yTicks, yTicksFmt){
     const y = h - pad - bh;
     const fill = palette[i % palette.length];
     const label = labels[i] ?? "";
-    const showLabel = n <= 12 || i % Math.ceil(n / 12) === 0;
+    const maxLabels = 8;
+    const step = Math.max(1, Math.ceil(n / maxLabels));
+    const showLabel = (i % step === 0);
     bars += `
       <rect data-idx="${i}" x="${x+5}" y="${y}" width="${Math.max(4, bw*0.78)}" height="${bh}" rx="4" fill="${fill}"></rect>
-      ${showLabel ? `<text x="${x + bw/2}" y="${h-pad+12}" font-size="9" fill="#6b7280" text-anchor="middle">${label}</text>` : ""}
+      ${showLabel ? `<text x="${x + bw/2}" y="${h-pad+12}" font-size="10" fill="#6b7280" text-anchor="middle">${label}</text>` : ""}
     `;
   });
 
