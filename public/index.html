@@ -658,16 +658,15 @@ function renderQuestions(qs){
 /* ---------- SVG chart helpers with better axes / labels ---------- */
 
 function axisify(svgW, svgH, pad, xLabel, yLabel, yTicks = [], yTicksFmt = []) {
+  // Extra padding so labels don’t overlap axes
+  const leftPad = pad + 28;     // more space for y tick labels
+  const bottomPad = pad + 18;   // more space for x tick labels
+
   // Build sensible ticks if none provided
-  let ticks = (yTicks && yTicks.length) ? yTicks.slice() : null;
-  if (!ticks || ticks.length < 2) {
-    const ymin = 0;
-    const ymax = 1;
-    const steps = 4;
-    ticks = [];
-    for (let i = 0; i <= steps; i++) {
-      ticks.push(ymin + (ymax - ymin) * (i / steps));
-    }
+  let ticks = (Array.isArray(yTicks) && yTicks.length >= 2) ? yTicks.slice() : null;
+  if (!ticks) {
+    // default placeholder ticks (caller should pass real ticks)
+    ticks = [0, 0.25, 0.5, 0.75, 1];
     yTicksFmt = null;
   }
 
@@ -675,20 +674,16 @@ function axisify(svgW, svgH, pad, xLabel, yLabel, yTicks = [], yTicksFmt = []) {
   const ymax = ticks[ticks.length - 1];
   const span = (ymax - ymin) || 1;
 
-  // Extra padding so labels don’t overlap axes
-  const leftPad = pad + 20;
-  const bottomPad = pad + 14;
+  const innerH = svgH - pad - bottomPad;
 
   const tickEls = ticks.map((v, i) => {
     const rel = (v - ymin) / span;
-    const y = svgH - bottomPad - ((svgH - bottomPad - pad) * rel);
-    const label = (yTicksFmt && yTicksFmt[i]) ? yTicksFmt[i] : v.toFixed(0);
+    const y = svgH - bottomPad - (innerH * rel);
+    const label = (yTicksFmt && yTicksFmt[i]) ? yTicksFmt[i] : String(v);
     return `
       <g>
         <line x1="${leftPad}" y1="${y}" x2="${svgW - pad}" y2="${y}" stroke="#e5e7eb" />
-        <text x="${leftPad - 6}" y="${y + 4}" font-size="11" fill="#6b7280" text-anchor="end">
-          ${label}
-        </text>
+        <text x="${leftPad - 8}" y="${y + 4}" font-size="11" fill="#6b7280" text-anchor="end">${label}</text>
       </g>`;
   }).join("");
 
@@ -698,15 +693,11 @@ function axisify(svgW, svgH, pad, xLabel, yLabel, yTicks = [], yTicksFmt = []) {
       <line x1="${leftPad}" y1="${pad}" x2="${leftPad}" y2="${svgH - bottomPad}" />
     </g>
     ${tickEls}
-    <text x="${(svgW + leftPad) / 2}" y="${svgH - 4}" font-size="11"
-          text-anchor="middle" fill="#6b7280">
-      ${xLabel || ""}
-    </text>
-    <text x="${pad - 12}" y="${(svgH - bottomPad + pad) / 2}" font-size="11"
+    <text x="${(leftPad + (svgW - pad)) / 2}" y="${svgH - 4}" font-size="11"
+          text-anchor="middle" fill="#6b7280">${xLabel || ""}</text>
+    <text x="${pad}" y="${(pad + (svgH - bottomPad)) / 2}" font-size="11"
           text-anchor="middle" fill="#6b7280"
-          transform="rotate(-90 ${pad - 12},${(svgH - bottomPad + pad)/2})">
-      ${yLabel || ""}
-    </text>
+          transform="rotate(-90 ${pad},${(pad + (svgH - bottomPad))/2})">${yLabel || ""}</text>
   `;
 }
 
@@ -745,52 +736,41 @@ function yScaleValue(v, svgH, pad, yTicks) {
 
 function svgBar(labels, values, xLabel, yLabel, yTicks, yTicksFmt){
   const palette = getPalette();
-  const w = 880, h = 280, pad = 48; // a bit more pad to avoid y-axis overlap
+  const w=880, h=280, pad=42;
+
+  const leftPad = pad + 28;
+  const bottomPad = pad + 18;
+
+  const innerW = w - leftPad - pad;
+  const innerH = h - pad - bottomPad;
+
   const n = Math.max(1, values.length);
-  const bw = (w - pad*2) / n;
+  const max = Math.max(...values.map(v=>isFinite(v)?v:0), 1);
+
+  const step = innerW / n;
+  const barW = Math.max(4, step * 0.72);
 
   let bars = "";
-  for (let i = 0; i < n; i++) {
-    const v = Number(values[i] ?? 0);
-    const xCenter = pad + (i + 0.5) * bw;
-    const yTop = yScaleValue(v, h, pad, yTicks);
-    const yBase = yScaleValue(Array.isArray(yTicks) && yTicks.length ? yTicks[0] : 0, h, pad, yTicks);
-    const barH = Math.max(2, yBase - yTop);
+  values.forEach((v,i)=>{
+    const vv = isFinite(v) ? v : 0;
+    const bh = innerH * (vv / max);
+    const x = leftPad + i*step + (step - barW)/2;
+    const y = (h - bottomPad) - bh;
     const fill = palette[i % palette.length];
 
-    const label = String(labels[i] ?? "");
-    const parts = label.split(/\s+/);
-    let labelHtml;
-    if (parts.length > 1) {
-      const first = parts[0];
-      const second = parts.slice(1).join(" ");
-      labelHtml = `
-        <text font-size="10" fill="#6b7280" text-anchor="middle">
-          <tspan x="${xCenter}" y="${h - pad + 6}">${first}</tspan>
-          <tspan x="${xCenter}" dy="11">${second}</tspan>
-        </text>`;
-    } else {
-      labelHtml = `<text x="${xCenter}" y="${h - pad + 10}" font-size="10" fill="#6b7280" text-anchor="middle">${label}</text>`;
-    }
-
-    const maxLabels = 10;
-    const step = Math.max(1, Math.ceil(n / maxLabels));
-    const showLabel = (i % step === 0);
+    const label = labels[i] ?? "";
+    const maxLabels = 8;
+    const stride = Math.max(1, Math.ceil(n / maxLabels));
+    const showLabel = (i % stride === 0);
 
     bars += `
-      <rect data-idx="${i}"
-            x="${xCenter - bw*0.35}"
-            y="${yTop}"
-            width="${Math.max(4, bw*0.7)}"
-            height="${barH}"
-            rx="4"
-            fill="${fill}"></rect>
-      ${showLabel ? labelHtml : ""}
+      <rect data-idx="${i}" x="${x}" y="${y}" width="${barW}" height="${bh}" rx="4" fill="${fill}"></rect>
+      ${showLabel ? `<text x="${leftPad + i*step + step/2}" y="${h-bottomPad+14}" font-size="10" fill="#6b7280" text-anchor="middle">${label}</text>` : ""}
     `;
-  }
+  });
 
   return `
-    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">
       ${axisify(w,h,pad,xLabel,yLabel,yTicks,yTicksFmt)}
       ${bars}
     </svg>
@@ -800,32 +780,38 @@ function svgBar(labels, values, xLabel, yLabel, yTicks, yTicksFmt){
 function svgLine(labels, values, xLabel, yLabel, yTicks, yTicksFmt){
   const palette = getPalette();
   const stroke = palette[0] || "#6366f1";
-  const w = 880, h = 280, pad = 48;
+  const w=880, h=280, pad=42;
+
+  const leftPad = pad + 28;
+  const bottomPad = pad + 18;
+
+  const innerW = w - leftPad - pad;
+  const innerH = h - pad - bottomPad;
+
   const n = Math.max(1, values.length);
-  const step = (w - pad*2) / Math.max(1, n - 1);
+  const max = Math.max(...values.map(v=>isFinite(v)?v:0), 1);
 
-  let pts = "", dots = "";
-  for (let i = 0; i < n; i++) {
-    const v = Number(values[i] ?? 0);
-    const x = pad + i * step;
-    const y = yScaleValue(v, h, pad, yTicks);
-    pts += `${i === 0 ? "" : " "} ${x},${y}`;
+  const step = innerW / Math.max(1, n-1);
+
+  let pts=[], dots="";
+  values.forEach((v,i)=>{
+    const vv = isFinite(v) ? v : 0;
+    const x = leftPad + i*step;
+    const y = (h - bottomPad) - (innerH * (vv / max));
+    pts.push(`${x},${y}`);
     dots += `<circle data-idx="${i}" cx="${x}" cy="${y}" r="3" fill="${stroke}" />`;
-  }
+  });
 
-  const poly = pts.trim()
-    ? `<polyline fill="none" stroke="${stroke}" stroke-width="2" points="${pts.trim()}" />`
-    : "";
+  const poly = pts.length ? `<polyline fill="none" stroke="${stroke}" stroke-width="2" points="${pts.join(" ")}" />` : "";
 
   return `
-    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">
       ${axisify(w,h,pad,xLabel,yLabel,yTicks,yTicksFmt)}
       ${poly}
       ${dots}
     </svg>
   `;
 }
-
 function svgPie(labels, values){
   const palette = getPalette();
   const w = 260, h = 220, r = 80, cx = 110, cy = 110;
