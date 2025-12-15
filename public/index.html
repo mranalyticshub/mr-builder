@@ -659,7 +659,7 @@ function renderQuestions(qs){
 
 function axisify(svgW, svgH, pad, xLabel, yLabel, yTicks = [], yTicksFmt = []) {
   // Extra padding so labels don’t overlap axes
-  const leftPad = pad + 28;     // more space for y tick labels
+  const leftPad = pad + 40;     // more space for y tick labels
   const bottomPad = pad + 18;   // more space for x tick labels
 
   // Build sensible ticks if none provided
@@ -734,6 +734,19 @@ function yScaleValue(v, svgH, pad, yTicks) {
   return svgH - pad - clamped * (svgH - pad * 2);
 }
 
+function svgTextMultiline(x, y, text, opts = {}) {
+  const { fontSize = 10, fill = "#6b7280", anchor = "middle", lineHeight = 12 } = opts;
+  const parts = String(text ?? "").split("\n");
+  if (parts.length <= 1) {
+    return `<text x="${x}" y="${y}" font-size="${fontSize}" fill="${fill}" text-anchor="${anchor}">${parts[0] ?? ""}</text>`;
+  }
+  const tspans = parts.map((p, idx) => {
+    const dy = idx === 0 ? 0 : lineHeight;
+    return `<tspan x="${x}" dy="${dy}">${p}</tspan>`;
+  }).join("");
+  return `<text x="${x}" y="${y}" font-size="${fontSize}" fill="${fill}" text-anchor="${anchor}">${tspans}</text>`;
+}
+
 function svgBar(labels, values, xLabel, yLabel, yTicks, yTicksFmt){
   const palette = getPalette();
   const w=880, h=280, pad=42;
@@ -765,7 +778,12 @@ function svgBar(labels, values, xLabel, yLabel, yTicks, yTicksFmt){
 
     bars += `
       <rect data-idx="${i}" x="${x}" y="${y}" width="${barW}" height="${bh}" rx="4" fill="${fill}"></rect>
-      ${showLabel ? `<text x="${leftPad + i*step + step/2}" y="${h-bottomPad+14}" font-size="10" fill="#6b7280" text-anchor="middle">${label}</text>` : ""}
+      ${showLabel ? svgTextMultiline(
+  leftPad + i*step + step/2,
+  h - bottomPad + 14,
+  label,
+  { fontSize: 10, fill: "#6b7280", anchor: "middle", lineHeight: 12 }
+) : ""}
     `;
   });
 
@@ -971,7 +989,12 @@ function renderPreviewPayload(tiles){
           display = raw.toLocaleString();
         }
       }
-      head.textContent = display;
+      const pretty = d.kpi.pretty;
+      if (pretty) {
+        head.textContent = pretty;
+      } else {
+        head.textContent = display; // whatever you currently compute for numeric/currency
+      }
 
       const lbl = document.createElement("div");
       lbl.className = "kpi-label";
