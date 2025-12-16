@@ -435,6 +435,59 @@
       height: 100%;
       display: block;
     }
+
+    /* default tile base */
+    .tile{
+      border-radius: 18px;
+      background: #ffffff;
+      overflow: hidden;
+    }
+
+    /* centered title, no heavy header */
+    .tile .t-h{
+      background: transparent;
+      border-bottom: 0;
+      justify-content: center;
+      padding: 10px 10px 0;
+      cursor: default;
+    }
+    .tile .t-h span.muted{ display:none; } /* hide size in premium mode */
+    .tile .t-h span:first-child{
+      font-size: 13px;
+      font-weight: 650;
+      color: #111827;
+      text-align: center;
+    }
+
+    /* body tighter so charts fill */
+    .tile .t-b{
+      padding: 8px 10px 12px;
+    }
+
+    /* EDIT MODE: show outlines + handle + slightly stronger shadow */
+    #previewCanvas[data-mode="edit"] .tile{
+      box-shadow: 0 10px 25px rgba(15,23,42,0.06);
+      border: 1px solid rgba(148,163,184,0.18);
+    }
+    #previewCanvas[data-mode="edit"] .handle{ display:block; }
+    #previewCanvas[data-mode="edit"] .tile .t-h{
+      cursor: move; /* only in edit mode */
+    }
+
+    /* VIEW MODE: look like one board */
+    #previewCanvas[data-mode="view"]{
+      background: #ffffff; /* “one board” */
+    }
+    #previewCanvas[data-mode="view"] .tile{
+      box-shadow: none;
+      border: none;
+      background: transparent; /* tiles blend */
+    }
+    #previewCanvas[data-mode="view"] .tile .t-b{
+      background: transparent;
+    }
+    #previewCanvas[data-mode="view"] .handle{ display:none; }
+
   </style>
 </head>
 <body>
@@ -464,6 +517,7 @@
     <div class="toolbar">
       <input id="file" type="file" accept=".csv,.xlsx"/>
       <button id="start" type="button">Profile dataset</button>
+      <button id="toggleEdit" class="secondary" type="button">Edit mode</button>
       <span id="aMsg" class="muted"></span>
     </div>
   </div>
@@ -578,6 +632,18 @@ function getPalette(){
   return def;
 }
 function getCurrency(){ return dsl?.theme?.currency || "£"; }
+
+let editMode = true;
+
+function applyMode(){
+  $("previewCanvas").dataset.mode = editMode ? "edit" : "view";
+  $("toggleEdit").textContent = editMode ? "View mode" : "Edit mode";
+}
+
+$("toggleEdit").addEventListener("click", () => {
+  editMode = !editMode;
+  applyMode();
+});
 
 async function createSession(){
   let r = await fetch(`${ORCH}/session`, {
