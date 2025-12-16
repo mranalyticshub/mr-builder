@@ -419,6 +419,22 @@
       align-items:center;
       flex-wrap:wrap;
     }
+
+    .tile .t-b.chart-body{
+      padding: 6px 8px 8px;   /* tighter than default */
+    }
+
+    .tile .t-b.chart-body .chart{
+      height: 100%;
+      width: 100%;
+      display: flex;
+    }
+
+    .tile .t-b.chart-body .chart svg{
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -749,9 +765,9 @@ function svgTextMultiline(x, y, text, opts = {}) {
 
 function svgBar(labels, values, xLabel, yLabel, yTicks, yTicksFmt){
   const palette = getPalette();
-  const w=880, h=280, pad=42;
+  const w=880, h=280, pad=32;
 
-  const leftPad = pad + 28;
+  const leftPad = pad + 40;
   const bottomPad = pad + 18;
 
   const innerW = w - leftPad - pad;
@@ -798,9 +814,9 @@ function svgBar(labels, values, xLabel, yLabel, yTicks, yTicksFmt){
 function svgLine(labels, values, xLabel, yLabel, yTicks, yTicksFmt){
   const palette = getPalette();
   const stroke = palette[0] || "#6366f1";
-  const w=880, h=280, pad=42;
+  const w=880, h=280, pad=32;
 
-  const leftPad = pad + 28;
+  const leftPad = pad + 40;
   const bottomPad = pad + 18;
 
   const innerW = w - leftPad - pad;
@@ -953,6 +969,7 @@ function renderPreviewPayload(tiles){
     th.append(titleSpan,sizeSpan);
 
     const tb = document.createElement("div");
+    tb.classList.remove("chart-body");
     tb.className = "t-b";
     const d = t.data || {};
 
@@ -1008,12 +1025,18 @@ function renderPreviewPayload(tiles){
           const delta = document.createElement("div");
           const good = (pct || 0) >= 0;
           delta.className = "kpi-delta " + (good ? "" : "neg");
-          delta.textContent = `${good ? "▲" : "▼"} ${pct.toFixed(1)}% vs prior period`;
+
+          const isRate = (d.kpi.unit === "%");
+          delta.textContent = isRate
+            ? `${good ? "▲" : "▼"} ${Math.abs(pct).toFixed(2)}pp vs prior period`
+            : `${good ? "▲" : "▼"} ${pct.toFixed(1)}% vs prior period`;
+
           tb.appendChild(delta);
         }
       }
     }
     else if(d.series){
+      tb.classList.add("chart-body");
       const labels=d.series.labels||[];
       const values=d.series.values||[];
       const ticks=d.series.y_ticks||[];
