@@ -445,6 +445,11 @@
     .chart > .vega-embed { display:block; }
     .chart > .vega-embed details { display:none; } /* belt & braces */
 
+    .msg.warn {
+      background: #fff7ed;
+      border-left: 4px solid #f59e0b;
+    }
+
   </style>
 </head>
 <body>
@@ -1196,6 +1201,13 @@ async function onApplyChange(){
     });
     const j = await r.json();
     dsl = j.dsl || dsl;
+
+    // NEW: handle AI clarification
+    if (dsl && dsl.__clarify__) {
+      setMsg("dMsg", dsl.__clarify__, "warn");
+      return; // don't clear input, don't refresh preview
+    }
+
     await refreshPreview();
 
     const notes = (dsl && Array.isArray(dsl.__notes)) ? dsl.__notes : null;
