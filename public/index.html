@@ -636,6 +636,16 @@ function vegaBaseConfig(){
  * Build a Vega-Lite spec from your existing d.series payload.
  * Uses t.type to pick bar/line/pie.
  */
+function getAxisConfig(t){
+  const rot = Number(t?.axis?.x?.rotate ?? 0);
+  const angle = (rot === 90 ? 90 : rot === 45 ? 45 : rot === -45 ? -45 : 0);
+  return {
+    xLabelAngle: angle,
+    // when rotated, reduce tick density a bit
+    xTickCount: angle ? 4 : 6
+  };
+}
+
 function specFromSeriesTile(t, d){
   const labels = d.series?.labels || [];
   const values = d.series?.values || [];
@@ -648,7 +658,7 @@ function specFromSeriesTile(t, d){
   }
 
   const typ = String(t.type || "").toLowerCase();
-
+  const ax = getAxisConfig(t);
   // Base
   const common = {
     $schema: "https://vega.github.io/schema/vega-lite/v5.json",
@@ -678,7 +688,7 @@ function specFromSeriesTile(t, d){
       ...common,
       mark: { type: "line", point: { filled: true, size: 40 } },
       encoding: {
-        x: { field: "label", type: "ordinal", axis: { title: xLabel, labelAngle: 0, tickCount: 6 } },
+        x: { field: "label", type: "ordinal", axis: { title: xLabel, labelAngle: ax.xLabelAngle, tickCount: ax.xTickCount } },
         y: { field: "value", type: "quantitative", axis: { title: yLabel, tickCount: 5 } },
         tooltip: [
           { field: "label", type: "nominal" },
@@ -693,7 +703,7 @@ function specFromSeriesTile(t, d){
     ...common,
     mark: { type: "bar", cornerRadiusEnd: 4 },
     encoding: {
-      x: { field: "label", type: "nominal", axis: { title: xLabel, labelAngle: 0, tickCount: 6 } },
+      x: { field: "label", type: "ordinal", axis: { title: xLabel, labelAngle: ax.xLabelAngle, tickCount: ax.xTickCount } },
       y: { field: "value", type: "quantitative", axis: { title: yLabel, tickCount: 5 } },
       tooltip: [
         { field: "label", type: "nominal" },
@@ -701,6 +711,108 @@ function specFromSeriesTile(t, d){
       ]
     }
   };
+}
+
+function specFromComboTile(t, d){
+  // Expect backend to return:
+  // d.series = [ {type:"bar"|"line", axis:"left"|"right", label:"Orders", data:{series:{labels,values,x_label,y_label...}}}, ... ]
+
+  const ax = getAxisConfig(t);
+  const seriesArr = Array.isArray(d.series) ? d.series : [];
+  if(!seriesArr.length) return null;
+
+  // Use first series for x labels
+  const first = seriesArr[0]?.data?.series || {};
+  const labels = first.labels || [];
+
+  function rowsFromSeries(s){
+    const ser = s?.data?.series || {};
+    const vals = ser.values || [];
+    const rows = [];
+    for(let i=0;i<Math.max(labels.length, vals.length);i++){
+      rows.push({
+        label: String(labels[i] ?? ""),
+        value: Number(vals[i] ?? 0)
+      });
+    }
+    return rows;
+  }
+
+  const barS  = seriesArr.find(s => String(s.type).toLowerCase() === "bar")  || null;
+  const lineS = seriesArr.find(s => String(s.type).toLowerCase() === "line") || null;
+
+  const xTitle = first.x_label || "";
+
+  // Left axis title (bars)
+  const leftTitle = barS?.label || barS?.data?.series?.y_label || "Value";
+  // Right axis title (line)
+  let rightTitle = lineS?.label || lineS?.data?.series?.y_label || "Value";
+  if(/amount|revenue|sales|profit|turnover/i.test(rightTitle)){
+    rightTitle = `${rightTitle} (${getCurrency()})`;
+  }
+
+  const base = {
+    $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+    width: "container",
+    height: "container",
+    config: vegaBaseConfig()
+  };
+
+  const layers = [];
+
+  if(barS){
+    layers.push({
+      data: { values: rowsFromSeries(barS) },
+      mark: { type: "bar", cornerRadiusEnd: 4, opacity: 0.85 },
+      encoding: {
+        x: { field: "label", type: "ordinal", axis: { title: xTitle, labelAngle: ax.xLabelAngle, tickCount: ax.xTickCount } },
+        y: { field: "value", type: "quantitative", axis: { title: leftTitle } },
+        tooltip: [{ field: "label" }, { field: "value" }]
+      }
+    });
+  }
+
+  if(lineS){
+    layers.push({
+      data: { values: rowsFromSeries(lineS) },
+      mark: { type: "line", point: { filled: true, size: 40 } },
+      encoding: {
+        x: { field: "label", type: "ordinal", axis: { title: null, labelAngle: ax.xLabelAngle, tickCount: ax.xTickCount } },
+        y: {
+          field: "value",
+          type: "quantitative",
+          axis: { title: rightTitle },
+          // secondary axis on the right
+          scale: { zero: false }
+        },
+        tooltip: [{ field: "label" }, { field: "value" }]
+      }
+    });
+  }
+
+  // If we have both, resolve y scales independently and move second axis to right
+  if(barS && lineS){
+    return {
+      ...base,
+      layer: [
+        layers[0],
+        {
+          ...layers[1],
+          encoding: {
+            ...layers[1].encoding,
+            y: {
+              ...layers[1].encoding.y,
+              axis: { title: rightTitle, orient: "right" }
+            }
+          }
+        }
+      ],
+      resolve: { scale: { y: "independent" } }
+    };
+  }
+
+  // single-series fallback
+  return { ...base, layer: layers };
 }
 
 async function createSession(){
@@ -964,8 +1076,20 @@ function renderPreviewPayload(tiles){
       box.style.height = "100%";
       tb.appendChild(box);
 
-      const spec = specFromSeriesTile(t, d);
-      renderVega(box, spec);
+      const typ = String(t.type || "").toLowerCase();
+
+      let spec = null;
+      if(typ === "combo"){
+        spec = specFromComboTile(t, d);
+      } else {
+        spec = specFromSeriesTile(t, d);
+      }
+
+      if(!spec){
+        box.textContent = "No chart spec.";
+      } else {
+        renderVega(box, spec);
+      }
     }
     else if(d.table){
       const wrap = document.createElement("div");
