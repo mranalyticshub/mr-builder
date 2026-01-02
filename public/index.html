@@ -1067,7 +1067,7 @@ function renderPreviewPayload(tiles){
         }
       }
     }
-    else if(d.series){
+    else if (d.series) {
       tb.classList.add("chart-body");
 
       const box = document.createElement("div");
@@ -1076,20 +1076,17 @@ function renderPreviewPayload(tiles){
       box.style.height = "100%";
       tb.appendChild(box);
 
-      const typ = String(t.type || "").toLowerCase();
+      // 🔑 combo detection
+      const isCombo = Array.isArray(d.series) || String(t.type).toLowerCase() === "combo";
 
-      let spec = null;
-      if(typ === "combo"){
+      let spec;
+      if (isCombo) {
         spec = specFromComboTile(t, d);
       } else {
         spec = specFromSeriesTile(t, d);
       }
 
-      if(!spec){
-        box.textContent = "No chart spec.";
-      } else {
-        renderVega(box, spec);
-      }
+      renderVega(box, spec);
     }
     else if(d.table){
       const wrap = document.createElement("div");
