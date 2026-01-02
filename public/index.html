@@ -1297,10 +1297,9 @@ async function onApplyChange(){
     const j = await r.json();
     dsl = j.dsl || dsl;
 
-    // NEW: handle AI clarification
-    if (dsl && dsl.__clarify__) {
-      setMsg("dMsg", dsl.__clarify__, "warn");
-      return; // don't clear input, don't refresh preview
+    if (j && j.clarify) {
+      setMsg("dMsg", j.clarify, "warn");
+      return;
     }
 
     await refreshPreview();
