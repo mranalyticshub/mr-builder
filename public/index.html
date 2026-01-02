@@ -714,68 +714,78 @@ function specFromSeriesTile(t, d){
 }
 
 function specFromComboTile(t, d){
-  const labels = d.combo?.labels || [];
-  const series = d.combo?.series || [];
-  const xLabel = d.combo?.x_label || "";
+  // ✅ Support backend format: d.series = [{type, axis, label, data:{series:{labels,values,x_label,y_label}}}, ...]
+  const parts = Array.isArray(d.series) ? d.series : [];
 
-  // Expect exactly 2 series for now (bar + line)
-  const s0 = series[0] || {};
-  const s1 = series[1] || {};
+  if (parts.length < 2) {
+    // fall back to normal series if something odd
+    const one = parts?.[0]?.data?.series;
+    return one ? specFromSeriesTile(t, { series: one }) : specFromSeriesTile(t, d);
+  }
 
-  const rows0 = labels.map((lb, i) => ({ label: String(lb), value: Number((s0.values||[])[i] ?? 0) }));
-  const rows1 = labels.map((lb, i) => ({ label: String(lb), value: Number((s1.values||[])[i] ?? 0) }));
+  const left  = parts.find(p => (p.axis||"").toLowerCase() === "left")  || parts[0];
+  const right = parts.find(p => (p.axis||"").toLowerCase() === "right") || parts[1];
 
-  const commonConfig = vegaBaseConfig();
+  const L = left?.data?.series || {};
+  const R = right?.data?.series || {};
 
-  // Decide which is bar vs line (don’t assume order)
-  const bar = (s0.mark === "bar") ? {s:s0, rows:rows0} : (s1.mark === "bar" ? {s:s1, rows:rows1} : {s:s0, rows:rows0});
-  const line = (s0.mark === "line") ? {s:s0, rows:rows0} : (s1.mark === "line" ? {s:s1, rows:rows1} : {s:s1, rows:rows1});
+  const labels = L.labels || R.labels || [];
+  const xLabel = L.x_label || R.x_label || "";
 
-  const barAxisRight = (bar.s.axis || "left") === "right";
-  const lineAxisRight = (line.s.axis || "left") === "right";
+  const rows = labels.map((lb, i) => ({
+    label: String(lb ?? ""),
+    left:  Number((L.values || [])[i] ?? 0),
+    right: Number((R.values || [])[i] ?? 0),
+  }));
+
+  const leftTitle  = left.label  || L.y_label || "Value";
+  const rightTitle = right.label || R.y_label || "Value";
+
+  const leftMarkType  = (left.type || "bar").toLowerCase();   // "bar" or "line"
+  const rightMarkType = (right.type || "line").toLowerCase(); // "bar" or "line"
+
+  const leftMark  = leftMarkType === "line"
+    ? { type:"line", point:{filled:true,size:40} }
+    : { type:"bar", cornerRadiusEnd:4 };
+
+  const rightMark = rightMarkType === "line"
+    ? { type:"line", point:{filled:true,size:40} }
+    : { type:"bar", cornerRadiusEnd:4, opacity:0.55 };
 
   return {
     $schema: "https://vega.github.io/schema/vega-lite/v5.json",
     width: "container",
     height: "container",
-    config: commonConfig,
+    config: vegaBaseConfig(),
+    data: { values: rows },
     resolve: { scale: { y: "independent" } },
     layer: [
       {
-        data: { values: bar.rows },
-        mark: { type: "bar", cornerRadiusEnd: 4 },
+        mark: leftMark,
         encoding: {
-          x: { field: "label", type: "ordinal", axis: { title: xLabel, labelAngle: 0, tickCount: 6 } },
-          y: {
-            field: "value",
-            type: "quantitative",
-            axis: { title: bar.s.title || "Value", orient: barAxisRight ? "right" : "left", tickCount: 5 }
-          },
+          x: { field:"label", type:"ordinal", axis:{ title:xLabel, labelAngle:0, tickCount:6 } },
+          y: { field:"left", type:"quantitative", axis:{ title:leftTitle, orient:"left", tickCount:5 } },
           tooltip: [
-            { field: "label", type: "nominal" },
-            { field: "value", type: "quantitative" }
+            { field:"label", type:"nominal" },
+            { field:"left", type:"quantitative", title:leftTitle }
           ]
         }
       },
       {
-        data: { values: line.rows },
-        mark: { type: "line", point: { filled: true, size: 40 } },
+        mark: rightMark,
         encoding: {
-          x: { field: "label", type: "ordinal", axis: { title: null, labelAngle: 0, tickCount: 6 } },
-          y: {
-            field: "value",
-            type: "quantitative",
-            axis: { title: line.s.title || "Value", orient: lineAxisRight ? "right" : "left", tickCount: 5 }
-          },
+          x: { field:"label", type:"ordinal", axis:{ title:null, labelAngle:0, tickCount:6 } },
+          y: { field:"right", type:"quantitative", axis:{ title:rightTitle, orient:"right", tickCount:5 } },
           tooltip: [
-            { field: "label", type: "nominal" },
-            { field: "value", type: "quantitative" }
+            { field:"label", type:"nominal" },
+            { field:"right", type:"quantitative", title:rightTitle }
           ]
         }
       }
     ]
   };
 }
+
 async function createSession(){
   let r = await fetch(`${ORCH}/session`, {
     method:"POST",
@@ -935,7 +945,8 @@ function renderPreviewPayload(tiles){
     localLayout = {};
   }
 
-  const cols = 12, rows = 8; // fewer rows → tiles are taller, less dead space
+  const cols = 12;
+  const rows = Math.max(9, ...tiles.map(t => (t.y || 0) + (t.h || 2))); // fewer rows → tiles are taller, less dead space
   const autoPos = autoLayoutTiles(tiles);
 
   tiles.forEach(t=>{
@@ -1061,6 +1072,8 @@ function renderPreviewPayload(tiles){
       }
 
       renderVega(box, spec);
+      console.log("TILE", t.title, "SERIES PAYLOAD", d.series);
+      console.log("TILE", t.title, "COMBO PAYLOAD", d.combo);
     }
     else if(d.table){
       const wrap = document.createElement("div");
