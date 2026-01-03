@@ -937,6 +937,9 @@ function renderPreviewPayload(tiles){
     canvas.appendChild(msg);
     return;
   }
+  function hasPos(t){
+    return Number.isFinite(t.x) && Number.isFinite(t.y) && Number.isFinite(t.w) && Number.isFinite(t.h);
+  }
 
   // 🔧 If tile count changed (add/remove), reset cached layout so new tiles
   // don’t stack underneath old ones.
@@ -947,13 +950,13 @@ function renderPreviewPayload(tiles){
 
   const cols = 12;
   const rows = Math.max(9, ...tiles.map(t => (t.y || 0) + (t.h || 2))); // fewer rows → tiles are taller, less dead space
-  const autoPos = autoLayoutTiles(tiles);
+  const autoPos = autoLayoutTiles(tiles.filter(t => !hasPos(t)));
 
   tiles.forEach(t=>{
     const id = t.id || Math.random().toString(36).slice(2);
 
     const base = { w: t.w || 3, h: t.h || 3, x: t.x || 0, y: t.y || 0 };
-    const defaultPos = autoPos[id] || base;
+    const defaultPos = hasPos(t) ? base : (autoPos[id] || base);
     const stored = localLayout[id] || {};
 
     const pos = {
@@ -1052,7 +1055,7 @@ function renderPreviewPayload(tiles){
       renderVega(box, spec);
     }
 
-    else if (d.series) {
+    else if (d.combo || d.series) {
       tb.classList.add("chart-body");
 
       const box = document.createElement("div");
@@ -1062,7 +1065,7 @@ function renderPreviewPayload(tiles){
       tb.appendChild(box);
 
       // 🔑 combo detection
-      const isCombo = Array.isArray(d.series) || String(t.type).toLowerCase() === "combo";
+      const isCombo = !!d.combo || String(t.type).toLowerCase() === "combo";
 
       let spec;
       if (isCombo) {
