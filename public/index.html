@@ -950,13 +950,16 @@ function renderPreviewPayload(tiles){
 
   const cols = 12;
   const rows = Math.max(9, ...tiles.map(t => (t.y || 0) + (t.h || 2))); // fewer rows → tiles are taller, less dead space
-  const autoPos = autoLayoutTiles(tiles.filter(t => !hasPos(t)));
+  const needsAuto = tiles.filter(t => !(Number.isFinite(t.x) && Number.isFinite(t.y) && Number.isFinite(t.w) && Number.isFinite(t.h)));
+  const autoPos = autoLayoutTiles(needsAuto);
 
   tiles.forEach(t=>{
     const id = t.id || Math.random().toString(36).slice(2);
 
+    const hasPos = Number.isFinite(t.x) && Number.isFinite(t.y) && Number.isFinite(t.w) && Number.isFinite(t.h);
+
     const base = { w: t.w || 3, h: t.h || 3, x: t.x || 0, y: t.y || 0 };
-    const defaultPos = hasPos(t) ? base : (autoPos[id] || base);
+    const defaultPos = hasPos ? base : (autoPos[id] || base);
     const stored = localLayout[id] || {};
 
     const pos = {
