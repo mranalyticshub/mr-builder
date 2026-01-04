@@ -1031,6 +1031,18 @@ function renderPreviewPayload(tiles){
         }
       }
     }
+    // --- NEW: render compiled vega-lite spec if present ---
+    else if (t.vl_spec || d.vl_spec) {
+      tb.classList.add("chart-body");
+      const box = document.createElement("div");
+      box.className = "chart";
+      box.style.width = "100%";
+      box.style.height = "100%";
+      tb.appendChild(box);
+
+      const spec = (d.vl_spec || t.vl_spec);
+      renderVega(box, spec);
+    }
     else if(d.combo){
       tb.classList.add("chart-body");
 
