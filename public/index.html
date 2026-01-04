@@ -771,6 +771,513 @@ function specFromComboTile(t, d){
   };
 }
 
+function normType(t){
+  return String(t || "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "_")
+    .replace(/[()]/g, "");
+}
+
+function isChartType(type){
+  const tt = normType(type);
+  return new Set([
+    "bar","line","pie","combo",
+    "scatter","bubble",
+    "stacked_bar","multi_series_bar","multi_series_line",
+    "histogram","area","stacked_area",
+    "heatmap","boxplot",
+    "waterfall","gauge"
+  ]).has(tt);
+}
+
+// ---------- payload normalisers ----------
+
+// Existing: {series:{labels,values}} -> rows [{label,value}]
+function seriesToRows(labels, values){
+  const rows = [];
+  for(let i=0;i<Math.max(labels?.length||0, values?.length||0);i++){
+    rows.push({ label: String(labels?.[i] ?? ""), value: Number(values?.[i] ?? 0) });
+  }
+  return rows;
+}
+
+// Multi-series payload:
+// d.multi_series = { labels:[...], series:[{name, values:[...]}] }
+// -> long rows [{label, series, value}]
+function multiSeriesToRows(ms){
+  const labels = ms?.labels || [];
+  const series = Array.isArray(ms?.series) ? ms.series : [];
+  const rows = [];
+  series.forEach(s => {
+    const name = String(s?.name ?? s?.title ?? "Series");
+    const vals = Array.isArray(s?.values) ? s.values : [];
+    labels.forEach((lb, i) => {
+      rows.push({ label: String(lb ?? ""), series: name, value: Number(vals[i] ?? 0) });
+    });
+  });
+  return rows;
+}
+
+// Stacked payload:
+// d.stacked = { labels:[...], series:[{name, values:[...]}] }
+// -> long rows same as multi series (stacked uses series as color)
+function stackedToRows(st){
+  return multiSeriesToRows(st);
+}
+
+// Scatter payload:
+// d.scatter = { points:[{x,y, label?, series?}] }
+function scatterToRows(sc){
+  const pts = Array.isArray(sc?.points) ? sc.points : [];
+  return pts.map(p => ({
+    x: Number(p?.x ?? 0),
+    y: Number(p?.y ?? 0),
+    label: p?.label != null ? String(p.label) : "",
+    series: p?.series != null ? String(p.series) : ""
+  }));
+}
+
+// Bubble payload:
+// d.bubble = { points:[{x,y,size,label?,series?}] }
+function bubbleToRows(bb){
+  const pts = Array.isArray(bb?.points) ? bb.points : [];
+  return pts.map(p => ({
+    x: Number(p?.x ?? 0),
+    y: Number(p?.y ?? 0),
+    size: Number(p?.size ?? 0),
+    label: p?.label != null ? String(p.label) : "",
+    series: p?.series != null ? String(p.series) : ""
+  }));
+}
+
+// Heatmap payload:
+// d.heatmap = { rows:[{x,y,value}] }
+function heatmapToRows(hm){
+  const rows = Array.isArray(hm?.rows) ? hm.rows : [];
+  return rows.map(r => ({ x: String(r?.x ?? ""), y: String(r?.y ?? ""), value: Number(r?.value ?? 0) }));
+}
+
+// Boxplot payload:
+// d.boxplot = { rows:[{category,value}] }  (raw points; Vega will compute boxes)
+function boxplotToRows(bp){
+  const rows = Array.isArray(bp?.rows) ? bp.rows : [];
+  return rows.map(r => ({ category: String(r?.category ?? ""), value: Number(r?.value ?? 0) }));
+}
+
+// Waterfall payload:
+// d.waterfall = { steps:[{label, value, kind:'start'|'delta'|'end'}] }
+// value for delta is +/-, start/end are absolute
+function waterfallToRows(wf){
+  const steps = Array.isArray(wf?.steps) ? wf.steps : [];
+  return steps.map(s => ({
+    label: String(s?.label ?? ""),
+    value: Number(s?.value ?? 0),
+    kind: String(s?.kind ?? "delta") // start|delta|end
+  }));
+}
+
+// Gauge payload:
+// d.gauge = { value, min?, max?, label? }
+function gaugeToRows(g){
+  const v = Number(g?.value ?? 0);
+  const min = Number(g?.min ?? 0);
+  const max = Number(g?.max ?? 100);
+  const clamped = Math.max(min, Math.min(v, max));
+  const pct = (max === min) ? 0 : ((clamped - min) / (max - min)) * 100;
+  return [{ value: clamped, min, max, pct }];
+}
+
+// Histogram payload options:
+// (A) d.histogram.values = [numbers...] (preferred; Vega bins)
+// (B) d.series.values already counts per label (fallback)
+function histogramValues(d){
+  const vals = d?.histogram?.values;
+  if(Array.isArray(vals) && vals.length) return vals.map(x => Number(x)).filter(x => Number.isFinite(x));
+  return null;
+}
+
+// ---------- SPEC BUILDERS ----------
+
+function specBase(values){
+  return {
+    $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+    data: { values },
+    width: "container",
+    height: "container",
+    config: vegaBaseConfig()
+  };
+}
+
+// keep your existing ones
+// - specFromSeriesTile(t,d)
+// - specFromComboTile(t,d)
+
+function specScatter(t, d){
+  const sc = d.scatter || d;
+  const rows = scatterToRows(sc);
+  const xTitle = sc?.x_label || "X";
+  const yTitle = sc?.y_label || "Y";
+  const hasSeries = rows.some(r => r.series);
+
+  return {
+    ...specBase(rows),
+    mark: { type: "point", filled: true, size: 60 },
+    encoding: {
+      x: { field:"x", type:"quantitative", axis:{ title:xTitle } },
+      y: { field:"y", type:"quantitative", axis:{ title:yTitle } },
+      color: hasSeries ? { field:"series", type:"nominal", legend:{ title:null } } : undefined,
+      tooltip: [
+        { field:"x", type:"quantitative", title:xTitle },
+        { field:"y", type:"quantitative", title:yTitle },
+        ...(hasSeries ? [{ field:"series", type:"nominal" }] : []),
+        { field:"label", type:"nominal" }
+      ].filter(Boolean)
+    }
+  };
+}
+
+function specBubble(t, d){
+  const bb = d.bubble || d;
+  const rows = bubbleToRows(bb);
+  const xTitle = bb?.x_label || "X";
+  const yTitle = bb?.y_label || "Y";
+  const sTitle = bb?.size_label || "Size";
+  const hasSeries = rows.some(r => r.series);
+
+  return {
+    ...specBase(rows),
+    mark: { type:"circle", opacity: 0.65 },
+    encoding: {
+      x: { field:"x", type:"quantitative", axis:{ title:xTitle } },
+      y: { field:"y", type:"quantitative", axis:{ title:yTitle } },
+      size: { field:"size", type:"quantitative", legend:{ title:sTitle } },
+      color: hasSeries ? { field:"series", type:"nominal", legend:{ title:null } } : undefined,
+      tooltip: [
+        { field:"x", type:"quantitative", title:xTitle },
+        { field:"y", type:"quantitative", title:yTitle },
+        { field:"size", type:"quantitative", title:sTitle },
+        ...(hasSeries ? [{ field:"series", type:"nominal" }] : []),
+        { field:"label", type:"nominal" }
+      ].filter(Boolean)
+    }
+  };
+}
+
+function specMultiSeriesLine(t, d){
+  const ms = d.multi_series || d.multi_series_line || d;
+  const rows = multiSeriesToRows(ms);
+  const xTitle = ms?.x_label || d.series?.x_label || "";
+  let yTitle = ms?.y_label || d.series?.y_label || "Value";
+  if(/amount|revenue|sales|profit|turnover/i.test(yTitle)) yTitle = `${yTitle} (${getCurrency()})`;
+
+  return {
+    ...specBase(rows),
+    mark: { type:"line", point:{filled:true,size:35} },
+    encoding: {
+      x: { field:"label", type:"ordinal", axis:{ title:xTitle, labelAngle:0, tickCount:6 } },
+      y: { field:"value", type:"quantitative", axis:{ title:yTitle } },
+      color: { field:"series", type:"nominal", legend:{ title:null } },
+      tooltip: [
+        { field:"label", type:"nominal" },
+        { field:"series", type:"nominal" },
+        { field:"value", type:"quantitative" }
+      ]
+    }
+  };
+}
+
+function specMultiSeriesBar(t, d){
+  const ms = d.multi_series || d.multi_series_bar || d;
+  const rows = multiSeriesToRows(ms);
+  const xTitle = ms?.x_label || d.series?.x_label || "";
+  let yTitle = ms?.y_label || d.series?.y_label || "Value";
+  if(/amount|revenue|sales|profit|turnover/i.test(yTitle)) yTitle = `${yTitle} (${getCurrency()})`;
+
+  return {
+    ...specBase(rows),
+    mark: { type:"bar", cornerRadiusEnd:4 },
+    encoding: {
+      x: { field:"label", type:"ordinal", axis:{ title:xTitle, labelAngle:0, tickCount:6 } },
+      y: { field:"value", type:"quantitative", axis:{ title:yTitle } },
+      color: { field:"series", type:"nominal", legend:{ title:null } },
+      xOffset: { field:"series" },
+      tooltip: [
+        { field:"label", type:"nominal" },
+        { field:"series", type:"nominal" },
+        { field:"value", type:"quantitative" }
+      ]
+    }
+  };
+}
+
+function specStackedBar(t, d){
+  const st = d.stacked || d.stacked_bar || d;
+  const rows = stackedToRows(st);
+  const xTitle = st?.x_label || "";
+  let yTitle = st?.y_label || "Value";
+  if(/amount|revenue|sales|profit|turnover/i.test(yTitle)) yTitle = `${yTitle} (${getCurrency()})`;
+
+  return {
+    ...specBase(rows),
+    mark: { type:"bar", cornerRadiusEnd:2 },
+    encoding: {
+      x: { field:"label", type:"ordinal", axis:{ title:xTitle, labelAngle:0, tickCount:6 } },
+      y: { field:"value", type:"quantitative", axis:{ title:yTitle }, stack:"zero" },
+      color: { field:"series", type:"nominal", legend:{ title:null } },
+      tooltip: [
+        { field:"label", type:"nominal" },
+        { field:"series", type:"nominal" },
+        { field:"value", type:"quantitative" }
+      ]
+    }
+  };
+}
+
+function specArea(t, d){
+  // area is basically line with area mark
+  const typ = normType(t.type);
+  const isStacked = (typ === "stacked_area");
+
+  if(isStacked){
+    const st = d.stacked || d.stacked_area || d;
+    const rows = stackedToRows(st);
+    const xTitle = st?.x_label || "";
+    let yTitle = st?.y_label || "Value";
+    if(/amount|revenue|sales|profit|turnover/i.test(yTitle)) yTitle = `${yTitle} (${getCurrency()})`;
+
+    return {
+      ...specBase(rows),
+      mark: { type:"area" },
+      encoding: {
+        x: { field:"label", type:"ordinal", axis:{ title:xTitle, labelAngle:0, tickCount:6 } },
+        y: { field:"value", type:"quantitative", axis:{ title:yTitle }, stack:"zero" },
+        color: { field:"series", type:"nominal", legend:{ title:null } },
+        tooltip: [
+          { field:"label", type:"nominal" },
+          { field:"series", type:"nominal" },
+          { field:"value", type:"quantitative" }
+        ]
+      }
+    };
+  }
+
+  // plain area from existing d.series
+  const labels = d.series?.labels || [];
+  const values = d.series?.values || [];
+  const rows = seriesToRows(labels, values);
+  const xTitle = d.series?.x_label || "";
+  let yTitle = d.series?.y_label || "Value";
+  if(/amount|revenue|sales|profit|turnover/i.test(yTitle)) yTitle = `${yTitle} (${getCurrency()})`;
+
+  return {
+    ...specBase(rows),
+    mark: { type:"area" },
+    encoding: {
+      x: { field:"label", type:"ordinal", axis:{ title:xTitle, labelAngle:0, tickCount:6 } },
+      y: { field:"value", type:"quantitative", axis:{ title:yTitle } },
+      tooltip: [
+        { field:"label", type:"nominal" },
+        { field:"value", type:"quantitative" }
+      ]
+    }
+  };
+}
+
+function specHeatmap(t, d){
+  const hm = d.heatmap || d;
+  const rows = heatmapToRows(hm);
+  const xTitle = hm?.x_label || "X";
+  const yTitle = hm?.y_label || "Y";
+  const vTitle = hm?.value_label || "Value";
+
+  return {
+    ...specBase(rows),
+    mark: { type:"rect" },
+    encoding: {
+      x: { field:"x", type:"nominal", axis:{ title:xTitle, labelAngle:0 } },
+      y: { field:"y", type:"nominal", axis:{ title:yTitle } },
+      color: { field:"value", type:"quantitative", legend:{ title:vTitle } },
+      tooltip: [
+        { field:"x", type:"nominal", title:xTitle },
+        { field:"y", type:"nominal", title:yTitle },
+        { field:"value", type:"quantitative", title:vTitle }
+      ]
+    }
+  };
+}
+
+function specBoxplot(t, d){
+  const bp = d.boxplot || d;
+  const rows = boxplotToRows(bp);
+  const xTitle = bp?.x_label || "Category";
+  const yTitle = bp?.y_label || "Value";
+
+  return {
+    ...specBase(rows),
+    mark: { type:"boxplot" },
+    encoding: {
+      x: { field:"category", type:"nominal", axis:{ title:xTitle } },
+      y: { field:"value", type:"quantitative", axis:{ title:yTitle } },
+      tooltip: [
+        { field:"category", type:"nominal" },
+        { field:"value", type:"quantitative" }
+      ]
+    }
+  };
+}
+
+function specHistogram(t, d){
+  const vals = histogramValues(d);
+  if(vals && vals.length){
+    const rows = vals.map(v => ({ value: v }));
+    const xTitle = d?.histogram?.x_label || "Value";
+    const yTitle = d?.histogram?.y_label || "Count";
+
+    return {
+      ...specBase(rows),
+      transform: [{ bin: true, field: "value", as: ["bin_start","bin_end"] }],
+      mark: { type:"bar", cornerRadiusEnd:4 },
+      encoding: {
+        x: { field:"bin_start", type:"quantitative", axis:{ title:xTitle } },
+        x2:{ field:"bin_end" },
+        y: { aggregate:"count", type:"quantitative", axis:{ title:yTitle } },
+        tooltip: [
+          { field:"bin_start", type:"quantitative", title:"From" },
+          { field:"bin_end", type:"quantitative", title:"To" },
+          { aggregate:"count", type:"quantitative", title:"Count" }
+        ]
+      }
+    };
+  }
+
+  // fallback: if backend gave a normal series (labels are bins already)
+  return specFromSeriesTile({ ...t, type:"bar" }, d);
+}
+
+function specWaterfall(t, d){
+  const wf = d.waterfall || d;
+  const rows = waterfallToRows(wf);
+
+  // Vega-lite waterfall approximation:
+  // build running total in JS (simpler + robust)
+  let running = 0;
+  const out = rows.map(r => {
+    const kind = r.kind;
+    let start = 0, end = 0;
+
+    if(kind === "start"){
+      running = r.value;
+      start = 0;
+      end = running;
+    } else if(kind === "end"){
+      start = 0;
+      end = r.value;
+      running = r.value;
+    } else {
+      // delta
+      start = running;
+      running = running + r.value;
+      end = running;
+    }
+
+    return {
+      label: r.label,
+      start,
+      end,
+      delta: r.value,
+      dir: (r.value >= 0 ? "up" : "down"),
+      kind
+    };
+  });
+
+  const yTitle = wf?.y_label || "Value";
+
+  return {
+    ...specBase(out),
+    layer: [
+      {
+        mark: { type:"bar", cornerRadiusEnd:3 },
+        encoding: {
+          x: { field:"label", type:"ordinal", axis:{ title:null, labelAngle:0 } },
+          y: { field:"start", type:"quantitative", axis:{ title:yTitle } },
+          y2:{ field:"end" },
+          color: { field:"dir", type:"nominal", legend:null }
+        }
+      },
+      {
+        mark: { type:"rule" },
+        encoding: {
+          x: { field:"label", type:"ordinal" },
+          y: { field:"end", type:"quantitative" }
+        }
+      }
+    ]
+  };
+}
+
+function specGauge(t, d){
+  const g = d.gauge || d;
+  const rows = gaugeToRows(g);
+  const label = g?.label || t.title || "";
+
+  // Semi-circle gauge using arc + text
+  return {
+    $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+    width: "container",
+    height: "container",
+    config: vegaBaseConfig(),
+    layer: [
+      // background arc
+      {
+        data: { values: [{ v: 100 }] },
+        mark: { type:"arc", innerRadius: 70, outerRadius: 95, startAngle: -Math.PI, endAngle: 0 },
+        encoding: { theta: { field:"v", type:"quantitative" } }
+      },
+      // foreground arc
+      {
+        data: { values: [{ v: rows[0].pct }] },
+        mark: { type:"arc", innerRadius: 70, outerRadius: 95, startAngle: -Math.PI, endAngle: -Math.PI + (rows[0].pct/100)*Math.PI },
+        encoding: { theta: { field:"v", type:"quantitative" } }
+      },
+      // value text
+      {
+        data: { values: [{ txt: `${rows[0].pct.toFixed(0)}%`, sub: label }] },
+        mark: { type:"text", dy: -5, fontSize: 22, fontWeight: 800 },
+        encoding: { text: { field:"txt" } }
+      },
+      {
+        data: { values: [{ sub: label }] },
+        mark: { type:"text", dy: 18, fontSize: 11 },
+        encoding: { text: { field:"sub" } }
+      }
+    ]
+  };
+}
+
+function specFromTile(t, d){
+  const tt = normType(t?.type);
+
+  // existing payloads
+  if(tt === "combo") return specFromComboTile(t, d);
+  if(tt === "pie" || tt === "bar" || tt === "line") return specFromSeriesTile(t, d);
+
+  // new types
+  if(tt === "area" || tt === "stacked_area") return specArea(t, d);
+  if(tt === "scatter") return specScatter(t, d);
+  if(tt === "bubble") return specBubble(t, d);
+  if(tt === "multi_series_line") return specMultiSeriesLine(t, d);
+  if(tt === "multi_series_bar") return specMultiSeriesBar(t, d);
+  if(tt === "stacked_bar") return specStackedBar(t, d);
+  if(tt === "heatmap") return specHeatmap(t, d);
+  if(tt === "boxplot") return specBoxplot(t, d);
+  if(tt === "histogram") return specHistogram(t, d);
+  if(tt === "waterfall") return specWaterfall(t, d);
+  if(tt === "gauge") return specGauge(t, d);
+
+  // fallback
+  return specFromSeriesTile({ ...t, type:"bar" }, d);
+}
 
 async function createSession(){
   let r = await fetch(`${ORCH}/session`, {
@@ -1056,28 +1563,16 @@ function renderPreviewPayload(tiles){
       renderVega(box, spec);
     }
 
-    else if (d.combo || d.series) {
+    else if (isChartType(t.type) && (d.combo || d.series || d.multi_series || d.stacked || d.scatter || d.bubble || d.heatmap || d.boxplot || d.histogram || d.waterfall || d.gauge)) {
       tb.classList.add("chart-body");
-
       const box = document.createElement("div");
       box.className = "chart";
       box.style.width = "100%";
       box.style.height = "100%";
       tb.appendChild(box);
 
-      // 🔑 combo detection
-      const isCombo = !!d.combo || String(t.type).toLowerCase() === "combo";
-
-      let spec;
-      if (isCombo) {
-        spec = specFromComboTile(t, d);
-      } else {
-        spec = specFromSeriesTile(t, d);
-      }
-
+      const spec = specFromTile(t, d);
       renderVega(box, spec);
-      console.log("TILE", t.title, "SERIES PAYLOAD", d.series);
-      console.log("TILE", t.title, "COMBO PAYLOAD", d.combo);
     }
     else if(d.table){
       const wrap = document.createElement("div");
