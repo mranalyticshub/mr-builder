@@ -609,7 +609,10 @@ function getCurrency(){ return dsl?.theme?.currency || "£"; }
 
 function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
 
-let chatHistory = []; // [{role:'assistant'|'user', text:'...'}]
+let chatHistory = [
+  { role: "assistant", text: "Built dashboard: ..." },
+  { role: "user", text: "Change the colour" }
+];// [{role:'assistant'|'user', text:'...'}]
 
 function renderChat(){
   const el = document.getElementById('chatLog');
