@@ -609,10 +609,7 @@ function getCurrency(){ return dsl?.theme?.currency || "£"; }
 
 function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
 
-let chatHistory = [
-  { role: "assistant", text: "Built dashboard: ..." },
-  { role: "user", text: "Change the colour" }
-];// [{role:'assistant'|'user', text:'...'}]
+let chatHistory = [];// [{role:'assistant'|'user', text:'...'}]
 
 function renderChat(){
   const el = document.getElementById('chatLog');
@@ -1835,74 +1832,69 @@ async function onGenerateDesign(){
 }
 
 async function onApplyChange(){
-  const btn = $("applyChange");
-  setBusy(btn,true,"Updating…");
-  setMsg("dMsg","");
-  try{
-    const change = ($("changeText").value||"").trim();
-    if(!change){
-      setMsg("dMsg","Type a change first.","err");
-      return;
-    }
+  const btn = document.getElementById("sendChatBtn");   // <-- your actual button
+  const box = document.getElementById("chatInput");     // <-- your actual input
+
+  if (!sid) {
+    pushMsg("assistant", "No active session yet. Generate a dashboard first.");
+    return;
+  }
+
+  const text = (box?.value || "").trim();
+  if (!text) return;
+
+  // UI
+  if (btn) btn.disabled = true;
+  box.value = "";
+  pushMsg("user", text);
+  setMsg("dMsg", "Applying…", "info");
+
+  try {
     const r = await fetch(`${ORCH}/edit/${encodeURIComponent(sid)}`, {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ change })
-    });
-    const j = await r.json();
-    dsl = j.dsl || dsl;
-
-    if (j && j.clarify) {
-      setMsg("dMsg", j.clarify, "warn");
-      return;
-    }
-
-    await refreshPreview();
-
-    const notes = (dsl && Array.isArray(dsl.__notes)) ? dsl.__notes : null;
-    document.getElementById('sendChatBtn').addEventListener('click', async () => {
-    const box = document.getElementById('chatInput');
-    const text = (box.value || '').trim();
-    if(!text) return;
-    box.value = '';
-    pushMsg('user', text);
-
-    document.getElementById('dMsg').textContent = 'Applying...';
-
-    const res = await fetch(`/edit/${encodeURIComponent(SID)}`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         change: text,
-        chat: chatHistory
-      })
+        chat: chatHistory,   // keep passing history if you're using it
+      }),
     });
-    const out = await res.json();
 
-    if(out && out.clarify){
-      pushMsg('assistant', out.clarify);
-    } else if(out && out.ok){
-      pushMsg('assistant', 'Applied.');
-    } else {
-      pushMsg('assistant', 'Could not apply change.');
+    const j = await r.json();
+
+    if (!j || !j.ok) {
+      pushMsg("assistant", "Could not apply change.");
+      setMsg("dMsg", "Change failed.", "err");
+      return;
     }
 
-    document.getElementById('dMsg').textContent = '';
-  });
-    if (notes && notes.length) {
-      setMsg("dMsg", "Change applied. AI notes: " + notes.join(" · "), "ok");
-    } else {
-      setMsg("dMsg","Change applied.","ok");
+    if (j.clarify) {
+      pushMsg("assistant", j.clarify);
+      setMsg("dMsg", "", "ok");
+      return;
     }
 
-    $("changeText").value = "";
-  }catch(e){
+    dsl = j.dsl || dsl;
+    await refreshPreview();
+
+    pushMsg("assistant", "Applied.");
+    setMsg("dMsg", "", "ok");
+  } catch (e) {
     console.error(e);
-    setMsg("dMsg","Could not apply change.","err");
-  }finally{
-    setBusy(btn,false);
+    pushMsg("assistant", "Change failed (frontend error). Check console.");
+    setMsg("dMsg", "Change failed. Check console.", "err");
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
+
+document.getElementById("sendChatBtn")?.addEventListener("click", onApplyChange);
+
+document.getElementById("chatInput")?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    onApplyChange();
+  }
+});
 
 async function onSaveLayout(){
   const tiles = (dsl?.pages?.[0]?.tiles||[]).map(t=>{
