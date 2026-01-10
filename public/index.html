@@ -1683,37 +1683,48 @@ function renderPreviewPayload(tiles){
 /* ---------- Fetch preview tiles (keep dsl for theme) ---------- */
 async function refreshPreview(){
   if(!sid) return;
+
+  const startVal = $("filterStart").value || null;
+  const endVal   = $("filterEnd").value || null;
+
+  const filters = {
+    categories: currentFilters
+  };
+
+  // only include date_range if at least one value is set
+  if (startVal || endVal) {
+    filters.date_range = { start: startVal, end: endVal };
+  }
+
   try{
-    const startVal = $("filterStart").value || null;
-    const endVal   = $("filterEnd").value || null;
-    const body = {
-      filters: {
-        date_range: (startVal || endVal) ? { start: startVal, end: endVal } : null,
-        categories: currentFilters
-      }
-    };
     const r = await fetch(`${ORCH}/preview/${encodeURIComponent(sid)}`, {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify(body)
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filters })
     });
-    if(r.ok){
+
+    if (r.ok) {
       const j = await r.json();
-      if(j.dsl) dsl = j.dsl;
-      if(Array.isArray(j.tiles)){
+
+      if (j && j.dsl) dsl = j.dsl;
+
+      // apply dark mode regardless of whether tiles exist
+      document.body.classList.toggle("dark", (dsl?.theme?.mode || "") === "dark");
+
+      if (Array.isArray(j.tiles)) {
         renderPreviewPayload(j.tiles);
         return;
       }
     }
-  }catch(e){
+  } catch(e){
     console.debug("Preview refresh error", e);
   }
+
+  // fallback: render empty tiles
   document.body.classList.toggle("dark", (dsl?.theme?.mode || "") === "dark");
-  const tiles = (dsl?.pages?.[0]?.tiles||[]).map(t=>({...t, data:null}));
-  
+  const tiles = (dsl?.pages?.[0]?.tiles || []).map(t => ({...t, data: null}));
   renderPreviewPayload(tiles);
 }
-
 /* ---------- Date presets ---------- */
 function formatDate(d){
   const y = d.getFullYear();
