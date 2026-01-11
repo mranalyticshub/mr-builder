@@ -457,33 +457,32 @@
   box-shadow: var(--shadow-soft);
   border: 1px solid rgba(148,163,184,0.25);
   overflow: hidden;
+  max-width: 1000px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .chat-header {
   padding: 12px 16px;
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  background: linear-gradient(135deg, #690697 0%, #9d4edd 100%);
   color: white;
   font-weight: 600;
   font-size: 14px;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
 }
 
-.chat-header::before {
-  content: "💬";
-  font-size: 16px;
-}
-
 .chat-messages {
-  max-height: 350px;
+  max-height: 400px;
   min-height: 120px;
   overflow-y: auto;
-  padding: 16px;
+  padding: 1em;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  background: linear-gradient(to bottom, #fafafa, #ffffff);
+  gap: 0.3em;
+  background: #f9f9f9;
 }
 
 .chat-messages:empty::before {
@@ -500,6 +499,7 @@
   display: flex;
   flex-direction: column;
   animation: slideIn 0.3s ease-out;
+  margin: 0.3em 0;
 }
 
 @keyframes slideIn {
@@ -508,28 +508,35 @@
 }
 
 .chat-bubble {
-  max-width: 85%;
-  padding: 12px 16px;
-  border-radius: 16px;
+  max-width: 75%;
+  padding: 0.5em 1em;
+  border-radius: 12px;
   line-height: 1.5;
   font-size: 13px;
   word-wrap: break-word;
   white-space: pre-wrap;
 }
 
+.chat-message-user {
+  align-items: flex-end;
+}
+
 .chat-message-user .chat-bubble {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: #690697;
   color: white;
   align-self: flex-end;
   border-bottom-right-radius: 4px;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 4px 12px rgba(105, 6, 151, 0.25);
+}
+
+.chat-message-ai {
+  align-items: flex-start;
 }
 
 .chat-message-ai .chat-bubble {
-  background: #f9fafb;
-  color: #111827;
+  background: #e2e2e2;
+  color: black;
   align-self: flex-start;
-  border-left: 3px solid #6366f1;
   border-bottom-left-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
@@ -544,18 +551,18 @@
 }
 
 .chat-message-user .chat-bubble-label {
-  color: #4f46e5;
+  color: #690697;
   align-self: flex-end;
 }
 
 .chat-message-ai .chat-bubble-label {
-  color: #6366f1;
+  color: #690697;
   align-self: flex-start;
 }
 
 .chat-input-area {
   padding: 12px;
-  background: #f9fafb;
+  background: #f9f9f9;
   border-top: 1px solid var(--line);
   display: flex;
   gap: 8px;
@@ -567,21 +574,39 @@
   resize: vertical;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #ccc;
   background: white;
   font-size: 13px;
   font-family: inherit;
 }
 
 .chat-input-area textarea:focus {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+  border-color: #690697;
+  box-shadow: 0 0 0 2px rgba(105, 6, 151, 0.1);
   outline: none;
 }
 
 .chat-input-area button {
   align-self: flex-end;
   white-space: nowrap;
+  padding: 0.5em 1.5em;
+  font-size: 1em;
+  background-color: #C45AFF;
+  color: white;
+  border: 3px solid #D892FF;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.chat-input-area button:hover {
+  background-color: #D892FF;
+  transform: scale(1.05);
+}
+
+.chat-input-area button:active {
+  background-color: #C45AFF;
+  transform: scale(1);
 }
 
     }
@@ -1168,17 +1193,24 @@ function specMultiSeriesLine(t, d){
   let yTitle = ms?.y_label || d.series?.y_label || "Value";
   if(/amount|revenue|sales|profit|turnover/i.test(yTitle)) yTitle = `${yTitle} (${getCurrency()})`;
 
+  const palette = getPalette();
+
   return {
     ...specBase(rows),
-    mark: { type:"line", point:{filled:true,size:35} },
+    mark: { type:"line", point:{filled:true,size:50}, strokeWidth:2.5 },
     encoding: {
       x: { field:"label", type:"ordinal", axis:{ title:xTitle, labelAngle:0, tickCount:6 } },
       y: { field:"value", type:"quantitative", axis:{ title:yTitle } },
-      color: { field:"series", type:"nominal", legend:{ title:null } },
+      color: { 
+        field:"series", 
+        type:"nominal",
+        scale: { range: palette },
+        legend:{ title:null, orient:"top", direction:"horizontal", labelFontSize:11 }
+      },
       tooltip: [
         { field:"label", type:"nominal" },
         { field:"series", type:"nominal" },
-        { field:"value", type:"quantitative" }
+        { field:"value", type:"quantitative", format:",.0f" }
       ]
     }
   };
@@ -1191,18 +1223,25 @@ function specMultiSeriesBar(t, d){
   let yTitle = ms?.y_label || d.series?.y_label || "Value";
   if(/amount|revenue|sales|profit|turnover/i.test(yTitle)) yTitle = `${yTitle} (${getCurrency()})`;
 
+  const palette = getPalette();
+
   return {
     ...specBase(rows),
     mark: { type:"bar", cornerRadiusEnd:4 },
     encoding: {
       x: { field:"label", type:"ordinal", axis:{ title:xTitle, labelAngle:0, tickCount:6 } },
       y: { field:"value", type:"quantitative", axis:{ title:yTitle } },
-      color: { field:"series", type:"nominal", legend:{ title:null } },
+      color: { 
+        field:"series", 
+        type:"nominal",
+        scale: { range: palette },
+        legend:{ title:null, orient:"top", direction:"horizontal", labelFontSize:11 }
+      },
       xOffset: { field:"series" },
       tooltip: [
         { field:"label", type:"nominal" },
         { field:"series", type:"nominal" },
-        { field:"value", type:"quantitative" }
+        { field:"value", type:"quantitative", format:",.0f" }
       ]
     }
   };
