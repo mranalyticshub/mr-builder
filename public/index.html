@@ -704,7 +704,7 @@
       <div style="flex:1"></div>
       <button id="saveLayout" class="ghost" type="button" title="Persist current tile positions">Save layout</button>
       <button id="exportPdf" class="secondary" type="button" title="Print to PDF">Export PDF</button>
-      <span id="dMsg" class="muted"></span>
+      <span id="dMsg" class="muted" style="display:none;"></span>
     </div>
 
     <div id="previewPanel">
@@ -1500,6 +1500,17 @@ function specGauge(t, d){
 
 function specFromTile(t, d){
   const tt = normType(t?.type);
+
+  // Auto-detect multi-series from data structure
+  if(d.multi_series && !tt.includes("multi_series")){
+    // Backend sent multi_series data but type is just "line" or "bar"
+    if(tt === "line" || tt === "multi_line"){
+      return specMultiSeriesLine(t, d);
+    }
+    if(tt === "bar"){
+      return specMultiSeriesBar(t, d);
+    }
+  }
 
   // existing payloads
   if(tt === "combo") return specFromComboTile(t, d);
