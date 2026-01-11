@@ -1571,11 +1571,40 @@ async function ensureSession(){
 /* ---------- Chat Interface Functions ---------- */
 function addChatMessage(text, isUser = false) {
   console.log("[Chat] Adding message:", text.substring(0, 50), "isUser:", isUser);
-  const chatMessages = $("chatMessages");
+  
+  // Try multiple ways to get the element
+  let chatMessages = document.getElementById("chatMessages");
+  
   if (!chatMessages) {
-    console.error("[Chat] chatMessages element not found!");
-    return;
+    console.error("[Chat] chatMessages element not found via getElementById!");
+    console.error("[Chat] Trying querySelector...");
+    chatMessages = document.querySelector("#chatMessages");
   }
+  
+  if (!chatMessages) {
+    console.error("[Chat] chatMessages element not found via querySelector either!");
+    console.error("[Chat] Available elements with 'chat' in ID:");
+    const allElements = document.querySelectorAll('[id*="chat"]');
+    allElements.forEach(el => console.log("  -", el.id, el.tagName));
+    
+    // As a last resort, try to find the chat container and look inside
+    const container = document.querySelector(".chat-container");
+    if (container) {
+      console.log("[Chat] Found chat-container, looking for chat-messages inside...");
+      chatMessages = container.querySelector(".chat-messages");
+      if (chatMessages) {
+        console.log("[Chat] Found chat-messages via class selector!");
+      }
+    }
+    
+    if (!chatMessages) {
+      console.error("[Chat] CRITICAL: Cannot find chat messages container anywhere!");
+      console.error("[Chat] Message that couldn't be added:", text);
+      return;
+    }
+  }
+  
+  console.log("[Chat] Successfully found chatMessages element:", chatMessages);
   
   const messageDiv = document.createElement("div");
   messageDiv.className = `chat-message chat-message-${isUser ? 'user' : 'ai'}`;
@@ -1591,6 +1620,8 @@ function addChatMessage(text, isUser = false) {
   messageDiv.appendChild(label);
   messageDiv.appendChild(bubble);
   chatMessages.appendChild(messageDiv);
+  
+  console.log("[Chat] Message div appended. Total messages:", chatMessages.children.length);
   
   // Auto-scroll to bottom
   chatMessages.scrollTop = chatMessages.scrollHeight;
