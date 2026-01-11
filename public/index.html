@@ -445,6 +445,9 @@
     .chart > .vega-embed { display:block; }
     .chart > .vega-embed details { display:none; } /* belt & braces */
 
+    .msg.warn {
+      background: #fff7ed;
+      border-left: 4px solid #f59e0b;
 
 /* ========== CHAT INTERFACE STYLES ========== */
 .chat-container {
@@ -581,9 +584,6 @@
   white-space: nowrap;
 }
 
-    .msg.warn {
-      background: #fff7ed;
-      border-left: 4px solid #f59e0b;
     }
 
     body.dark {
@@ -687,11 +687,17 @@
     </div>
     <div class="muted" style="margin-top:8px">Click chart elements to filter (coming soon). Drag/resize tiles to customise layout.</div>
 
-    <div class="promptbar">
-      <textarea id="changeText" placeholder="Examples: &#10;- dark mode&#10;- palette: #ec4899,#8b5cf6,#22c55e&#10;- add pie of sales_amount by customer_type&#10;- make bar chart show profit_amount by channel"></textarea>
-      <div style="display:flex;flex-direction:column;gap:6px;min-width:150px">
-        <button id="applyChange" type="button">Apply change</button>
-        <span class="muted" style="font-size:11px">Natural language edits update the layout and theme.</span>
+    <!-- Chat Interface -->
+    <div class="chat-container">
+      <div class="chat-header">
+        AI Dashboard Assistant
+      </div>
+      <div class="chat-messages" id="chatMessages">
+        <!-- Messages will be dynamically added here -->
+      </div>
+      <div class="chat-input-area">
+        <textarea id="changeText" placeholder="Describe the changes you want... (e.g., 'change the bar chart to a pie chart')"></textarea>
+        <button id="applyChange" type="button">Send</button>
       </div>
     </div>
   </div>
@@ -874,23 +880,24 @@ function specFromComboTile(t, d){
     return r;
   });
 
-  // Color palette
+  // Get palette
   const palette = getPalette();
+  
+  // Determine if we need dual axis (check if series specify different axes or have different mark types)
+  const needsDualAxis = series.length === 2 && 
+    ((series[0].axis || "left").toLowerCase() !== (series[1].axis || "left").toLowerCase() ||
+     (series[0].mark || "line") !== (series[1].mark || "line"));
   
   const layers = series.map((s, k) => {
     const mark = (s.mark || "line").toLowerCase();
-    const axis = (s.axis || "left").toLowerCase() === "right" ? "right" : "left";
+    const axis = needsDualAxis && k === 1 ? "right" : "left";
     const title = s.title || `Series ${k+1}`;
     const color = palette[k % palette.length];
 
-    // Different mark types
+    // Different mark types - make visually distinct
     const mk = (mark === "bar")
-      ? { type: "bar", cornerRadiusEnd: 4, opacity: 0.8 }
-      : { 
-          type: "line", 
-          point: { filled: true, size: 60 },
-          strokeWidth: 3
-        };
+      ? { type: "bar", cornerRadiusEnd: 4, opacity: 0.75 }
+      : { type: "line", point: { filled: true, size: 80 }, strokeWidth: 3 };
 
     return {
       mark: mk,
@@ -899,7 +906,7 @@ function specFromComboTile(t, d){
           field: "label", 
           type: "ordinal", 
           axis: { 
-            title: k === 0 ? xLabel : null, 
+            title: k === 0 ? xLabel : "", 
             labelAngle: 0, 
             tickCount: 6 
           } 
@@ -907,24 +914,44 @@ function specFromComboTile(t, d){
         y: { 
           field: "v" + k, 
           type: "quantitative", 
-          axis: { 
+          axis: needsDualAxis ? { 
             title: title, 
             orient: axis, 
             tickCount: 5,
             titleColor: color,
+            titleFontWeight: "bold",
+            titleFontSize: 12,
             labelColor: color,
-            gridOpacity: k === 0 ? 1 : 0  // Only show grid for first series
+            labelFontWeight: "bold",
+            grid: k === 0,
+            gridOpacity: 0.2
+          } : {
+            title: k === 0 ? "Value (£)" : "",
+            orient: "left",
+            tickCount: 5,
+            grid: k === 0,
+            gridOpacity: 0.2
           },
-          scale: {
-            zero: false  // Don't force zero, let each axis scale independently
-          }
+          scale: needsDualAxis ? { zero: false } : undefined
         },
         color: {
-          value: color
+          datum: title,
+          scale: { 
+            domain: series.map(s => s.title || `Series ${series.indexOf(s)+1}`),
+            range: series.map((s,i) => palette[i % palette.length])
+          },
+          legend: {
+            title: null,
+            orient: "top",
+            direction: "horizontal",
+            labelFontSize: 11,
+            symbolSize: 100,
+            symbolStrokeWidth: 2
+          }
         },
         tooltip: [
           { field: "label", type: "nominal", title: xLabel },
-          { field: "v" + k, type: "quantitative", title: title }
+          { field: "v" + k, type: "quantitative", title: title, format: ",.0f" }
         ]
       }
     };
@@ -936,9 +963,7 @@ function specFromComboTile(t, d){
     height: "container",
     config: vegaBaseConfig(),
     data: { values: rows },
-    resolve: { 
-      scale: { y: "independent" }  // Independent y-axes for each layer
-    },
+    resolve: needsDualAxis ? { scale: { y: "independent" } } : undefined,
     layer: layers
   };
 }
@@ -1486,10 +1511,15 @@ async function ensureSession(){
   return await createSession();
 }
 
-
 /* ---------- Chat Interface Functions ---------- */
 function addChatMessage(text, isUser = false) {
+  console.log("[Chat] Adding message:", text.substring(0, 50), "isUser:", isUser);
   const chatMessages = $("chatMessages");
+  if (!chatMessages) {
+    console.error("[Chat] chatMessages element not found!");
+    return;
+  }
+  
   const messageDiv = document.createElement("div");
   messageDiv.className = `chat-message chat-message-${isUser ? 'user' : 'ai'}`;
   
@@ -1511,7 +1541,9 @@ function addChatMessage(text, isUser = false) {
 
 function clearChatMessages() {
   const chatMessages = $("chatMessages");
-  chatMessages.innerHTML = "";
+  if (chatMessages) {
+    chatMessages.innerHTML = "";
+  }
 }
 
 /* ---------- Field map ---------- */
@@ -1979,20 +2011,15 @@ async function onGenerateDesign(){
     // default to YTD when the dashboard first appears
     setQuickRange("YTD");
 
-    const notes = (dsl && Array.isArray(dsl.__notes)) ? dsl.__notes : null;
-    if (notes && notes.length) {
-      setMsg("cMsg", "Design created (YTD applied). AI notes: " + notes.join(" · "), "ok");
-    } else {
-      setMsg("cMsg","Design created (YTD applied).","ok");
-
     // Add initial AI summary to chat
     clearChatMessages();
     const notes = (dsl && Array.isArray(dsl.__notes)) ? dsl.__notes : null;
     if (notes && notes.length) {
+      setMsg("cMsg", "Design created (YTD applied). AI notes: " + notes.join(" · "), "ok");
       addChatMessage("Dashboard created! Here's what I've included:\n\n• " + notes.join("\n• "), false);
     } else {
+      setMsg("cMsg","Design created (YTD applied).","ok");
       addChatMessage("Dashboard created successfully! You can now ask me to make changes to any chart or add new visualizations.", false);
-    }
     }
   }catch(e){
     console.error(e);
@@ -2003,6 +2030,7 @@ async function onGenerateDesign(){
 }
 
 async function onApplyChange(){
+  console.log("[Chat] onApplyChange called");
   const btn = $("applyChange");
   const change = ($("changeText").value||"").trim();
   
@@ -2046,7 +2074,7 @@ async function onApplyChange(){
 
     $("changeText").value = "";
   }catch(e){
-    console.error(e);
+    console.error("[Chat] Error:", e);
     addChatMessage("❌ Sorry, I couldn't apply that change. Please try rephrasing your request.", false);
   }finally{
     setBusy(btn,false);
