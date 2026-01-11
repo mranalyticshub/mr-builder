@@ -552,15 +552,10 @@
     <div class="muted" style="margin-top:8px">Click chart elements to filter (coming soon). Drag/resize tiles to customise layout.</div>
 
     <div class="promptbar">
-      <div id="chatWrap" class="card" style="display:flex; flex-direction:column; height:320px; gap:10px;">
-        <div id="chatLog" style="flex:1; overflow:auto; padding:10px; border:1px solid #e5e7eb; border-radius:12px; background:#fff;"></div>
-
-        <div style="display:flex; gap:10px; align-items:flex-end;">
-          <textarea id="chatInput" class="promptbar" rows="2" placeholder="Ask for a change..."></textarea>
-          <button id="sendChatBtn" class="btn">Send</button>
-        </div>
-
-        <div id="dMsg" class="muted"></div>
+      <textarea id="changeText" placeholder="Examples: &#10;- dark mode&#10;- palette: #ec4899,#8b5cf6,#22c55e&#10;- add pie of sales_amount by customer_type&#10;- make bar chart show profit_amount by channel"></textarea>
+      <div style="display:flex;flex-direction:column;gap:6px;min-width:150px">
+        <button id="applyChange" type="button">Apply change</button>
+        <span class="muted" style="font-size:11px">Natural language edits update the layout and theme.</span>
       </div>
     </div>
   </div>
@@ -608,36 +603,6 @@ function getPalette(){
 function getCurrency(){ return dsl?.theme?.currency || "£"; }
 
 function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
-
-let chatHistory = [];// [{role:'assistant'|'user', text:'...'}]
-
-function renderChat(){
-  const el = document.getElementById('chatLog');
-  if(!el) return;
-  el.innerHTML = chatHistory.map(m => {
-    const align = m.role === 'user' ? 'right' : 'left';
-    const bg = m.role === 'user' ? '#111827' : '#f3f4f6';
-    const fg = m.role === 'user' ? '#ffffff' : '#111827';
-    return `
-      <div style="display:flex; justify-content:${align}; margin:6px 0;">
-        <div style="max-width:80%; white-space:pre-wrap; padding:10px 12px; border-radius:14px; background:${bg}; color:${fg};">
-          ${escapeHtml(m.text)}
-        </div>
-      </div>
-    `;
-  }).join('');
-  el.scrollTop = el.scrollHeight;
-}
-
-function escapeHtml(s){
-  return (s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
-}
-
-function pushMsg(role, text){
-  chatHistory.push({role, text});
-  renderChat();
-}
-
 
 function seriesToRows(labels, values){
   const rows = [];
@@ -1683,48 +1648,37 @@ function renderPreviewPayload(tiles){
 /* ---------- Fetch preview tiles (keep dsl for theme) ---------- */
 async function refreshPreview(){
   if(!sid) return;
-
-  const startVal = $("filterStart").value || null;
-  const endVal   = $("filterEnd").value || null;
-
-  const filters = {
-    categories: currentFilters
-  };
-
-  // only include date_range if at least one value is set
-  if (startVal || endVal) {
-    filters.date_range = { start: startVal, end: endVal };
-  }
-
   try{
+    const startVal = $("filterStart").value || null;
+    const endVal   = $("filterEnd").value || null;
+    const body = {
+      filters: {
+        date_range: (startVal || endVal) ? { start: startVal, end: endVal } : null,
+        categories: currentFilters
+      }
+    };
     const r = await fetch(`${ORCH}/preview/${encodeURIComponent(sid)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filters })
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify(body)
     });
-
-    if (r.ok) {
+    if(r.ok){
       const j = await r.json();
-
-      if (j && j.dsl) dsl = j.dsl;
-
-      // apply dark mode regardless of whether tiles exist
-      document.body.classList.toggle("dark", (dsl?.theme?.mode || "") === "dark");
-
-      if (Array.isArray(j.tiles)) {
+      if(j.dsl) dsl = j.dsl;
+      if(Array.isArray(j.tiles)){
         renderPreviewPayload(j.tiles);
         return;
       }
     }
-  } catch(e){
+  }catch(e){
     console.debug("Preview refresh error", e);
   }
-
-  // fallback: render empty tiles
   document.body.classList.toggle("dark", (dsl?.theme?.mode || "") === "dark");
-  const tiles = (dsl?.pages?.[0]?.tiles || []).map(t => ({...t, data: null}));
+  const tiles = (dsl?.pages?.[0]?.tiles||[]).map(t=>({...t, data:null}));
+  
   renderPreviewPayload(tiles);
 }
+
 /* ---------- Date presets ---------- */
 function formatDate(d){
   const y = d.getFullYear();
@@ -1826,9 +1780,6 @@ async function onGenerateDesign(){
     setQuickRange("YTD");
 
     const notes = (dsl && Array.isArray(dsl.__notes)) ? dsl.__notes : null;
-    if(dsl && dsl.__notes && Array.isArray(dsl.__notes)){
-      pushMsg('assistant', "Built dashboard:\n- " + dsl.__notes.join("\n- "));
-    }
     if (notes && notes.length) {
       setMsg("cMsg", "Design created (YTD applied). AI notes: " + notes.join(" · "), "ok");
     } else {
@@ -1843,69 +1794,45 @@ async function onGenerateDesign(){
 }
 
 async function onApplyChange(){
-  const btn = document.getElementById("sendChatBtn");   // <-- your actual button
-  const box = document.getElementById("chatInput");     // <-- your actual input
-
-  if (!sid) {
-    pushMsg("assistant", "No active session yet. Generate a dashboard first.");
-    return;
-  }
-
-  const text = (box?.value || "").trim();
-  if (!text) return;
-
-  // UI
-  if (btn) btn.disabled = true;
-  box.value = "";
-  pushMsg("user", text);
-  setMsg("dMsg", "Applying…", "info");
-
-  try {
+  const btn = $("applyChange");
+  setBusy(btn,true,"Updating…");
+  setMsg("dMsg","");
+  try{
+    const change = ($("changeText").value||"").trim();
+    if(!change){
+      setMsg("dMsg","Type a change first.","err");
+      return;
+    }
     const r = await fetch(`${ORCH}/edit/${encodeURIComponent(sid)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        change: text,
-        chat: chatHistory,   // keep passing history if you're using it
-      }),
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ change })
     });
-
     const j = await r.json();
-
-    if (!j || !j.ok) {
-      pushMsg("assistant", "Could not apply change.");
-      setMsg("dMsg", "Change failed.", "err");
-      return;
-    }
-
-    if (j.clarify) {
-      pushMsg("assistant", j.clarify);
-      setMsg("dMsg", "", "ok");
-      return;
-    }
-
     dsl = j.dsl || dsl;
+
+    if (j && j.clarify) {
+      setMsg("dMsg", j.clarify, "warn");
+      return;
+    }
+
     await refreshPreview();
 
-    pushMsg("assistant", "Applied.");
-    setMsg("dMsg", "", "ok");
-  } catch (e) {
+    const notes = (dsl && Array.isArray(dsl.__notes)) ? dsl.__notes : null;
+    if (notes && notes.length) {
+      setMsg("dMsg", "Change applied. AI notes: " + notes.join(" · "), "ok");
+    } else {
+      setMsg("dMsg","Change applied.","ok");
+    }
+
+    $("changeText").value = "";
+  }catch(e){
     console.error(e);
-    pushMsg("assistant", "Change failed (frontend error). Check console.");
-    setMsg("dMsg", "Change failed. Check console.", "err");
-  } finally {
-    if (btn) btn.disabled = false;
+    setMsg("dMsg","Could not apply change.","err");
+  }finally{
+    setBusy(btn,false);
   }
 }
-
-document.getElementById("sendChatBtn")?.addEventListener("click", onApplyChange);
-
-document.getElementById("chatInput")?.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    onApplyChange();
-  }
-});
 
 async function onSaveLayout(){
   const tiles = (dsl?.pages?.[0]?.tiles||[]).map(t=>{
