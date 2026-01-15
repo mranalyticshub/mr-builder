@@ -1569,8 +1569,14 @@ async function ensureSession(){
 }
 
 /* ---------- Chat Interface Functions ---------- */
+// Persistent message storage
+let chatMessageHistory = [];
+
 function addChatMessage(text, isUser = false) {
   console.log("[Chat] Adding message:", text.substring(0, 50), "isUser:", isUser);
+  
+  // Store in history
+  chatMessageHistory.push({ text, isUser, timestamp: Date.now() });
   
   // Try multiple ways to get the element
   let chatMessages = document.getElementById("chatMessages");
@@ -1599,7 +1605,8 @@ function addChatMessage(text, isUser = false) {
     
     if (!chatMessages) {
       console.error("[Chat] CRITICAL: Cannot find chat messages container anywhere!");
-      console.error("[Chat] Message that couldn't be added:", text);
+      console.error("[Chat] Message stored in history but couldn't be displayed");
+      console.error("[Chat] Will attempt to display when container is found");
       return;
     }
   }
@@ -1627,11 +1634,48 @@ function addChatMessage(text, isUser = false) {
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
+function restoreChatMessages() {
+  console.log("[Chat] Restoring", chatMessageHistory.length, "messages from history");
+  const chatMessages = document.getElementById("chatMessages");
+  if (!chatMessages) {
+    console.error("[Chat] Cannot restore - chatMessages element not found");
+    return;
+  }
+  
+  // Clear existing messages
+  chatMessages.innerHTML = '';
+  
+  // Re-add all messages from history
+  chatMessageHistory.forEach(msg => {
+    const messageDiv = document.createElement("div");
+    messageDiv.className = `chat-message chat-message-${msg.isUser ? 'user' : 'ai'}`;
+    
+    const label = document.createElement("div");
+    label.className = "chat-bubble-label";
+    label.textContent = msg.isUser ? "You" : "AI Assistant";
+    
+    const bubble = document.createElement("div");
+    bubble.className = "chat-bubble";
+    bubble.textContent = msg.text;
+    
+    messageDiv.appendChild(label);
+    messageDiv.appendChild(bubble);
+    chatMessages.appendChild(messageDiv);
+  });
+  
+  // Auto-scroll to bottom
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  console.log("[Chat] Restored", chatMessages.children.length, "messages");
+}
+
 function clearChatMessages() {
   const chatMessages = $("chatMessages");
   if (chatMessages) {
     chatMessages.innerHTML = "";
   }
+  // Clear history
+  chatMessageHistory = [];
+  console.log("[Chat] Cleared all messages and history");
 }
 
 /* ---------- Field map ---------- */
@@ -2209,6 +2253,36 @@ function onExportPdf(){ window.print(); }
     console.error(e);
     setMsg("aMsg","Could not create a session. Please reload.","err");
   }
+  
+  // Watch for chat container being re-added to DOM
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === 1) { // Element node
+          // Check if it's the chat messages container or contains it
+          let chatMessages = null;
+          if (node.id === 'chatMessages') {
+            chatMessages = node;
+          } else if (node.querySelector) {
+            chatMessages = node.querySelector('#chatMessages');
+          }
+          
+          if (chatMessages && chatMessageHistory.length > 0) {
+            console.log("[Chat] Detected chat container re-added to DOM, restoring messages...");
+            setTimeout(() => restoreChatMessages(), 100);
+          }
+        }
+      });
+    });
+  });
+  
+  // Start observing
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+  console.log("[Chat] MutationObserver started - will restore messages if container is recreated");
+  
   $("newSession").addEventListener("click", onNewSession, {passive:true});
   $("start").addEventListener("click", onProfile, {passive:true});
   $("genDesign").addEventListener("click", onGenerateDesign, {passive:true});
