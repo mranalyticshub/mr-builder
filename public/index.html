@@ -2232,10 +2232,19 @@ async function onApplyChange(){
   setBusy(btn,true,"Sending…");
   
   try{
+    // Prepare chat history to send to backend
+    const chatHistory = chatMessageHistory.map(msg => ({
+      role: msg.isUser ? "user" : "assistant",
+      content: msg.text
+    }));
+    
     const r = await fetch(`${ORCH}/edit/${encodeURIComponent(sid)}`, {
       method:"POST",
       headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ change })
+      body: JSON.stringify({ 
+        change,
+        chat_history: chatHistory // Send full conversation context
+      })
     });
     const j = await r.json();
     dsl = j.dsl || dsl;
@@ -2250,11 +2259,14 @@ async function onApplyChange(){
     await refreshPreview();
 
     // AI response message
-    const notes = (dsl && Array.isArray(dsl.__notes)) ? dsl.__notes : null;
-    let responseText = "✓ Change applied successfully!";
-    
-    if (notes && notes.length) {
-      responseText += "\n\n• " + notes.join("\n• ");
+    // Use the backend's response if provided, otherwise just confirm success
+    let responseText;
+    if (j.response) {
+      // Backend provided a specific response (which should be contextual based on chat_history)
+      responseText = j.response;
+    } else {
+      // Fallback to simple confirmation
+      responseText = "✓ Change applied successfully!";
     }
     
     addChatMessage(responseText, false);
@@ -2322,9 +2334,16 @@ function onExportPdf(){ window.print(); }
             chatMessages = node.querySelector('#chatMessages');
           }
           
-          if (chatMessages && chatMessageHistory.length > 0) {
-            console.log("[Chat] Detected chat container re-added to DOM, restoring messages...");
-            setTimeout(() => restoreChatMessages(), 100);
+          if (chatMessages) {
+            // Force max-height and scrolling inline
+            chatMessages.style.maxHeight = '400px';
+            chatMessages.style.overflowY = 'auto';
+            chatMessages.style.minHeight = '120px';
+            
+            if (chatMessageHistory.length > 0) {
+              console.log("[Chat] Detected chat container re-added to DOM, restoring messages...");
+              setTimeout(() => restoreChatMessages(), 100);
+            }
           }
         }
       });
@@ -2337,6 +2356,15 @@ function onExportPdf(){ window.print(); }
     subtree: true
   });
   console.log("[Chat] MutationObserver started - will restore messages if container is recreated");
+  
+  // Ensure chat container has proper styling from the start
+  const initialChatMessages = document.getElementById('chatMessages');
+  if (initialChatMessages) {
+    initialChatMessages.style.maxHeight = '400px';
+    initialChatMessages.style.overflowY = 'auto';
+    initialChatMessages.style.minHeight = '120px';
+    console.log("[Chat] Applied max-height to chat container");
+  }
   
   $("newSession").addEventListener("click", onNewSession, {passive:true});
   $("start").addEventListener("click", onProfile, {passive:true});
