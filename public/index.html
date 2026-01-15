@@ -1615,14 +1615,42 @@ function addChatMessage(text, isUser = false) {
   
   const messageDiv = document.createElement("div");
   messageDiv.className = `chat-message chat-message-${isUser ? 'user' : 'ai'}`;
+  // Force inline styles
+  messageDiv.style.cssText = `
+    display: flex !important;
+    flex-direction: column !important;
+    margin: 0.5em 0 !important;
+    align-items: ${isUser ? 'flex-end' : 'flex-start'} !important;
+  `;
   
   const label = document.createElement("div");
   label.className = "chat-bubble-label";
   label.textContent = isUser ? "You" : "AI Assistant";
+  label.style.cssText = `
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    margin-bottom: 4px !important;
+    opacity: 0.7 !important;
+    color: #690697 !important;
+  `;
   
   const bubble = document.createElement("div");
   bubble.className = "chat-bubble";
   bubble.textContent = text;
+  bubble.style.cssText = `
+    max-width: 75% !important;
+    padding: 12px 16px !important;
+    border-radius: 12px !important;
+    line-height: 1.5 !important;
+    font-size: 13px !important;
+    word-wrap: break-word !important;
+    white-space: pre-wrap !important;
+    background: ${isUser ? '#690697' : '#e2e2e2'} !important;
+    color: ${isUser ? 'white' : 'black'} !important;
+    box-shadow: ${isUser ? '0 4px 12px rgba(105, 6, 151, 0.25)' : '0 2px 8px rgba(0, 0, 0, 0.05)'} !important;
+  `;
   
   messageDiv.appendChild(label);
   messageDiv.appendChild(bubble);
@@ -1649,14 +1677,41 @@ function restoreChatMessages() {
   chatMessageHistory.forEach(msg => {
     const messageDiv = document.createElement("div");
     messageDiv.className = `chat-message chat-message-${msg.isUser ? 'user' : 'ai'}`;
+    messageDiv.style.cssText = `
+      display: flex !important;
+      flex-direction: column !important;
+      margin: 0.5em 0 !important;
+      align-items: ${msg.isUser ? 'flex-end' : 'flex-start'} !important;
+    `;
     
     const label = document.createElement("div");
     label.className = "chat-bubble-label";
     label.textContent = msg.isUser ? "You" : "AI Assistant";
+    label.style.cssText = `
+      font-size: 10px !important;
+      font-weight: 600 !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.05em !important;
+      margin-bottom: 4px !important;
+      opacity: 0.7 !important;
+      color: #690697 !important;
+    `;
     
     const bubble = document.createElement("div");
     bubble.className = "chat-bubble";
     bubble.textContent = msg.text;
+    bubble.style.cssText = `
+      max-width: 75% !important;
+      padding: 12px 16px !important;
+      border-radius: 12px !important;
+      line-height: 1.5 !important;
+      font-size: 13px !important;
+      word-wrap: break-word !important;
+      white-space: pre-wrap !important;
+      background: ${msg.isUser ? '#690697' : '#e2e2e2'} !important;
+      color: ${msg.isUser ? 'white' : 'black'} !important;
+      box-shadow: ${msg.isUser ? '0 4px 12px rgba(105, 6, 151, 0.25)' : '0 2px 8px rgba(0, 0, 0, 0.05)'} !important;
+    `;
     
     messageDiv.appendChild(label);
     messageDiv.appendChild(bubble);
