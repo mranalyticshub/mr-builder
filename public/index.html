@@ -450,28 +450,48 @@
       border-left: 4px solid #f59e0b;
 
 /* ========== CHAT INTERFACE STYLES ========== */
-.chat-container {
-  margin-top: 20px !important;
-  border-radius: var(--radius-lg) !important;
-  background: var(--surface) !important;
-  box-shadow: var(--shadow-soft) !important;
-  border: 1px solid rgba(148,163,184,0.25) !important;
-  overflow: hidden !important;
+.chat-wrapper {
+  margin-top: 30px !important;
+  margin-bottom: 30px !important;
   max-width: 1000px !important;
   margin-left: auto !important;
   margin-right: auto !important;
 }
 
+.chat-title {
+  text-align: center !important;
+  font-size: 24px !important;
+  font-weight: 600 !important;
+  color: #690697 !important;
+  margin-bottom: 8px !important;
+}
+
+.chat-subtitle {
+  text-align: center !important;
+  font-size: 14px !important;
+  color: #666 !important;
+  margin-bottom: 20px !important;
+}
+
+.chat-container {
+  border-radius: 12px !important;
+  background: white !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1) !important;
+  border: 2px solid #690697 !important;
+  overflow: hidden !important;
+}
+
 .chat-header {
-  padding: 12px 16px !important;
+  padding: 16px 20px !important;
   background: linear-gradient(135deg, #690697 0%, #9d4edd 100%) !important;
   color: white !important;
   font-weight: 600 !important;
-  font-size: 14px !important;
+  font-size: 16px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   gap: 8px !important;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2) !important;
 }
 
 .chat-messages {
@@ -558,6 +578,31 @@
 .chat-message-ai .chat-bubble-label {
   color: #690697 !important;
   align-self: flex-start !important;
+}
+
+.chat-thinking {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  margin: 0.5em 0 !important;
+}
+
+.chat-thinking-bubble {
+  max-width: 75% !important;
+  padding: 12px 16px !important;
+  border-radius: 12px !important;
+  line-height: 1.5 !important;
+  font-size: 13px !important;
+  background: #e2e2e2 !important;
+  color: #666 !important;
+  font-style: italic !important;
+  opacity: 0.8 !important;
+  animation: pulse 1.5s ease-in-out infinite !important;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
 }
 
 .chat-input-area {
@@ -713,16 +758,21 @@
     <div class="muted" style="margin-top:8px">Click chart elements to filter (coming soon). Drag/resize tiles to customise layout.</div>
 
     <!-- Chat Interface -->
-    <div class="chat-container">
-      <div class="chat-header">
-        AI Dashboard Assistant
-      </div>
-      <div class="chat-messages" id="chatMessages">
-        <!-- Messages will be dynamically added here -->
-      </div>
-      <div class="chat-input-area">
-        <textarea id="changeText" placeholder="Describe the changes you want... (e.g., 'change the bar chart to a pie chart')"></textarea>
-        <button id="applyChange" type="button">Send</button>
+    <div class="chat-wrapper">
+      <h2 class="chat-title">AI Dashboard Assistant</h2>
+      <p class="chat-subtitle">Request changes to your dashboard using the chat below</p>
+      
+      <div class="chat-container">
+        <div class="chat-header">
+          💬 Chat
+        </div>
+        <div class="chat-messages" id="chatMessages">
+          <!-- Messages will be dynamically added here -->
+        </div>
+        <div class="chat-input-area">
+          <textarea id="changeText" placeholder="Describe the changes you want... (e.g., 'change the bar chart to a pie chart')"></textarea>
+          <button id="applyChange" type="button">Send</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1571,9 +1621,51 @@ async function ensureSession(){
 /* ---------- Chat Interface Functions ---------- */
 // Persistent message storage
 let chatMessageHistory = [];
+let thinkingInterval = null;
+let currentThinkingElement = null;
 
-function addChatMessage(text, isUser = false) {
-  console.log("[Chat] Adding message:", text.substring(0, 50), "isUser:", isUser);
+function addThinkingPlaceholder() {
+  const chatMessages = document.getElementById("chatMessages");
+  if (!chatMessages) return null;
+  
+  const thinkingDiv = document.createElement("div");
+  thinkingDiv.className = "chat-thinking";
+  
+  const bubble = document.createElement("div");
+  bubble.className = "chat-thinking-bubble";
+  bubble.textContent = "Thinking";
+  
+  thinkingDiv.appendChild(bubble);
+  chatMessages.appendChild(thinkingDiv);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  
+  // Animate dots
+  let dots = 0;
+  thinkingInterval = setInterval(() => {
+    dots = (dots + 1) % 4;
+    bubble.textContent = "Thinking" + ".".repeat(dots);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }, 500);
+  
+  currentThinkingElement = thinkingDiv;
+  console.log("[Chat] Added thinking placeholder");
+  return thinkingDiv;
+}
+
+function removeThinkingPlaceholder() {
+  if (thinkingInterval) {
+    clearInterval(thinkingInterval);
+    thinkingInterval = null;
+  }
+  if (currentThinkingElement) {
+    currentThinkingElement.remove();
+    currentThinkingElement = null;
+    console.log("[Chat] Removed thinking placeholder");
+  }
+}
+
+function addChatMessage(text, isUser = false, animate = false) {
+  console.log("[Chat] Adding message:", text.substring(0, 50), "isUser:", isUser, "animate:", animate);
   
   // Store in history
   chatMessageHistory.push({ text, isUser, timestamp: Date.now() });
@@ -1638,7 +1730,6 @@ function addChatMessage(text, isUser = false) {
   
   const bubble = document.createElement("div");
   bubble.className = "chat-bubble";
-  bubble.textContent = text;
   bubble.style.cssText = `
     max-width: 75% !important;
     padding: 12px 16px !important;
@@ -1655,6 +1746,26 @@ function addChatMessage(text, isUser = false) {
   messageDiv.appendChild(label);
   messageDiv.appendChild(bubble);
   chatMessages.appendChild(messageDiv);
+  
+  // Typing animation for AI responses
+  if (animate && !isUser) {
+    bubble.textContent = '';
+    let i = 0;
+    const speed = 15; // milliseconds per character
+    
+    function typeChar() {
+      if (i < text.length) {
+        bubble.textContent += text.charAt(i);
+        i++;
+        setTimeout(typeChar, speed);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+    }
+    
+    typeChar();
+  } else {
+    bubble.textContent = text;
+  }
   
   console.log("[Chat] Message div appended. Total messages:", chatMessages.children.length);
   
@@ -2203,10 +2314,10 @@ async function onGenerateDesign(){
     const notes = (dsl && Array.isArray(dsl.__notes)) ? dsl.__notes : null;
     if (notes && notes.length) {
       setMsg("cMsg", "Design created (YTD applied). AI notes: " + notes.join(" · "), "ok");
-      addChatMessage("Dashboard created! Here's what I've included:\n\n• " + notes.join("\n• "), false);
+      addChatMessage("Dashboard created! Here's what I've included:\n\n• " + notes.join("\n• "), false, true);
     } else {
       setMsg("cMsg","Design created (YTD applied).","ok");
-      addChatMessage("Dashboard created successfully! You can now ask me to make changes to any chart or add new visualizations.", false);
+      addChatMessage("Dashboard created successfully! You can now ask me to make changes to any chart or add new visualizations.", false, true);
     }
   }catch(e){
     console.error(e);
@@ -2229,6 +2340,9 @@ async function onApplyChange(){
   // Add user message to chat
   addChatMessage(change, true);
   
+  // Show thinking animation
+  addThinkingPlaceholder();
+  
   setBusy(btn,true,"Sending…");
   
   try{
@@ -2249,9 +2363,12 @@ async function onApplyChange(){
     const j = await r.json();
     dsl = j.dsl || dsl;
 
+    // Remove thinking animation
+    removeThinkingPlaceholder();
+
     if (j && j.clarify) {
       // AI needs clarification
-      addChatMessage("❓ " + j.clarify, false);
+      addChatMessage("❓ " + j.clarify, false, true); // Animate clarification
       setBusy(btn,false);
       return;
     }
@@ -2269,12 +2386,14 @@ async function onApplyChange(){
       responseText = "✓ Change applied successfully!";
     }
     
-    addChatMessage(responseText, false);
+    // Animate AI response with typing effect
+    addChatMessage(responseText, false, true);
 
     $("changeText").value = "";
   }catch(e){
     console.error("[Chat] Error:", e);
-    addChatMessage("❌ Sorry, I couldn't apply that change. Please try rephrasing your request.", false);
+    removeThinkingPlaceholder();
+    addChatMessage("❌ Sorry, I couldn't apply that change. Please try rephrasing your request.", false, true);
   }finally{
     setBusy(btn,false);
   }
