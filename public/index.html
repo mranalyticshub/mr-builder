@@ -606,7 +606,7 @@
 }
 
 .chat-input-area {
-  padding: 1.5em !important;
+  padding: 1em 1.5em !important;
   background: #f9f9f9 !important;
   border-top: 1px solid var(--line) !important;
   display: flex !important;
@@ -636,13 +636,18 @@
   white-space: nowrap !important;
   padding: 0.5em 1.5em !important;
   font-size: 1em !important;
-  background-color: #4285f4 !important;
+  background-color: #C45AFF !important;
   color: white !important;
-  border: none !important;
-  border-radius: 8px !important;
+  border: 5px solid #D892FF !important;
+  border-radius: 50px !important;
   cursor: pointer !important;
   transition: all 0.2s ease-in-out !important;
   font-weight: 500 !important;
+}
+
+.chat-input-area button:hover {
+  background-color: #D892FF !important;
+  transform: scale(1.05) !important;
 }
 
 .chat-input-area button:hover {
@@ -775,7 +780,7 @@
         <div class="chat-messages" id="chatMessages" style="background: #f9f9f9; padding: 1.5em;">
           <!-- Messages will be dynamically added here -->
         </div>
-        <div class="chat-input-area" style="padding: 1.5em;">
+        <div class="chat-input-area" style="padding: 1em 1.5em;">
           <textarea id="changeText" placeholder="Describe the changes you want... (e.g., 'change the bar chart to a pie chart')"></textarea>
           <button id="applyChange" type="button">Send</button>
         </div>
