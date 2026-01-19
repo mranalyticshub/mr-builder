@@ -782,7 +782,19 @@
         </div>
         <div class="chat-input-area" style="padding: 1em 1.5em;">
           <textarea id="changeText" placeholder="Describe the changes you want... (e.g., 'change the bar chart to a pie chart')"></textarea>
-          <button id="applyChange" type="button">Send</button>
+          <button id="applyChange" type="button" style="
+            padding: 0.5em 1.5em;
+            font-size: 1em;
+            background-color: #C45AFF;
+            color: white;
+            border: 5px solid #D892FF;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            font-weight: 500;
+          "
+          onmouseover="this.style.backgroundColor='#D892FF'; this.style.transform='scale(1.05)'"
+          onmouseout="this.style.backgroundColor='#C45AFF'; this.style.transform='scale(1)'">Send</button>
         </div>
       </div>
     </div>
