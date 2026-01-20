@@ -98,22 +98,29 @@
 
     button {
       appearance:none;
-      background:var(--accent);
+      background:#C45AFF;
       color:#fff;
-      border:0;
+      border:5px solid #D892FF;
       padding:9px 14px;
-      border-radius:999px;
+      border-radius:50px;
       cursor:pointer;
       font-weight:600;
       font-size:13px;
       display:inline-flex;
       align-items:center;
       gap:6px;
-      box-shadow:0 10px 25px rgba(37,99,235,0.35);
-      transition:transform .08s ease-out, box-shadow .08s ease-out, background .08s ease-out;
+      box-shadow:0 4px 12px rgba(196, 90, 255, 0.25);
+      transition:all .2s ease-in-out;
     }
-    button:hover { transform:translateY(-1px); box-shadow:0 16px 40px rgba(37,99,235,0.4); }
-    button:active { transform:translateY(0); box-shadow:0 10px 25px rgba(37,99,235,0.3); }
+    button:hover { 
+      background:#D892FF;
+      transform:scale(1.05);
+      box-shadow:0 6px 16px rgba(196, 90, 255, 0.35);
+    }
+    button:active { 
+      transform:scale(1);
+      box-shadow:0 4px 12px rgba(196, 90, 255, 0.25);
+    }
     button.secondary {
       background:#f9fafb;
       color:#111827;
@@ -606,7 +613,7 @@
 }
 
 .chat-input-area {
-  padding: 1em 1.5em !important;
+  padding: 0.75em 1.5em !important;
   background: #f9f9f9 !important;
   border-top: 1px solid var(--line) !important;
   display: flex !important;
@@ -780,7 +787,7 @@
         <div class="chat-messages" id="chatMessages" style="background: #f9f9f9; padding: 1.5em;">
           <!-- Messages will be dynamically added here -->
         </div>
-        <div class="chat-input-area" style="padding: 1em 1.5em;">
+        <div class="chat-input-area" style="padding: 0.75em 1.5em;">
           <textarea id="changeText" placeholder="Describe the changes you want... (e.g., 'change the bar chart to a pie chart')"></textarea>
           <button id="applyChange" type="button" style="
             padding: 0.5em 1.5em;
