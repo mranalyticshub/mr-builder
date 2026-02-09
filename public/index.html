@@ -2305,60 +2305,48 @@ async function onProfile(){
 
     let data;
     if(f && f.size > GCS_THRESHOLD){
-      setMsg("aMsg",`Uploading large file (${(f.size/1024/1024).toFixed(1)} MB)…`,"");
+      const sizeMB = (f.size/1024/1024).toFixed(1);
+      setMsg("aMsg",`Preparing upload (${sizeMB} MB)…`,"");
 
-      // Step 1: Try to get a signed URL for direct-to-GCS upload
-      let gcsKey = null;
-      try {
-        const urlResp = await fetch(`${ORCH}/upload-url/${encodeURIComponent(sid)}`, {
-          method:"POST",
-          headers:{"Content-Type":"application/json"},
-          body: JSON.stringify({ filename: f.name, content_type: f.type || "text/csv" })
-        });
-        const urlData = await urlResp.json();
+      // Step 1: Get a GCS resumable upload URL from backend (tiny JSON request)
+      const urlResp = await fetch(`${ORCH}/upload-url/${encodeURIComponent(sid)}`, {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ filename: f.name, content_type: f.type || "text/csv" })
+      });
+      const urlData = await urlResp.json();
+      if(!urlData.ok) throw new Error(urlData.error || "Could not get upload URL");
 
-        if(urlData.ok && urlData.url){
-          // Step 2a: Upload directly to GCS via signed URL (bypasses Cloud Run entirely)
-          setMsg("aMsg",`Uploading to cloud storage (${(f.size/1024/1024).toFixed(1)} MB)…`,"");
-          const putResp = await fetch(urlData.url, {
-            method:"PUT",
-            headers:{"Content-Type": f.type || "text/csv"},
-            body: f
-          });
-          if(putResp.ok){
-            gcsKey = urlData.gcs_key;
-          } else {
-            console.warn("GCS signed URL upload failed, trying chunk upload…");
+      // Step 2: Upload file directly to GCS via resumable upload URI
+      // Use XMLHttpRequest for upload progress tracking
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", urlData.url, true);
+        xhr.setRequestHeader("Content-Type", f.type || "text/csv");
+
+        xhr.upload.onprogress = (e) => {
+          if(e.lengthComputable){
+            const pct = Math.round(e.loaded / e.total * 100);
+            const loadedMB = (e.loaded/1024/1024).toFixed(1);
+            setMsg("aMsg", `Uploading to cloud storage… ${loadedMB}/${sizeMB} MB (${pct}%)`, "");
           }
-        } else if(urlData.fallback === "chunk"){
-          console.warn("Signed URL not available, trying chunk upload…");
-        }
-      } catch(e){
-        console.warn("Signed URL path failed:", e);
-      }
-
-      // Step 2b: Fallback — upload raw file to /upload-chunk (streams to GCS via backend)
-      if(!gcsKey){
-        setMsg("aMsg",`Uploading via server (${(f.size/1024/1024).toFixed(1)} MB)…`,"");
-        try {
-          const chunkResp = await fetch(
-            `${ORCH}/upload-chunk/${encodeURIComponent(sid)}?filename=${encodeURIComponent(f.name)}`,
-            { method:"POST", headers:{"Content-Type": f.type || "text/csv"}, body: f }
-          );
-          const chunkData = await chunkResp.json();
-          if(chunkData.ok) gcsKey = chunkData.gcs_key;
-          else throw new Error(chunkData.error || "Chunk upload failed");
-        } catch(e2) {
-          throw new Error(`File too large for direct upload and GCS upload failed: ${e2.message}. Try a smaller file or contact support.`);
-        }
-      }
+        };
+        xhr.onload = () => {
+          if(xhr.status >= 200 && xhr.status < 400) resolve();
+          else reject(new Error(`GCS upload failed: HTTP ${xhr.status}`));
+        };
+        xhr.onerror = () => reject(new Error("GCS upload network error"));
+        xhr.ontimeout = () => reject(new Error("GCS upload timed out"));
+        xhr.timeout = 600000; // 10 min timeout
+        xhr.send(f);
+      });
 
       // Step 3: Tell backend to profile from GCS
-      setMsg("aMsg","Profiling dataset…","");
+      setMsg("aMsg","Upload complete. Profiling dataset…","");
       const r = await fetch(`${ORCH}/profile-gcs/${encodeURIComponent(sid)}`, {
         method:"POST",
         headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ gcs_key: gcsKey, prompt: prompt })
+        body: JSON.stringify({ gcs_key: urlData.gcs_key, prompt: prompt })
       });
       const text = await r.text();
       try{ data = JSON.parse(text||"{}"); }catch(e){ data={}; }
@@ -2388,6 +2376,7 @@ async function onProfile(){
     setBusy(btn,false);
   }
 }
+
 
 async function onGenerateDesign(){
   const btn = $("genDesign");
