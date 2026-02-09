@@ -2299,54 +2299,52 @@ async function onProfile(){
     const f = $("file").files[0];
     const prompt = ($("prompt").value||"").toString();
 
-    // Large files (>20MB): upload to GCS first, then profile via gcs_key
-    // Small files: direct upload as before
     const GCS_THRESHOLD = 20 * 1024 * 1024; // 20MB
+    const CHUNK_SIZE = 10 * 1024 * 1024;    // 10MB per chunk
 
     let data;
     if(f && f.size > GCS_THRESHOLD){
       const sizeMB = (f.size/1024/1024).toFixed(1);
-      setMsg("aMsg",`Preparing upload (${sizeMB} MB)…`,"");
+      const totalChunks = Math.ceil(f.size / CHUNK_SIZE);
 
-      // Step 1: Get a GCS resumable upload URL from backend (tiny JSON request)
-      const urlResp = await fetch(`${ORCH}/upload-url/${encodeURIComponent(sid)}`, {
+      // Step 1: Tell backend we're starting a chunked upload
+      setMsg("aMsg",`Preparing upload (${sizeMB} MB, ${totalChunks} chunks)…`,"");
+      const startResp = await fetch(`${ORCH}/upload-start/${encodeURIComponent(sid)}`, {
         method:"POST",
         headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ filename: f.name, content_type: f.type || "text/csv" })
+        body: JSON.stringify({ filename: f.name, total_size: f.size })
       });
-      const urlData = await urlResp.json();
-      if(!urlData.ok) throw new Error(urlData.error || "Could not get upload URL");
+      const startData = await startResp.json();
+      if(!startData.ok) throw new Error(startData.error || "Could not start upload");
+      const gcsKey = startData.gcs_key;
 
-      // Step 2: Upload file directly to GCS via resumable upload URI
-      // Use XMLHttpRequest for upload progress tracking
-      await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("PUT", urlData.url, true);
-        xhr.setRequestHeader("Content-Type", f.type || "text/csv");
+      // Step 2: Send file in chunks
+      let lastResult = null;
+      for(let i = 0; i < totalChunks; i++){
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, f.size);
+        const chunk = f.slice(start, end);
+        const isLast = (i === totalChunks - 1);
 
-        xhr.upload.onprogress = (e) => {
-          if(e.lengthComputable){
-            const pct = Math.round(e.loaded / e.total * 100);
-            const loadedMB = (e.loaded/1024/1024).toFixed(1);
-            setMsg("aMsg", `Uploading to cloud storage… ${loadedMB}/${sizeMB} MB (${pct}%)`, "");
-          }
-        };
-        xhr.onload = () => {
-          if(xhr.status >= 200 && xhr.status < 400) resolve();
-          else reject(new Error(`GCS upload failed: HTTP ${xhr.status}`));
-        };
-        xhr.onerror = () => reject(new Error("GCS upload network error"));
-        xhr.ontimeout = () => reject(new Error("GCS upload timed out"));
-        xhr.timeout = 600000; // 10 min timeout
-        xhr.send(f);
-      });
+        const pct = Math.round(end / f.size * 100);
+        const uploadedMB = (end/1024/1024).toFixed(1);
+        setMsg("aMsg", `Uploading… ${uploadedMB}/${sizeMB} MB (${pct}%) — chunk ${i+1}/${totalChunks}`, "");
+
+        const chunkResp = await fetch(
+          `${ORCH}/upload-chunk/${encodeURIComponent(sid)}?index=${i}&last=${isLast}`,
+          { method:"POST", body: chunk }
+        );
+        const chunkData = await chunkResp.json();
+        if(!chunkData.ok) throw new Error(chunkData.error || `Chunk ${i} upload failed`);
+        if(isLast) lastResult = chunkData;
+      }
 
       // Step 3: Tell backend to profile from GCS
       setMsg("aMsg","Upload complete. Profiling dataset…","");
       const r = await fetch(`${ORCH}/profile-gcs/${encodeURIComponent(sid)}`, {
         method:"POST",
         headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ gcs_key: urlData.gcs_key, prompt: prompt })
+        body: JSON.stringify({ gcs_key: gcsKey, prompt: prompt })
       });
       const text = await r.text();
       try{ data = JSON.parse(text||"{}"); }catch(e){ data={}; }
@@ -2376,6 +2374,7 @@ async function onProfile(){
     setBusy(btn,false);
   }
 }
+
 
 
 async function onGenerateDesign(){
