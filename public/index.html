@@ -2212,6 +2212,11 @@ function renderPreviewPayload(tiles){
 async function refreshPreview(){
   if(!sid) return;
   try{
+    // Show loading state on the dashboard
+    setMsg("cMsg", "Updating dashboard…", "");
+    const dashGrid = document.querySelector(".grid-stack");
+    if(dashGrid) dashGrid.style.opacity = "0.5";
+
     const startVal = $("filterStart").value || null;
     const endVal   = $("filterEnd").value || null;
     const body = {
@@ -2230,11 +2235,15 @@ async function refreshPreview(){
       if(j.dsl) dsl = j.dsl;
       if(Array.isArray(j.tiles)){
         renderPreviewPayload(j.tiles);
+        setMsg("cMsg", "", "");
         return;
       }
     }
   }catch(e){
     console.debug("Preview refresh error", e);
+  }finally{
+    const dashGrid = document.querySelector(".grid-stack");
+    if(dashGrid) dashGrid.style.opacity = "1";
   }
   document.body.classList.toggle("dark", (dsl?.theme?.mode || "") === "dark");
   const tiles = (dsl?.pages?.[0]?.tiles||[]).map(t=>({...t, data:null}));
@@ -2396,17 +2405,20 @@ async function onGenerateDesign(){
     show("stepD", true);
     currentFilters = [];
     localLayout = {};
-    // default to YTD when the dashboard first appears
-    setQuickRange("YTD");
+    // Default to showing all data (no date filter)
+    // Users can apply YTD or other date ranges using the filter buttons
+    $("filterStart").value = "";
+    $("filterEnd").value = "";
+    refreshPreview();
 
     // Add initial AI summary to chat
     clearChatMessages();
     const notes = (dsl && Array.isArray(dsl.__notes)) ? dsl.__notes : null;
     if (notes && notes.length) {
-      setMsg("cMsg", "Design created (YTD applied). AI notes: " + notes.join(" · "), "ok");
+      setMsg("cMsg", "Design created. AI notes: " + notes.join(" · "), "ok");
       addChatMessage("Dashboard created! Here's what I've included:\n\n• " + notes.join("\n• "), false, true);
     } else {
-      setMsg("cMsg","Design created (YTD applied).","ok");
+      setMsg("cMsg","Design created.","ok");
       addChatMessage("Dashboard created successfully! You can now ask me to make changes to any chart or add new visualizations.", false, true);
     }
   }catch(e){
