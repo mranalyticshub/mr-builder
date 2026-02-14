@@ -752,6 +752,7 @@
         <input id="filterEnd" type="date"/>
         <button id="applyFilters" class="secondary" type="button">Apply</button>
         <button id="clearFilters" class="ghost" type="button">Clear filters</button>
+        <span id="filterStatus" class="muted" style="font-size:12px;margin-left:8px"></span>
       </div>
       <div class="date-group">
         <button class="chip" type="button" id="btnYTD">YTD</button>
@@ -2211,9 +2212,19 @@ function renderPreviewPayload(tiles){
 /* ---------- Fetch preview tiles (keep dsl for theme) ---------- */
 async function refreshPreview(){
   if(!sid) return;
+  const filterStatusEl = $("filterStatus");
   try{
-    // Show loading state on the dashboard
-    setMsg("cMsg", "Updating dashboard…", "");
+    // Show loading state near the filter buttons
+    if(filterStatusEl) {
+      filterStatusEl.textContent = "Updating dashboard";
+      filterStatusEl.style.color = "#6b7280";
+      // Animate the dots
+      let dotCount = 0;
+      filterStatusEl._interval = setInterval(() => {
+        dotCount = (dotCount + 1) % 4;
+        filterStatusEl.textContent = "Updating dashboard" + ".".repeat(dotCount);
+      }, 400);
+    }
     const dashGrid = document.querySelector(".grid-stack");
     if(dashGrid) dashGrid.style.opacity = "0.5";
 
@@ -2235,7 +2246,7 @@ async function refreshPreview(){
       if(j.dsl) dsl = j.dsl;
       if(Array.isArray(j.tiles)){
         renderPreviewPayload(j.tiles);
-        setMsg("cMsg", "", "");
+        if(filterStatusEl) filterStatusEl.textContent = "";
         return;
       }
     }
@@ -2244,6 +2255,11 @@ async function refreshPreview(){
   }finally{
     const dashGrid = document.querySelector(".grid-stack");
     if(dashGrid) dashGrid.style.opacity = "1";
+    if(filterStatusEl && filterStatusEl._interval) {
+      clearInterval(filterStatusEl._interval);
+      filterStatusEl._interval = null;
+    }
+    if(filterStatusEl) filterStatusEl.textContent = "";
   }
   document.body.classList.toggle("dark", (dsl?.theme?.mode || "") === "dark");
   const tiles = (dsl?.pages?.[0]?.tiles||[]).map(t=>({...t, data:null}));
