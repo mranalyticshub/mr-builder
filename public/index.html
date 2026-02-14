@@ -2246,7 +2246,15 @@ async function refreshPreview(){
       if(j.dsl) dsl = j.dsl;
       if(Array.isArray(j.tiles)){
         renderPreviewPayload(j.tiles);
-        if(filterStatusEl) filterStatusEl.textContent = "";
+        // Show warning if date range had no data
+        if(j.filtered_empty || j.warn === "date_range_out_of_bounds"){
+          if(filterStatusEl){
+            filterStatusEl.textContent = "⚠ No data in selected date range — showing all data";
+            filterStatusEl.style.color = "#b45309";
+          }
+        } else {
+          if(filterStatusEl) filterStatusEl.textContent = "";
+        }
         return;
       }
     }
@@ -2259,7 +2267,10 @@ async function refreshPreview(){
       clearInterval(filterStatusEl._interval);
       filterStatusEl._interval = null;
     }
-    if(filterStatusEl) filterStatusEl.textContent = "";
+    // Only clear status text if it's not showing a warning (warnings persist)
+    if(filterStatusEl && !filterStatusEl.textContent.startsWith("⚠")) {
+      filterStatusEl.textContent = "";
+    }
   }
   document.body.classList.toggle("dark", (dsl?.theme?.mode || "") === "dark");
   const tiles = (dsl?.pages?.[0]?.tiles||[]).map(t=>({...t, data:null}));
