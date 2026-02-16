@@ -2210,6 +2210,31 @@ function renderPreviewPayload(tiles){
 }
 
 /* ---------- Fetch preview tiles (keep dsl for theme) ---------- */
+function _showEmptyDateOverlay(show){
+  const gridEl = document.querySelector(".grid-stack");
+  if(!gridEl) return;
+  let overlay = document.getElementById("emptyDateOverlay");
+  if(show){
+    if(!overlay){
+      overlay = document.createElement("div");
+      overlay.id = "emptyDateOverlay";
+      overlay.style.cssText = "position:absolute;top:0;left:0;right:0;bottom:0;z-index:10;"
+        + "display:flex;align-items:center;justify-content:center;flex-direction:column;"
+        + "background:rgba(255,255,255,0.92);border-radius:12px;pointer-events:none;";
+      overlay.innerHTML = '<div style="text-align:center;padding:40px">'
+        + '<div style="font-size:40px;margin-bottom:12px">📅</div>'
+        + '<div style="font-size:18px;font-weight:600;color:#374151;margin-bottom:8px">No data in selected date range</div>'
+        + '<div style="font-size:14px;color:#6b7280">Try adjusting the date filters or click <b>Clear filters</b> to view all data.</div>'
+        + '</div>';
+      gridEl.style.position = "relative";
+      gridEl.appendChild(overlay);
+    }
+    overlay.style.display = "flex";
+  } else {
+    if(overlay) overlay.style.display = "none";
+  }
+}
+
 async function refreshPreview(){
   if(!sid) return;
   const filterStatusEl = $("filterStatus");
@@ -2245,14 +2270,17 @@ async function refreshPreview(){
       const j = await r.json();
       if(j.dsl) dsl = j.dsl;
       if(Array.isArray(j.tiles)){
-        renderPreviewPayload(j.tiles);
-        // Show warning if date range had no data
+        // Handle empty date range: show overlay instead of all-time data
         if(j.filtered_empty || j.warn === "date_range_out_of_bounds"){
+          // Don't render any tile data — show an empty state overlay
+          _showEmptyDateOverlay(true);
           if(filterStatusEl){
-            filterStatusEl.textContent = "⚠ No data in selected date range — showing all data";
+            filterStatusEl.textContent = "⚠ No data in selected date range";
             filterStatusEl.style.color = "#b45309";
           }
         } else {
+          _showEmptyDateOverlay(false);
+          renderPreviewPayload(j.tiles);
           if(filterStatusEl) filterStatusEl.textContent = "";
         }
         return;
@@ -2552,6 +2580,9 @@ function onClearFilters(){
   $("filterStart").value = "";
   $("filterEnd").value = "";
   currentFilters = [];
+  _showEmptyDateOverlay(false);
+  const fs = $("filterStatus");
+  if(fs) { fs.textContent = ""; fs.style.color = "#6b7280"; }
   refreshPreview();
 }
 function onExportPdf(){ window.print(); }
