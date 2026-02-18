@@ -288,10 +288,19 @@
       align-items:center;
       font-size:13px;
       background:#f9fafb;
+      gap:8px;
+    }
+    .tile .t-h > span:first-child {
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+      min-width:0;
+      flex:1;
     }
     .tile .t-h span.muted {
       font-size:11px;
       color:#9ca3af;
+      flex-shrink:0;
     }
     .tile .t-b {
       padding:10px 12px 12px;
@@ -301,6 +310,13 @@
       overflow:hidden;
       position:relative;
       background:#ffffff;
+    }
+    .tile .t-b.kpi-body {
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
     }
 
     .kpi {
@@ -321,6 +337,7 @@
       color:#16a34a;
       display:flex;
       align-items:center;
+      justify-content:center;
       gap:4px;
     }
     .kpi-delta.neg { color:#b91c1c; }
@@ -2052,6 +2069,7 @@ function renderPreviewPayload(tiles){
     const d = t.data || {};
 
     if (d.kpi) {
+      tb.classList.add("kpi-body");
       const head = document.createElement("div");
       head.className = "kpi";
 
@@ -2080,10 +2098,7 @@ function renderPreviewPayload(tiles){
         head.textContent = display; // whatever you currently compute for numeric/currency
       }
 
-      const lbl = document.createElement("div");
-      lbl.className = "kpi-label";
-      lbl.textContent = t.title || "";
-      tb.appendChild(lbl);
+      // Title is already shown in tile header — no duplicate label needed
       tb.appendChild(head);
 
       if (d.kpi.delta) {
