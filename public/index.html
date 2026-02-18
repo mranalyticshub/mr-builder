@@ -284,23 +284,31 @@
       cursor:move;
       user-select:none;
       display:flex;
-      justify-content:space-between;
+      justify-content:center;
       align-items:center;
       font-size:13px;
       background:#f9fafb;
       gap:8px;
+      position:relative;
     }
     .tile .t-h > span:first-child {
       overflow:hidden;
       text-overflow:ellipsis;
       white-space:nowrap;
       min-width:0;
-      flex:1;
+      text-align:center;
     }
     .tile .t-h span.muted {
       font-size:11px;
       color:#9ca3af;
       flex-shrink:0;
+      position:absolute;
+      right:10px;
+      opacity:0;
+      transition:opacity 0.2s;
+    }
+    .tile:hover .t-h span.muted {
+      opacity:1;
     }
     .tile .t-b {
       padding:10px 12px 12px;
