@@ -480,12 +480,99 @@
       height: 100% !important;
     }
 
-    .chart > .vega-embed { display:block; }
+    .chart > .vega-embed { display:flex; flex:1; }
     .chart > .vega-embed details { display:none; } /* belt & braces */
 
     .msg.warn {
       background: #fff7ed;
       border-left: 4px solid #f59e0b;
+
+/* ========== SUGGESTIONS PANEL STYLES ========== */
+.suggestions-panel {
+  margin-top: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #ffffff;
+  overflow: hidden;
+}
+.suggestions-panel.hidden { display: none; }
+.suggestions-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  cursor: pointer;
+  background: #f9fafb;
+  border-bottom: 1px solid #f1f5f9;
+  user-select: none;
+  transition: background 0.15s;
+}
+.suggestions-header:hover { background: #f1f5f9; }
+.suggestions-toggle {
+  font-size: 11px;
+  color: #6b7280;
+  margin-right: 10px;
+  transition: transform 0.2s;
+  display: inline-block;
+}
+.suggestions-toggle.open { transform: rotate(90deg); }
+.suggestions-body {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  background: #fafbfc;
+}
+.suggestions-body.hidden { display: none; }
+.suggestion-card {
+  flex: 0 0 220px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #ffffff;
+  cursor: default;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.suggestion-card:hover {
+  border-color: #7c3aed;
+  box-shadow: 0 2px 8px rgba(124,58,237,0.1);
+}
+.suggestion-card .sg-type {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+  font-weight: 600;
+}
+.suggestion-card .sg-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+  line-height: 1.3;
+}
+.suggestion-card .sg-rationale {
+  font-size: 11px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+.suggestion-card .sg-add-btn {
+  margin-top: auto;
+  padding: 5px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #7c3aed;
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s;
+}
+.suggestion-card .sg-add-btn:hover {
+  background: #ede9fe;
+}
 
 /* ========== CHAT INTERFACE STYLES ========== */
 .chat-wrapper {
@@ -801,6 +888,16 @@
       <div id="previewCanvas"></div>
     </div>
     <div class="muted" style="margin-top:8px">Click chart elements to filter (coming soon). Drag/resize tiles to customise layout.</div>
+
+    <!-- Suggestions Panel -->
+    <div id="suggestionsPanel" class="suggestions-panel hidden">
+      <div class="suggestions-header" onclick="toggleSuggestions()">
+        <span class="suggestions-toggle" id="suggestionsToggle">▶</span>
+        <h3 style="margin:0;font-size:14px;font-weight:600;color:#374151">Suggested Charts</h3>
+        <span class="muted" style="font-size:12px;margin-left:8px" id="suggestionsCount"></span>
+      </div>
+      <div class="suggestions-body hidden" id="suggestionsBody"></div>
+    </div>
 
     <!-- Chat Interface -->
     <div class="chat-wrapper">
@@ -1980,7 +2077,20 @@ async function renderVega(el, spec){
 
   el.innerHTML = "";
   try{
-    await vegaEmbed(el, spec, { actions:false, renderer:"svg" });
+    const result = await vegaEmbed(el, spec, { actions:false, renderer:"svg" });
+    // Store view for resize re-rendering
+    el._vegaView = result.view;
+    // Watch for container resize and re-fit chart automatically
+    if(!el._resizeObs){
+      let t = null;
+      el._resizeObs = new ResizeObserver(()=>{
+        clearTimeout(t);
+        t = setTimeout(()=>{
+          if(el._vegaView) try{ el._vegaView.resize().run(); }catch(e){}
+        }, 120);
+      });
+      el._resizeObs.observe(el);
+    }
   }catch(e){
     console.error("Vega render error", e);
     el.textContent = "Could not render chart.";
@@ -2505,6 +2615,10 @@ async function onGenerateDesign(){
       setMsg("cMsg","Design created.","ok");
       addChatMessage("Dashboard created successfully! You can now ask me to make changes to any chart or add new visualizations.", false, true);
     }
+
+    // Render suggestions panel
+    const suggestions = (dsl && Array.isArray(dsl.__suggestions)) ? dsl.__suggestions : [];
+    renderSuggestions(suggestions);
   }catch(e){
     console.error(e);
     setMsg("cMsg","Failed to create design. Check logs.","err");
@@ -2615,6 +2729,93 @@ function onClearFilters(){
   refreshPreview();
 }
 function onExportPdf(){ window.print(); }
+
+/* ---------- Suggestions Panel ---------- */
+let currentSuggestions = [];
+
+function toggleSuggestions(){
+  const body = $("suggestionsBody");
+  const toggle = $("suggestionsToggle");
+  if(!body || !toggle) return;
+  const isHidden = body.classList.contains("hidden");
+  body.classList.toggle("hidden", !isHidden);
+  toggle.classList.toggle("open", isHidden);
+}
+
+function renderSuggestions(suggestions){
+  const panel = $("suggestionsPanel");
+  const body = $("suggestionsBody");
+  const countEl = $("suggestionsCount");
+  if(!panel || !body) return;
+
+  currentSuggestions = suggestions || [];
+  if(!currentSuggestions.length){
+    panel.classList.add("hidden");
+    return;
+  }
+
+  panel.classList.remove("hidden");
+  if(countEl) countEl.textContent = `${currentSuggestions.length} available`;
+  body.innerHTML = "";
+
+  currentSuggestions.forEach((sg, idx) => {
+    const card = document.createElement("div");
+    card.className = "suggestion-card";
+    const typeLabel = (sg.type || "chart").replace(/_/g, " ");
+    card.innerHTML =
+      '<div class="sg-type">' + typeLabel + '</div>' +
+      '<div class="sg-title">' + (sg.title || "Suggested Chart") + '</div>' +
+      '<div class="sg-rationale">' + (sg.rationale || "") + '</div>' +
+      '<div class="sg-add-btn" data-idx="' + idx + '">+ Add to Dashboard</div>';
+    card.querySelector(".sg-add-btn").addEventListener("click", function(){
+      addSuggestionToDashboard(parseInt(this.dataset.idx));
+    });
+    body.appendChild(card);
+  });
+}
+
+async function addSuggestionToDashboard(idx){
+  if(idx < 0 || idx >= currentSuggestions.length) return;
+  const sg = currentSuggestions[idx];
+
+  // Build an add_tile instruction for the edit endpoint
+  const tileSpec = {
+    type: sg.type || "bar",
+    title: sg.title || "New Chart",
+    query: sg.query || {}
+  };
+  const changeText = "add chart: " + JSON.stringify(tileSpec);
+
+  // Show adding state
+  const btn = document.querySelectorAll(".sg-add-btn")[idx];
+  if(btn){ btn.textContent = "Adding…"; btn.style.pointerEvents = "none"; }
+
+  try{
+    const chatHist = (typeof chatMessageHistory !== "undefined" ? chatMessageHistory : []).map(m => ({
+      role: m.isUser ? "user" : "assistant", content: m.text
+    }));
+    const r = await fetch(ORCH + "/edit/" + encodeURIComponent(sid), {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ change: changeText, chat_history: chatHist })
+    });
+    const j = await r.json();
+    dsl = j.dsl || dsl;
+
+    // Remove used suggestion and re-render
+    currentSuggestions.splice(idx, 1);
+    // Also update the DSL's stored suggestions
+    if(dsl && dsl.__suggestions) dsl.__suggestions = currentSuggestions;
+    renderSuggestions(currentSuggestions);
+
+    await refreshPreview();
+    addChatMessage('✓ Added "' + (sg.title || "chart") + '" to the dashboard.', false, true);
+  }catch(e){
+    console.error("[Suggestions] add failed:", e);
+    if(btn){ btn.textContent = "+ Add to Dashboard"; btn.style.pointerEvents = ""; }
+    addChatMessage('Failed to add "' + (sg.title || "chart") + '". Try asking in the chat instead.', false, true);
+  }
+}
 
 /* ---------- Boot ---------- */
 (async () => {
