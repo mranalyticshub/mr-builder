@@ -487,117 +487,6 @@
       background: #fff7ed;
       border-left: 4px solid #f59e0b;
 
-/* ========== SUGGESTIONS CAROUSEL ========== */
-.suggestions-panel {
-  margin-top: 20px;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  background: #ffffff;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-}
-.suggestions-panel.hidden { display: none; }
-.suggestions-header {
-  display: flex;
-  align-items: center;
-  padding: 12px 20px;
-  cursor: pointer;
-  background: linear-gradient(135deg, #f9fafb, #f3f4f6);
-  border-bottom: 1px solid #e5e7eb;
-  user-select: none;
-}
-.suggestions-header:hover { background: linear-gradient(135deg, #f3f4f6, #e5e7eb); }
-.suggestions-toggle {
-  font-size: 10px;
-  color: #6b7280;
-  margin-right: 12px;
-  transition: transform 0.2s;
-  display: inline-block;
-}
-.suggestions-toggle.open { transform: rotate(90deg); }
-.suggestions-body {
-  display: flex;
-  gap: 16px;
-  padding: 16px 20px;
-  overflow-x: auto;
-  scroll-behavior: smooth;
-  background: #fafbfc;
-  -webkit-overflow-scrolling: touch;
-}
-.suggestions-body.hidden { display: none; }
-.suggestions-body::-webkit-scrollbar { height: 6px; }
-.suggestions-body::-webkit-scrollbar-track { background: transparent; }
-.suggestions-body::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
-
-.suggestion-card {
-  flex: 0 0 240px;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 10px;
-  background: #ffffff;
-  cursor: default;
-  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.suggestion-card:hover {
-  border-color: #7c3aed;
-  box-shadow: 0 4px 16px rgba(124,58,237,0.12);
-  transform: translateY(-2px);
-}
-.sg-icon-strip {
-  height: 52px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-  background: linear-gradient(135deg, #f5f3ff, #ede9fe);
-  border-bottom: 1px solid #e5e7eb;
-}
-.sg-content {
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1;
-}
-.sg-type {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #7c3aed;
-  font-weight: 700;
-}
-.sg-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #111827;
-  line-height: 1.3;
-}
-.sg-rationale {
-  font-size: 11px;
-  color: #6b7280;
-  line-height: 1.4;
-  flex: 1;
-}
-.sg-add-btn {
-  margin: 0 14px 12px;
-  padding: 7px 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: #7c3aed;
-  background: #f5f3ff;
-  border: 1.5px solid #ddd6fe;
-  border-radius: 8px;
-  cursor: pointer;
-  text-align: center;
-  transition: background 0.15s, color 0.15s;
-}
-.sg-add-btn:hover {
-  background: #7c3aed;
-  color: #ffffff;
-}
-
 /* ========== CHAT INTERFACE STYLES ========== */
 .chat-wrapper {
   margin-top: 30px !important;
@@ -819,6 +708,116 @@
   --line:#1f2937;
 }
 
+/* ========== SUGGESTIONS CAROUSEL ========== */
+.suggestions-panel {
+  margin-top: 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.suggestions-panel.hidden { display: none; }
+.suggestions-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  cursor: pointer;
+  background: linear-gradient(135deg, #f9fafb, #f3f4f6);
+  border-bottom: 1px solid #e5e7eb;
+  user-select: none;
+}
+.suggestions-header:hover { background: linear-gradient(135deg, #f3f4f6, #e5e7eb); }
+.suggestions-toggle {
+  font-size: 10px;
+  color: #6b7280;
+  margin-right: 12px;
+  transition: transform 0.2s;
+  display: inline-block;
+}
+.suggestions-toggle.open { transform: rotate(90deg); }
+.suggestions-body {
+  display: flex;
+  gap: 16px;
+  padding: 16px 20px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  background: #fafbfc;
+  -webkit-overflow-scrolling: touch;
+}
+.suggestions-body.hidden { display: none; }
+.suggestions-body::-webkit-scrollbar { height: 6px; }
+.suggestions-body::-webkit-scrollbar-track { background: transparent; }
+.suggestions-body::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+.suggestion-card {
+  flex: 0 0 240px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  background: #ffffff;
+  cursor: default;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.suggestion-card:hover {
+  border-color: #7c3aed;
+  box-shadow: 0 4px 16px rgba(124,58,237,0.12);
+  transform: translateY(-2px);
+}
+.sg-icon-strip {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+  border-bottom: 1px solid #e5e7eb;
+}
+.sg-content {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+.sg-type {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #7c3aed;
+  font-weight: 700;
+}
+.sg-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+  line-height: 1.3;
+}
+.sg-rationale {
+  font-size: 11px;
+  color: #6b7280;
+  line-height: 1.4;
+  flex: 1;
+}
+.sg-add-btn {
+  margin: 0 14px 12px;
+  padding: 7px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #7c3aed;
+  background: #f5f3ff;
+  border: 1.5px solid #ddd6fe;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s, color 0.15s;
+}
+.sg-add-btn:hover {
+  background: #7c3aed;
+  color: #ffffff;
+}
+
   </style>
 </head>
 <body>
@@ -916,7 +915,7 @@
     <!-- Suggestions Carousel -->
     <div id="suggestionsPanel" class="suggestions-panel hidden">
       <div class="suggestions-header" onclick="toggleSuggestions()">
-        <span class="suggestions-toggle" id="suggestionsToggle">▶</span>
+        <span class="suggestions-toggle" id="suggestionsToggle">&#9654;</span>
         <h3 style="margin:0;font-size:14px;font-weight:600;color:#374151">Suggested Charts</h3>
         <span class="muted" style="font-size:12px;margin-left:10px" id="suggestionsCount"></span>
         <span style="flex:1"></span>
@@ -2091,33 +2090,29 @@ function renderQuestions(qs){
 
 
 async function renderVega(el, spec){
-  // Guard: if CDN hasn't loaded yet (defer), fail gracefully
   if(typeof vegaEmbed !== "function"){
     el.textContent = "Chart library not loaded yet.";
     return;
   }
-  // Always force inline data only (no external urls)
-  if(spec?.data?.url){
+  if(spec && spec.data && spec.data.url){
     delete spec.data.url;
   }
-
   el.innerHTML = "";
   try{
-    const result = await vegaEmbed(el, spec, { actions:false, renderer:"svg" });
+    var result = await vegaEmbed(el, spec, { actions:false, renderer:"svg" });
     el._vegaSpec = spec;
     el._vegaView = result.view;
-    // Watch for container resize — full re-embed for correct reflow
     if(!el._resizeObs){
-      let pending = null;
-      el._resizeObs = new ResizeObserver(()=>{
+      var pending = null;
+      el._resizeObs = new ResizeObserver(function(){
         clearTimeout(pending);
-        pending = setTimeout(async ()=>{
+        pending = setTimeout(async function(){
           if(el._vegaSpec && el.offsetWidth > 0 && el.offsetHeight > 0){
             try{
               el.innerHTML = "";
-              const r2 = await vegaEmbed(el, el._vegaSpec, { actions:false, renderer:"svg" });
+              var r2 = await vegaEmbed(el, el._vegaSpec, { actions:false, renderer:"svg" });
               el._vegaView = r2.view;
-            }catch(e){}
+            }catch(e2){}
           }
         }, 200);
       });
@@ -2649,8 +2644,8 @@ async function onGenerateDesign(){
     }
 
     // Render suggestions carousel
-    var suggestions = (dsl && Array.isArray(dsl.__suggestions)) ? dsl.__suggestions : [];
-    renderSuggestions(suggestions);
+    var sug = (dsl && Array.isArray(dsl.__suggestions)) ? dsl.__suggestions : [];
+    renderSuggestions(sug);
   }catch(e){
     console.error(e);
     setMsg("cMsg","Failed to create design. Check logs.","err");
@@ -2763,32 +2758,31 @@ function onClearFilters(){
 function onExportPdf(){ window.print(); }
 
 /* ---------- Suggestions Carousel ---------- */
-let currentSuggestions = [];
-
-const CHART_ICONS = {
-  bar: "📊", stacked_bar: "📊", multi_series_bar: "📊",
-  line: "📈", multi_series_line: "📈", area: "📈", stacked_area: "📈",
-  pie: "🥧", histogram: "📐", scatter: "⚬", heatmap: "🗺️",
-  table: "📋", combo: "📉", gauge: "🎯", kpi: "🔢",
-  boxplot: "📦", bubble: "🫧", waterfall: "💧"
+var currentSuggestions = [];
+var CHART_ICONS = {
+  bar: "\uD83D\uDCCA", stacked_bar: "\uD83D\uDCCA", multi_series_bar: "\uD83D\uDCCA",
+  line: "\uD83D\uDCC8", multi_series_line: "\uD83D\uDCC8", area: "\uD83D\uDCC8",
+  pie: "\uD83E\uDD67", histogram: "\uD83D\uDCD0", scatter: "\u26AC",
+  heatmap: "\uD83D\uDDFA\uFE0F", table: "\uD83D\uDCCB", combo: "\uD83D\uDCC9",
+  gauge: "\uD83C\uDFAF", kpi: "\uD83D\uDD22"
 };
 
 function toggleSuggestions(){
-  const body = $("suggestionsBody");
-  const toggle = $("suggestionsToggle");
+  var body = $("suggestionsBody");
+  var toggle = $("suggestionsToggle");
   if(!body || !toggle) return;
-  const isHidden = body.classList.contains("hidden");
+  var isHidden = body.classList.contains("hidden");
   body.classList.toggle("hidden", !isHidden);
   toggle.classList.toggle("open", isHidden);
 }
 
 function renderSuggestions(suggestions){
-  const panel = $("suggestionsPanel");
-  const body = $("suggestionsBody");
-  const countEl = $("suggestionsCount");
+  var panel = $("suggestionsPanel");
+  var body = $("suggestionsBody");
+  var countEl = $("suggestionsCount");
   if(!panel || !body) return;
 
-  currentSuggestions = (suggestions || []).filter(s => s && s.title);
+  currentSuggestions = (suggestions || []).filter(function(s){ return s && s.title; });
   if(!currentSuggestions.length){
     panel.classList.add("hidden");
     return;
@@ -2802,20 +2796,42 @@ function renderSuggestions(suggestions){
     var card = document.createElement("div");
     card.className = "suggestion-card";
     var typeLabel = (sg.type || "chart").replace(/_/g, " ");
-    var icon = CHART_ICONS[sg.type] || "📊";
+    var icon = CHART_ICONS[sg.type] || "\uD83D\uDCCA";
 
-    card.innerHTML =
-      '<div class="sg-icon-strip">' + icon + '</div>' +
-      '<div class="sg-content">' +
-        '<div class="sg-type">' + typeLabel + '</div>' +
-        '<div class="sg-title">' + (sg.title || "Chart") + '</div>' +
-        '<div class="sg-rationale">' + (sg.rationale || "") + '</div>' +
-      '</div>' +
-      '<div class="sg-add-btn" data-idx="' + idx + '">+ Add to Dashboard</div>';
+    var iconDiv = document.createElement("div");
+    iconDiv.className = "sg-icon-strip";
+    iconDiv.textContent = icon;
 
-    card.querySelector(".sg-add-btn").addEventListener("click", function(){
+    var contentDiv = document.createElement("div");
+    contentDiv.className = "sg-content";
+
+    var typeEl = document.createElement("div");
+    typeEl.className = "sg-type";
+    typeEl.textContent = typeLabel;
+
+    var titleEl = document.createElement("div");
+    titleEl.className = "sg-title";
+    titleEl.textContent = sg.title || "Chart";
+
+    var ratEl = document.createElement("div");
+    ratEl.className = "sg-rationale";
+    ratEl.textContent = sg.rationale || "";
+
+    contentDiv.appendChild(typeEl);
+    contentDiv.appendChild(titleEl);
+    contentDiv.appendChild(ratEl);
+
+    var btn = document.createElement("div");
+    btn.className = "sg-add-btn";
+    btn.textContent = "+ Add to Dashboard";
+    btn.dataset.idx = idx;
+    btn.addEventListener("click", function(){
       addSuggestionToDashboard(parseInt(this.dataset.idx));
     });
+
+    card.appendChild(iconDiv);
+    card.appendChild(contentDiv);
+    card.appendChild(btn);
     body.appendChild(card);
   });
 }
@@ -2823,10 +2839,11 @@ function renderSuggestions(suggestions){
 async function addSuggestionToDashboard(idx){
   if(idx < 0 || idx >= currentSuggestions.length) return;
   var sg = currentSuggestions[idx];
-  var btn = document.querySelectorAll(".sg-add-btn")[idx];
-  if(btn){ btn.textContent = "Adding…"; btn.style.pointerEvents = "none"; }
+  var btns = document.querySelectorAll(".sg-add-btn");
+  var btn = btns[idx];
+  if(btn){ btn.textContent = "Adding\u2026"; btn.style.pointerEvents = "none"; }
 
-  // Direct injection: add the tile to the DSL and save via edit endpoint
+  // Build the new tile and inject directly into DSL
   var newTile = {
     id: "sg_" + Date.now(),
     type: sg.type || "bar",
@@ -2835,35 +2852,32 @@ async function addSuggestionToDashboard(idx){
     w: 6, h: 4
   };
 
-  // Add tile to the DSL pages
+  // Add to local DSL
   if(dsl && dsl.pages && dsl.pages[0] && dsl.pages[0].tiles){
     dsl.pages[0].tiles.push(newTile);
   }
 
-  // Save the updated DSL via the edit endpoint with a simple instruction
+  // Save via edit endpoint (tiles patch path — handles new tiles)
   try{
     var r = await fetch(ORCH + "/edit/" + encodeURIComponent(sid), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        tiles: dsl.pages[0].tiles,
-        change: ""
-      })
+      body: JSON.stringify({ tiles: dsl.pages[0].tiles })
     });
     var j = await r.json();
     if(j.dsl) dsl = j.dsl;
 
-    // Remove used suggestion
+    // Remove used suggestion and re-render
     currentSuggestions.splice(idx, 1);
     if(dsl) dsl.__suggestions = currentSuggestions;
     renderSuggestions(currentSuggestions);
 
     await refreshPreview();
-    addChatMessage('✓ Added "' + (sg.title || "chart") + '" to the dashboard.', false, true);
+    addChatMessage("\u2713 Added \"" + (sg.title || "chart") + "\" to the dashboard.", false, true);
   }catch(e){
     console.error("[Suggestions] add failed:", e);
     if(btn){ btn.textContent = "+ Add to Dashboard"; btn.style.pointerEvents = ""; }
-    addChatMessage('Failed to add chart. Try asking in the chat instead.', false, true);
+    addChatMessage("Failed to add chart. Try asking in the chat instead.", false, true);
   }
 }
 
