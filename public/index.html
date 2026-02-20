@@ -750,7 +750,7 @@
 .suggestions-body::-webkit-scrollbar-track { background: transparent; }
 .suggestions-body::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
 .suggestion-card {
-  flex: 0 0 240px;
+  flex: 0 0 260px;
   border: 1.5px solid #e5e7eb;
   border-radius: 10px;
   background: #ffffff;
@@ -765,20 +765,25 @@
   box-shadow: 0 4px 16px rgba(124,58,237,0.12);
   transform: translateY(-2px);
 }
-.sg-icon-strip {
-  height: 52px;
+.sg-preview {
+  height: 120px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
-  background: linear-gradient(135deg, #f5f3ff, #ede9fe);
-  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+  border-bottom: 1px solid #f1f5f9;
+  overflow: hidden;
+  position: relative;
+}
+.sg-preview .sg-loading {
+  font-size: 11px;
+  color: #9ca3af;
 }
 .sg-content {
-  padding: 12px 14px;
+  padding: 10px 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   flex: 1;
 }
 .sg-type {
@@ -915,13 +920,13 @@
     <!-- Suggestions Carousel -->
     <div id="suggestionsPanel" class="suggestions-panel hidden">
       <div class="suggestions-header" onclick="toggleSuggestions()">
-        <span class="suggestions-toggle" id="suggestionsToggle">&#9654;</span>
+        <span class="suggestions-toggle open" id="suggestionsToggle">&#9654;</span>
         <h3 style="margin:0;font-size:14px;font-weight:600;color:#374151">Suggested Charts</h3>
         <span class="muted" style="font-size:12px;margin-left:10px" id="suggestionsCount"></span>
         <span style="flex:1"></span>
-        <span class="muted" style="font-size:11px">click to expand</span>
+        <span class="muted" style="font-size:11px">click to collapse</span>
       </div>
-      <div class="suggestions-body hidden" id="suggestionsBody"></div>
+      <div class="suggestions-body" id="suggestionsBody"></div>
     </div>
 
     <!-- Chat Interface -->
@@ -2094,9 +2099,7 @@ async function renderVega(el, spec){
     el.textContent = "Chart library not loaded yet.";
     return;
   }
-  if(spec && spec.data && spec.data.url){
-    delete spec.data.url;
-  }
+  if(spec && spec.data && spec.data.url) delete spec.data.url;
   el.innerHTML = "";
   try{
     var result = await vegaEmbed(el, spec, { actions:false, renderer:"svg" });
@@ -2328,8 +2331,15 @@ function renderPreviewPayload(tiles){
     // drag / resize
     let startX=0,startY=0,startL=0,startT=0,startW=0,startH=0, dragging=false, resizing=false;
 
+    function bringToFront(el){
+      var allTiles = canvas.querySelectorAll(".tile");
+      allTiles.forEach(function(t){ t.style.zIndex = "1"; });
+      el.style.zIndex = "10";
+    }
+
     th.addEventListener("mousedown", (e)=>{
       dragging=true;
+      bringToFront(tile);
       startX=e.clientX; startY=e.clientY;
       const r=tile.getBoundingClientRect(), c=canvas.getBoundingClientRect();
       startL=r.left-c.left; startT=r.top-c.top; startW=r.width; startH=r.height;
@@ -2337,6 +2347,7 @@ function renderPreviewPayload(tiles){
     });
     handle.addEventListener("mousedown", (e)=>{
       resizing=true;
+      bringToFront(tile);
       startX=e.clientX; startY=e.clientY;
       const r=tile.getBoundingClientRect(), c=canvas.getBoundingClientRect();
       startL=r.left-c.left; startT=r.top-c.top; startW=r.width; startH=r.height;
@@ -2643,7 +2654,7 @@ async function onGenerateDesign(){
       addChatMessage("Dashboard created successfully! You can now ask me to make changes to any chart or add new visualizations.", false, true);
     }
 
-    // Render suggestions carousel
+    // Render suggestions carousel (expanded by default)
     var sug = (dsl && Array.isArray(dsl.__suggestions)) ? dsl.__suggestions : [];
     renderSuggestions(sug);
   }catch(e){
@@ -2759,21 +2770,16 @@ function onExportPdf(){ window.print(); }
 
 /* ---------- Suggestions Carousel ---------- */
 var currentSuggestions = [];
-var CHART_ICONS = {
-  bar: "\uD83D\uDCCA", stacked_bar: "\uD83D\uDCCA", multi_series_bar: "\uD83D\uDCCA",
-  line: "\uD83D\uDCC8", multi_series_line: "\uD83D\uDCC8", area: "\uD83D\uDCC8",
-  pie: "\uD83E\uDD67", histogram: "\uD83D\uDCD0", scatter: "\u26AC",
-  heatmap: "\uD83D\uDDFA\uFE0F", table: "\uD83D\uDCCB", combo: "\uD83D\uDCC9",
-  gauge: "\uD83C\uDFAF", kpi: "\uD83D\uDD22"
-};
 
 function toggleSuggestions(){
   var body = $("suggestionsBody");
   var toggle = $("suggestionsToggle");
+  var hintEl = document.querySelector(".suggestions-header .muted:last-child");
   if(!body || !toggle) return;
-  var isHidden = body.classList.contains("hidden");
-  body.classList.toggle("hidden", !isHidden);
-  toggle.classList.toggle("open", isHidden);
+  var isVisible = !body.classList.contains("hidden");
+  body.classList.toggle("hidden", isVisible);
+  toggle.classList.toggle("open", !isVisible);
+  if(hintEl) hintEl.textContent = isVisible ? "click to expand" : "click to collapse";
 }
 
 function renderSuggestions(suggestions){
@@ -2795,19 +2801,22 @@ function renderSuggestions(suggestions){
   currentSuggestions.forEach(function(sg, idx){
     var card = document.createElement("div");
     card.className = "suggestion-card";
-    var typeLabel = (sg.type || "chart").replace(/_/g, " ");
-    var icon = CHART_ICONS[sg.type] || "\uD83D\uDCCA";
 
-    var iconDiv = document.createElement("div");
-    iconDiv.className = "sg-icon-strip";
-    iconDiv.textContent = icon;
+    // Preview area — will be filled with real chart
+    var previewDiv = document.createElement("div");
+    previewDiv.className = "sg-preview";
+    previewDiv.id = "sg-preview-" + idx;
+    var loadingSpan = document.createElement("span");
+    loadingSpan.className = "sg-loading";
+    loadingSpan.textContent = "Loading preview\u2026";
+    previewDiv.appendChild(loadingSpan);
 
     var contentDiv = document.createElement("div");
     contentDiv.className = "sg-content";
 
     var typeEl = document.createElement("div");
     typeEl.className = "sg-type";
-    typeEl.textContent = typeLabel;
+    typeEl.textContent = (sg.type || "chart").replace(/_/g, " ");
 
     var titleEl = document.createElement("div");
     titleEl.className = "sg-title";
@@ -2824,16 +2833,61 @@ function renderSuggestions(suggestions){
     var btn = document.createElement("div");
     btn.className = "sg-add-btn";
     btn.textContent = "+ Add to Dashboard";
-    btn.dataset.idx = idx;
+    btn.dataset.idx = String(idx);
     btn.addEventListener("click", function(){
       addSuggestionToDashboard(parseInt(this.dataset.idx));
     });
 
-    card.appendChild(iconDiv);
+    card.appendChild(previewDiv);
     card.appendChild(contentDiv);
     card.appendChild(btn);
     body.appendChild(card);
+
+    // Fetch real chart preview
+    fetchSuggestionPreview(sg, idx);
   });
+}
+
+async function fetchSuggestionPreview(sg, idx){
+  var previewEl = document.getElementById("sg-preview-" + idx);
+  if(!previewEl || !sid) return;
+
+  try{
+    var tileDef = {
+      id: "sgp_" + idx,
+      type: sg.type || "bar",
+      title: sg.title || "",
+      query: sg.query || {}
+    };
+    var r = await fetch(ORCH + "/preview-suggestion/" + encodeURIComponent(sid), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tile: tileDef })
+    });
+    var j = await r.json();
+    if(j.ok && j.vl_spec && Object.keys(j.vl_spec).length > 0){
+      previewEl.innerHTML = "";
+      // Render a mini Vega chart
+      var chartDiv = document.createElement("div");
+      chartDiv.style.cssText = "width:100%;height:100%;";
+      previewEl.appendChild(chartDiv);
+      if(typeof vegaEmbed === "function"){
+        var spec = j.vl_spec;
+        spec.width = "container";
+        spec.height = "container";
+        spec.autosize = { type: "fit", contains: "padding" };
+        spec.config = spec.config || {};
+        spec.config.padding = 4;
+        spec.config.axis = { labelFontSize: 8, titleFontSize: 9 };
+        spec.config.legend = { labelFontSize: 8, titleFontSize: 9 };
+        await vegaEmbed(chartDiv, spec, { actions: false, renderer: "svg" });
+      }
+    } else {
+      previewEl.innerHTML = "<span class='sg-loading' style='color:#d1d5db'>No preview</span>";
+    }
+  }catch(e){
+    if(previewEl) previewEl.innerHTML = "<span class='sg-loading' style='color:#d1d5db'>No preview</span>";
+  }
 }
 
 async function addSuggestionToDashboard(idx){
@@ -2843,7 +2897,6 @@ async function addSuggestionToDashboard(idx){
   var btn = btns[idx];
   if(btn){ btn.textContent = "Adding\u2026"; btn.style.pointerEvents = "none"; }
 
-  // Build the new tile and inject directly into DSL
   var newTile = {
     id: "sg_" + Date.now(),
     type: sg.type || "bar",
@@ -2852,12 +2905,10 @@ async function addSuggestionToDashboard(idx){
     w: 6, h: 4
   };
 
-  // Add to local DSL
   if(dsl && dsl.pages && dsl.pages[0] && dsl.pages[0].tiles){
     dsl.pages[0].tiles.push(newTile);
   }
 
-  // Save via edit endpoint (tiles patch path — handles new tiles)
   try{
     var r = await fetch(ORCH + "/edit/" + encodeURIComponent(sid), {
       method: "POST",
@@ -2867,7 +2918,6 @@ async function addSuggestionToDashboard(idx){
     var j = await r.json();
     if(j.dsl) dsl = j.dsl;
 
-    // Remove used suggestion and re-render
     currentSuggestions.splice(idx, 1);
     if(dsl) dsl.__suggestions = currentSuggestions;
     renderSuggestions(currentSuggestions);
