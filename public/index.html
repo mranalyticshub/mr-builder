@@ -487,91 +487,115 @@
       background: #fff7ed;
       border-left: 4px solid #f59e0b;
 
-/* ========== SUGGESTIONS PANEL STYLES ========== */
+/* ========== SUGGESTIONS CAROUSEL ========== */
 .suggestions-panel {
-  margin-top: 16px;
+  margin-top: 20px;
   border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  border-radius: 12px;
   background: #ffffff;
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 .suggestions-panel.hidden { display: none; }
 .suggestions-header {
   display: flex;
   align-items: center;
-  padding: 10px 16px;
+  padding: 12px 20px;
   cursor: pointer;
-  background: #f9fafb;
-  border-bottom: 1px solid #f1f5f9;
+  background: linear-gradient(135deg, #f9fafb, #f3f4f6);
+  border-bottom: 1px solid #e5e7eb;
   user-select: none;
-  transition: background 0.15s;
 }
-.suggestions-header:hover { background: #f1f5f9; }
+.suggestions-header:hover { background: linear-gradient(135deg, #f3f4f6, #e5e7eb); }
 .suggestions-toggle {
-  font-size: 11px;
+  font-size: 10px;
   color: #6b7280;
-  margin-right: 10px;
+  margin-right: 12px;
   transition: transform 0.2s;
   display: inline-block;
 }
 .suggestions-toggle.open { transform: rotate(90deg); }
 .suggestions-body {
   display: flex;
-  gap: 12px;
-  padding: 14px 16px;
+  gap: 16px;
+  padding: 16px 20px;
   overflow-x: auto;
+  scroll-behavior: smooth;
   background: #fafbfc;
+  -webkit-overflow-scrolling: touch;
 }
 .suggestions-body.hidden { display: none; }
+.suggestions-body::-webkit-scrollbar { height: 6px; }
+.suggestions-body::-webkit-scrollbar-track { background: transparent; }
+.suggestions-body::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+
 .suggestion-card {
-  flex: 0 0 220px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 12px 14px;
+  flex: 0 0 240px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
   background: #ffffff;
   cursor: default;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  overflow: hidden;
 }
 .suggestion-card:hover {
   border-color: #7c3aed;
-  box-shadow: 0 2px 8px rgba(124,58,237,0.1);
+  box-shadow: 0 4px 16px rgba(124,58,237,0.12);
+  transform: translateY(-2px);
 }
-.suggestion-card .sg-type {
+.sg-icon-strip {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+  border-bottom: 1px solid #e5e7eb;
+}
+.sg-content {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+.sg-type {
   font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #6b7280;
-  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #7c3aed;
+  font-weight: 700;
 }
-.suggestion-card .sg-title {
+.sg-title {
   font-size: 13px;
   font-weight: 600;
   color: #111827;
   line-height: 1.3;
 }
-.suggestion-card .sg-rationale {
+.sg-rationale {
   font-size: 11px;
   color: #6b7280;
   line-height: 1.4;
+  flex: 1;
 }
-.suggestion-card .sg-add-btn {
-  margin-top: auto;
-  padding: 5px 0;
+.sg-add-btn {
+  margin: 0 14px 12px;
+  padding: 7px 0;
   font-size: 12px;
   font-weight: 600;
   color: #7c3aed;
   background: #f5f3ff;
-  border: 1px solid #ddd6fe;
-  border-radius: 6px;
+  border: 1.5px solid #ddd6fe;
+  border-radius: 8px;
   cursor: pointer;
   text-align: center;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
-.suggestion-card .sg-add-btn:hover {
-  background: #ede9fe;
+.sg-add-btn:hover {
+  background: #7c3aed;
+  color: #ffffff;
 }
 
 /* ========== CHAT INTERFACE STYLES ========== */
@@ -889,12 +913,14 @@
     </div>
     <div class="muted" style="margin-top:8px">Click chart elements to filter (coming soon). Drag/resize tiles to customise layout.</div>
 
-    <!-- Suggestions Panel -->
+    <!-- Suggestions Carousel -->
     <div id="suggestionsPanel" class="suggestions-panel hidden">
       <div class="suggestions-header" onclick="toggleSuggestions()">
         <span class="suggestions-toggle" id="suggestionsToggle">▶</span>
         <h3 style="margin:0;font-size:14px;font-weight:600;color:#374151">Suggested Charts</h3>
-        <span class="muted" style="font-size:12px;margin-left:8px" id="suggestionsCount"></span>
+        <span class="muted" style="font-size:12px;margin-left:10px" id="suggestionsCount"></span>
+        <span style="flex:1"></span>
+        <span class="muted" style="font-size:11px">click to expand</span>
       </div>
       <div class="suggestions-body hidden" id="suggestionsBody"></div>
     </div>
@@ -2078,16 +2104,22 @@ async function renderVega(el, spec){
   el.innerHTML = "";
   try{
     const result = await vegaEmbed(el, spec, { actions:false, renderer:"svg" });
-    // Store view for resize re-rendering
+    el._vegaSpec = spec;
     el._vegaView = result.view;
-    // Watch for container resize and re-fit chart automatically
+    // Watch for container resize — full re-embed for correct reflow
     if(!el._resizeObs){
-      let t = null;
+      let pending = null;
       el._resizeObs = new ResizeObserver(()=>{
-        clearTimeout(t);
-        t = setTimeout(()=>{
-          if(el._vegaView) try{ el._vegaView.resize().run(); }catch(e){}
-        }, 120);
+        clearTimeout(pending);
+        pending = setTimeout(async ()=>{
+          if(el._vegaSpec && el.offsetWidth > 0 && el.offsetHeight > 0){
+            try{
+              el.innerHTML = "";
+              const r2 = await vegaEmbed(el, el._vegaSpec, { actions:false, renderer:"svg" });
+              el._vegaView = r2.view;
+            }catch(e){}
+          }
+        }, 200);
       });
       el._resizeObs.observe(el);
     }
@@ -2616,8 +2648,8 @@ async function onGenerateDesign(){
       addChatMessage("Dashboard created successfully! You can now ask me to make changes to any chart or add new visualizations.", false, true);
     }
 
-    // Render suggestions panel
-    const suggestions = (dsl && Array.isArray(dsl.__suggestions)) ? dsl.__suggestions : [];
+    // Render suggestions carousel
+    var suggestions = (dsl && Array.isArray(dsl.__suggestions)) ? dsl.__suggestions : [];
     renderSuggestions(suggestions);
   }catch(e){
     console.error(e);
@@ -2730,8 +2762,16 @@ function onClearFilters(){
 }
 function onExportPdf(){ window.print(); }
 
-/* ---------- Suggestions Panel ---------- */
+/* ---------- Suggestions Carousel ---------- */
 let currentSuggestions = [];
+
+const CHART_ICONS = {
+  bar: "📊", stacked_bar: "📊", multi_series_bar: "📊",
+  line: "📈", multi_series_line: "📈", area: "📈", stacked_area: "📈",
+  pie: "🥧", histogram: "📐", scatter: "⚬", heatmap: "🗺️",
+  table: "📋", combo: "📉", gauge: "🎯", kpi: "🔢",
+  boxplot: "📦", bubble: "🫧", waterfall: "💧"
+};
 
 function toggleSuggestions(){
   const body = $("suggestionsBody");
@@ -2748,25 +2788,31 @@ function renderSuggestions(suggestions){
   const countEl = $("suggestionsCount");
   if(!panel || !body) return;
 
-  currentSuggestions = suggestions || [];
+  currentSuggestions = (suggestions || []).filter(s => s && s.title);
   if(!currentSuggestions.length){
     panel.classList.add("hidden");
     return;
   }
 
   panel.classList.remove("hidden");
-  if(countEl) countEl.textContent = `${currentSuggestions.length} available`;
+  if(countEl) countEl.textContent = currentSuggestions.length + " available";
   body.innerHTML = "";
 
-  currentSuggestions.forEach((sg, idx) => {
-    const card = document.createElement("div");
+  currentSuggestions.forEach(function(sg, idx){
+    var card = document.createElement("div");
     card.className = "suggestion-card";
-    const typeLabel = (sg.type || "chart").replace(/_/g, " ");
+    var typeLabel = (sg.type || "chart").replace(/_/g, " ");
+    var icon = CHART_ICONS[sg.type] || "📊";
+
     card.innerHTML =
-      '<div class="sg-type">' + typeLabel + '</div>' +
-      '<div class="sg-title">' + (sg.title || "Suggested Chart") + '</div>' +
-      '<div class="sg-rationale">' + (sg.rationale || "") + '</div>' +
+      '<div class="sg-icon-strip">' + icon + '</div>' +
+      '<div class="sg-content">' +
+        '<div class="sg-type">' + typeLabel + '</div>' +
+        '<div class="sg-title">' + (sg.title || "Chart") + '</div>' +
+        '<div class="sg-rationale">' + (sg.rationale || "") + '</div>' +
+      '</div>' +
       '<div class="sg-add-btn" data-idx="' + idx + '">+ Add to Dashboard</div>';
+
     card.querySelector(".sg-add-btn").addEventListener("click", function(){
       addSuggestionToDashboard(parseInt(this.dataset.idx));
     });
@@ -2776,36 +2822,40 @@ function renderSuggestions(suggestions){
 
 async function addSuggestionToDashboard(idx){
   if(idx < 0 || idx >= currentSuggestions.length) return;
-  const sg = currentSuggestions[idx];
-
-  // Build an add_tile instruction for the edit endpoint
-  const tileSpec = {
-    type: sg.type || "bar",
-    title: sg.title || "New Chart",
-    query: sg.query || {}
-  };
-  const changeText = "add chart: " + JSON.stringify(tileSpec);
-
-  // Show adding state
-  const btn = document.querySelectorAll(".sg-add-btn")[idx];
+  var sg = currentSuggestions[idx];
+  var btn = document.querySelectorAll(".sg-add-btn")[idx];
   if(btn){ btn.textContent = "Adding…"; btn.style.pointerEvents = "none"; }
 
-  try{
-    const chatHist = (typeof chatMessageHistory !== "undefined" ? chatMessageHistory : []).map(m => ({
-      role: m.isUser ? "user" : "assistant", content: m.text
-    }));
-    const r = await fetch(ORCH + "/edit/" + encodeURIComponent(sid), {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ change: changeText, chat_history: chatHist })
-    });
-    const j = await r.json();
-    dsl = j.dsl || dsl;
+  // Direct injection: add the tile to the DSL and save via edit endpoint
+  var newTile = {
+    id: "sg_" + Date.now(),
+    type: sg.type || "bar",
+    title: sg.title || "New Chart",
+    query: sg.query || {},
+    w: 6, h: 4
+  };
 
-    // Remove used suggestion and re-render
+  // Add tile to the DSL pages
+  if(dsl && dsl.pages && dsl.pages[0] && dsl.pages[0].tiles){
+    dsl.pages[0].tiles.push(newTile);
+  }
+
+  // Save the updated DSL via the edit endpoint with a simple instruction
+  try{
+    var r = await fetch(ORCH + "/edit/" + encodeURIComponent(sid), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tiles: dsl.pages[0].tiles,
+        change: ""
+      })
+    });
+    var j = await r.json();
+    if(j.dsl) dsl = j.dsl;
+
+    // Remove used suggestion
     currentSuggestions.splice(idx, 1);
-    // Also update the DSL's stored suggestions
-    if(dsl && dsl.__suggestions) dsl.__suggestions = currentSuggestions;
+    if(dsl) dsl.__suggestions = currentSuggestions;
     renderSuggestions(currentSuggestions);
 
     await refreshPreview();
@@ -2813,7 +2863,7 @@ async function addSuggestionToDashboard(idx){
   }catch(e){
     console.error("[Suggestions] add failed:", e);
     if(btn){ btn.textContent = "+ Add to Dashboard"; btn.style.pointerEvents = ""; }
-    addChatMessage('Failed to add "' + (sg.title || "chart") + '". Try asking in the chat instead.', false, true);
+    addChatMessage('Failed to add chart. Try asking in the chat instead.', false, true);
   }
 }
 
