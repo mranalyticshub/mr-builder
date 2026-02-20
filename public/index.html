@@ -729,99 +729,57 @@
 }
 .suggestions-header:hover { background: linear-gradient(135deg, #f3f4f6, #e5e7eb); }
 .suggestions-toggle {
-  font-size: 10px;
-  color: #6b7280;
-  margin-right: 12px;
-  transition: transform 0.2s;
-  display: inline-block;
+  font-size: 10px; color: #6b7280; margin-right: 12px;
+  transition: transform 0.2s; display: inline-block;
 }
 .suggestions-toggle.open { transform: rotate(90deg); }
 .suggestions-body {
-  display: flex;
-  gap: 16px;
-  padding: 16px 20px;
-  overflow-x: auto;
-  scroll-behavior: smooth;
-  background: #fafbfc;
-  -webkit-overflow-scrolling: touch;
+  display: flex; gap: 16px; padding: 16px 20px;
+  overflow-x: auto; scroll-behavior: smooth; background: #fafbfc;
 }
 .suggestions-body.hidden { display: none; }
 .suggestions-body::-webkit-scrollbar { height: 6px; }
-.suggestions-body::-webkit-scrollbar-track { background: transparent; }
 .suggestions-body::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
 .suggestion-card {
-  flex: 0 0 260px;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 10px;
-  background: #ffffff;
-  cursor: default;
+  flex: 0 0 260px; border: 1.5px solid #e5e7eb; border-radius: 10px;
+  background: #ffffff; cursor: default;
   transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  display: flex; flex-direction: column; overflow: hidden;
 }
 .suggestion-card:hover {
-  border-color: #7c3aed;
-  box-shadow: 0 4px 16px rgba(124,58,237,0.12);
+  border-color: #7c3aed; box-shadow: 0 4px 16px rgba(124,58,237,0.12);
   transform: translateY(-2px);
 }
 .sg-preview {
-  height: 120px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f9fafb;
-  border-bottom: 1px solid #f1f5f9;
-  overflow: hidden;
-  position: relative;
+  height: 120px; display: flex; align-items: center; justify-content: center;
+  background: #f9fafb; border-bottom: 1px solid #f1f5f9;
+  overflow: hidden; position: relative;
 }
-.sg-preview .sg-loading {
-  font-size: 11px;
-  color: #9ca3af;
-}
-.sg-content {
-  padding: 10px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  flex: 1;
-}
-.sg-type {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #7c3aed;
-  font-weight: 700;
-}
-.sg-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #111827;
-  line-height: 1.3;
-}
-.sg-rationale {
-  font-size: 11px;
-  color: #6b7280;
-  line-height: 1.4;
-  flex: 1;
-}
+.sg-preview .sg-loading { font-size: 11px; color: #9ca3af; }
+.sg-content { padding: 10px 14px; display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.sg-type { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #7c3aed; font-weight: 700; }
+.sg-title { font-size: 13px; font-weight: 600; color: #111827; line-height: 1.3; }
+.sg-rationale { font-size: 11px; color: #6b7280; line-height: 1.4; flex: 1; }
 .sg-add-btn {
-  margin: 0 14px 12px;
-  padding: 7px 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: #7c3aed;
-  background: #f5f3ff;
-  border: 1.5px solid #ddd6fe;
-  border-radius: 8px;
-  cursor: pointer;
-  text-align: center;
+  margin: 0 14px 12px; padding: 7px 0; font-size: 12px; font-weight: 600;
+  color: #7c3aed; background: #f5f3ff; border: 1.5px solid #ddd6fe;
+  border-radius: 8px; cursor: pointer; text-align: center;
   transition: background 0.15s, color 0.15s;
 }
-.sg-add-btn:hover {
-  background: #7c3aed;
-  color: #ffffff;
+.sg-add-btn:hover { background: #7c3aed; color: #ffffff; }
+
+/* ========== TILE REMOVE BUTTON ========== */
+.tile-remove-btn {
+  position: absolute; top: 4px; right: 6px; z-index: 5;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: rgba(239,68,68,0.08); border: none;
+  color: #ef4444; font-size: 13px; line-height: 20px;
+  text-align: center; cursor: pointer;
+  opacity: 0; transition: opacity 0.15s, background 0.15s;
+  display: flex; align-items: center; justify-content: center;
 }
+.tile:hover .tile-remove-btn { opacity: 1; }
+.tile-remove-btn:hover { background: #ef4444; color: #fff; }
 
   </style>
 </head>
@@ -924,7 +882,7 @@
         <h3 style="margin:0;font-size:14px;font-weight:600;color:#374151">Suggested Charts</h3>
         <span class="muted" style="font-size:12px;margin-left:10px" id="suggestionsCount"></span>
         <span style="flex:1"></span>
-        <span class="muted" style="font-size:11px">click to collapse</span>
+        <span class="muted sg-collapse-hint" style="font-size:11px">click to collapse</span>
       </div>
       <div class="suggestions-body" id="suggestionsBody"></div>
     </div>
@@ -2096,15 +2054,13 @@ function renderQuestions(qs){
 
 async function renderVega(el, spec){
   if(typeof vegaEmbed !== "function"){
-    el.textContent = "Chart library not loaded yet.";
-    return;
+    el.textContent = "Chart library not loaded yet."; return;
   }
   if(spec && spec.data && spec.data.url) delete spec.data.url;
   el.innerHTML = "";
   try{
     var result = await vegaEmbed(el, spec, { actions:false, renderer:"svg" });
-    el._vegaSpec = spec;
-    el._vegaView = result.view;
+    el._vegaSpec = spec; el._vegaView = result.view;
     if(!el._resizeObs){
       var pending = null;
       el._resizeObs = new ResizeObserver(function(){
@@ -2207,6 +2163,20 @@ function renderPreviewPayload(tiles){
     tile.style.height = `${(pos.h/rows)*100}%`;
 
     localLayout[id] = pos;
+
+    // Remove button (× with confirmation)
+    const removeBtn = document.createElement("button");
+    removeBtn.className = "tile-remove-btn";
+    removeBtn.textContent = "\u00D7";
+    removeBtn.title = "Remove chart";
+    removeBtn.addEventListener("click", function(ev){
+      ev.stopPropagation();
+      var chartTitle = t.title || "this chart";
+      if(confirm("Are you sure you want to remove \"" + chartTitle + "\"?")){
+        removeTileFromDashboard(id, chartTitle);
+      }
+    });
+    tile.appendChild(removeBtn);
 
     const th = document.createElement("div");
     th.className = "t-h";
@@ -2332,8 +2302,7 @@ function renderPreviewPayload(tiles){
     let startX=0,startY=0,startL=0,startT=0,startW=0,startH=0, dragging=false, resizing=false;
 
     function bringToFront(el){
-      var allTiles = canvas.querySelectorAll(".tile");
-      allTiles.forEach(function(t){ t.style.zIndex = "1"; });
+      canvas.querySelectorAll(".tile").forEach(function(t){ t.style.zIndex = "1"; });
       el.style.zIndex = "10";
     }
 
@@ -2654,7 +2623,7 @@ async function onGenerateDesign(){
       addChatMessage("Dashboard created successfully! You can now ask me to make changes to any chart or add new visualizations.", false, true);
     }
 
-    // Render suggestions carousel (expanded by default)
+    // Render suggestions carousel
     var sug = (dsl && Array.isArray(dsl.__suggestions)) ? dsl.__suggestions : [];
     renderSuggestions(sug);
   }catch(e){
@@ -2768,18 +2737,37 @@ function onClearFilters(){
 }
 function onExportPdf(){ window.print(); }
 
+/* ---------- Remove tile from dashboard ---------- */
+async function removeTileFromDashboard(tileId, chartTitle){
+  try{
+    var r = await fetch(ORCH + "/edit/" + encodeURIComponent(sid), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ remove_tile: tileId })
+    });
+    var j = await r.json();
+    if(j.dsl) dsl = j.dsl;
+    // Also remove from local layout
+    delete localLayout[tileId];
+    await refreshPreview();
+    addChatMessage("\u2713 Removed \"" + chartTitle + "\" from the dashboard.", false, true);
+  }catch(e){
+    console.error("[Remove] failed:", e);
+  }
+}
+
 /* ---------- Suggestions Carousel ---------- */
 var currentSuggestions = [];
 
 function toggleSuggestions(){
   var body = $("suggestionsBody");
   var toggle = $("suggestionsToggle");
-  var hintEl = document.querySelector(".suggestions-header .muted:last-child");
+  var hint = document.querySelector(".sg-collapse-hint");
   if(!body || !toggle) return;
   var isVisible = !body.classList.contains("hidden");
   body.classList.toggle("hidden", isVisible);
   toggle.classList.toggle("open", !isVisible);
-  if(hintEl) hintEl.textContent = isVisible ? "click to expand" : "click to collapse";
+  if(hint) hint.textContent = isVisible ? "click to expand" : "click to collapse";
 }
 
 function renderSuggestions(suggestions){
@@ -2802,7 +2790,6 @@ function renderSuggestions(suggestions){
     var card = document.createElement("div");
     card.className = "suggestion-card";
 
-    // Preview area — will be filled with real chart
     var previewDiv = document.createElement("div");
     previewDiv.className = "sg-preview";
     previewDiv.id = "sg-preview-" + idx;
@@ -2813,19 +2800,15 @@ function renderSuggestions(suggestions){
 
     var contentDiv = document.createElement("div");
     contentDiv.className = "sg-content";
-
     var typeEl = document.createElement("div");
     typeEl.className = "sg-type";
     typeEl.textContent = (sg.type || "chart").replace(/_/g, " ");
-
     var titleEl = document.createElement("div");
     titleEl.className = "sg-title";
     titleEl.textContent = sg.title || "Chart";
-
     var ratEl = document.createElement("div");
     ratEl.className = "sg-rationale";
     ratEl.textContent = sg.rationale || "";
-
     contentDiv.appendChild(typeEl);
     contentDiv.appendChild(titleEl);
     contentDiv.appendChild(ratEl);
@@ -2843,38 +2826,28 @@ function renderSuggestions(suggestions){
     card.appendChild(btn);
     body.appendChild(card);
 
-    // Fetch real chart preview
     fetchSuggestionPreview(sg, idx);
   });
 }
 
 async function fetchSuggestionPreview(sg, idx){
-  var previewEl = document.getElementById("sg-preview-" + idx);
-  if(!previewEl || !sid) return;
-
+  var el = document.getElementById("sg-preview-" + idx);
+  if(!el || !sid) return;
   try{
-    var tileDef = {
-      id: "sgp_" + idx,
-      type: sg.type || "bar",
-      title: sg.title || "",
-      query: sg.query || {}
-    };
+    var tileDef = { id: "sgp_" + idx, type: sg.type || "bar", title: sg.title || "", query: sg.query || {} };
     var r = await fetch(ORCH + "/preview-suggestion/" + encodeURIComponent(sid), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tile: tileDef })
     });
     var j = await r.json();
     if(j.ok && j.vl_spec && Object.keys(j.vl_spec).length > 0){
-      previewEl.innerHTML = "";
-      // Render a mini Vega chart
+      el.innerHTML = "";
       var chartDiv = document.createElement("div");
       chartDiv.style.cssText = "width:100%;height:100%;";
-      previewEl.appendChild(chartDiv);
+      el.appendChild(chartDiv);
       if(typeof vegaEmbed === "function"){
         var spec = j.vl_spec;
-        spec.width = "container";
-        spec.height = "container";
+        spec.width = "container"; spec.height = "container";
         spec.autosize = { type: "fit", contains: "padding" };
         spec.config = spec.config || {};
         spec.config.padding = 4;
@@ -2883,10 +2856,11 @@ async function fetchSuggestionPreview(sg, idx){
         await vegaEmbed(chartDiv, spec, { actions: false, renderer: "svg" });
       }
     } else {
-      previewEl.innerHTML = "<span class='sg-loading' style='color:#d1d5db'>No preview</span>";
+      el.innerHTML = "<span class='sg-loading' style='color:#d1d5db'>No preview</span>";
     }
   }catch(e){
-    if(previewEl) previewEl.innerHTML = "<span class='sg-loading' style='color:#d1d5db'>No preview</span>";
+    var el2 = document.getElementById("sg-preview-" + idx);
+    if(el2) el2.innerHTML = "<span class='sg-loading' style='color:#d1d5db'>No preview</span>";
   }
 }
 
@@ -2905,15 +2879,22 @@ async function addSuggestionToDashboard(idx){
     w: 6, h: 4
   };
 
-  if(dsl && dsl.pages && dsl.pages[0] && dsl.pages[0].tiles){
-    dsl.pages[0].tiles.push(newTile);
-  }
+  // Merge with existing tiles (preserve current layout from localLayout)
+  var existingTiles = (dsl && dsl.pages && dsl.pages[0] && dsl.pages[0].tiles) ? dsl.pages[0].tiles : [];
+  var mergedTiles = existingTiles.map(function(t){
+    var stored = localLayout[t.id];
+    if(stored){
+      return Object.assign({}, t, { x: stored.x, y: stored.y, w: stored.w, h: stored.h });
+    }
+    return t;
+  });
+  mergedTiles.push(newTile);
 
   try{
     var r = await fetch(ORCH + "/edit/" + encodeURIComponent(sid), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tiles: dsl.pages[0].tiles })
+      body: JSON.stringify({ tiles: mergedTiles })
     });
     var j = await r.json();
     if(j.dsl) dsl = j.dsl;
