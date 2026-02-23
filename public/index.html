@@ -2659,12 +2659,25 @@ async function onApplyChange(){
       content: msg.text
     }));
     
+    // Build current tile state: merge DSL tiles with user's drag/resize positions
+    var currentTiles = [];
+    if(dsl && dsl.pages && dsl.pages[0] && dsl.pages[0].tiles){
+      currentTiles = dsl.pages[0].tiles.map(function(t){
+        var pos = localLayout[t.id];
+        if(pos){
+          return Object.assign({}, t, { x: pos.x, y: pos.y, w: pos.w, h: pos.h });
+        }
+        return t;
+      });
+    }
+
     const r = await fetch(`${ORCH}/edit/${encodeURIComponent(sid)}`, {
       method:"POST",
       headers:{ "Content-Type":"application/json" },
       body: JSON.stringify({ 
         change,
-        chat_history: chatHistory // Send full conversation context
+        chat_history: chatHistory,
+        current_tiles: currentTiles
       })
     });
     const j = await r.json();
