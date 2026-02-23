@@ -2057,6 +2057,17 @@ async function renderVega(el, spec){
     el.textContent = "Chart library not loaded yet."; return;
   }
   if(spec && spec.data && spec.data.url) delete spec.data.url;
+
+  // Merge palette from DSL theme into spec config
+  var palette = null;
+  try{ var pal = dsl && dsl.theme && dsl.theme.palette; if(Array.isArray(pal) && pal.length) palette = pal; }catch(e){}
+  if(palette){
+    spec.config = spec.config || {};
+    spec.config.range = spec.config.range || {};
+    spec.config.range.category = palette;
+    spec.config.range.ordinal = palette;
+  }
+
   el.innerHTML = "";
   try{
     var result = await vegaEmbed(el, spec, { actions:false, renderer:"svg" });
