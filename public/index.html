@@ -867,6 +867,7 @@
       <div style="flex:1"></div>
       <button id="saveLayout" class="ghost" type="button" title="Persist current tile positions">Save layout</button>
       <button id="exportPdf" class="secondary" type="button" title="Print to PDF">Export PDF</button>
+      <button id="saveDashboard" type="button" title="Save to your account" style="display:none;background:#7c3aed;color:#fff;padding:8px 18px;border-radius:8px;font-weight:600;font-size:13px;border:none;cursor:pointer">💾 Save Dashboard</button>
       <span id="dMsg" class="muted" style="display:none;"></span>
     </div>
 
@@ -2637,6 +2638,8 @@ async function onGenerateDesign(){
     // Render suggestions carousel
     var sug = (dsl && Array.isArray(dsl.__suggestions)) ? dsl.__suggestions : [];
     renderSuggestions(sug);
+    // Show Save Dashboard button
+    var saveBtn = $("saveDashboard"); if(saveBtn) saveBtn.style.display = "";
   }catch(e){
     console.error(e);
     setMsg("cMsg","Failed to create design. Check logs.","err");
@@ -2994,6 +2997,48 @@ async function addSuggestionToDashboard(idx){
     console.log("[Chat] Applied max-height to chat container");
   }
   
+  // ── Save Dashboard to user account ──
+  async function onSaveDashboard(){
+    if(!sid){ alert("No active session."); return; }
+    // Check auth
+    var me = null;
+    try{
+      var r = await fetch(ORCH + "/portal-api/me", {credentials:"include"});
+      if(r.ok) me = await r.json();
+    }catch(e){}
+    if(!me || !me.ok){
+      // Not logged in — go to WordPress login, come back after
+      var ret = encodeURIComponent(window.location.href + (window.location.href.includes("?")?"&":"?") + "save_pending=true");
+      window.location.href = "https://mranalyticshub.com/log-in/?redirect_to=" + ret;
+      return;
+    }
+    var defaultTitle = (dsl && dsl.__ai_notes && dsl.__ai_notes.title) || "My Dashboard";
+    var title = prompt("Name your dashboard:", defaultTitle);
+    if(title === null) return;
+    var btn = $("saveDashboard"); btn.disabled = true; btn.textContent = "Saving...";
+    try{
+      var r2 = await fetch(ORCH + "/portal-api/dashboards/save", {
+        method:"POST", credentials:"include",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({session_id: sid, title: title || defaultTitle})
+      });
+      var data = await r2.json();
+      if(data.ok){
+        btn.textContent = "✓ Saved!"; btn.style.background = "#16a34a";
+        setTimeout(function(){
+          if(confirm("Dashboard saved! Go to your dashboard portal?")){
+            window.location.href = ORCH + "/portal";
+          } else { btn.textContent = "💾 Save Dashboard"; btn.style.background = "#7c3aed"; btn.disabled = false; }
+        }, 500);
+      } else { alert("Save failed: " + (data.error||"Unknown error")); btn.textContent = "💾 Save Dashboard"; btn.style.background = "#7c3aed"; btn.disabled = false; }
+    }catch(e){ alert("Save failed: " + e.message); btn.textContent = "💾 Save Dashboard"; btn.style.background = "#7c3aed"; btn.disabled = false; }
+  }
+  // Auto-save if returning from login
+  if(new URLSearchParams(window.location.search).get("save_pending")){
+    var u = new URL(window.location); u.searchParams.delete("save_pending"); window.history.replaceState({},"",u);
+    setTimeout(function(){ if(sid) onSaveDashboard(); }, 1500);
+  }
+
   $("newSession").addEventListener("click", onNewSession, {passive:true});
   $("start").addEventListener("click", onProfile, {passive:true});
   $("genDesign").addEventListener("click", onGenerateDesign, {passive:true});
@@ -3001,6 +3046,7 @@ async function addSuggestionToDashboard(idx){
   $("saveLayout").addEventListener("click", onSaveLayout, {passive:true});
   $("clearFilters").addEventListener("click", onClearFilters, {passive:true});
   $("exportPdf").addEventListener("click", onExportPdf, {passive:true});
+  $("saveDashboard").addEventListener("click", onSaveDashboard, {passive:true});
   $("applyFilters").addEventListener("click", ()=>refreshPreview(), {passive:true});
   $("btnYTD").addEventListener("click", ()=>setQuickRange("YTD"), {passive:true});
   $("btnLastYear").addEventListener("click", ()=>setQuickRange("LAST_YEAR"), {passive:true});
