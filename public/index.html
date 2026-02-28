@@ -3000,7 +3000,7 @@ async function addSuggestionToDashboard(idx){
   // ── Save Dashboard to user account ──
   async function onSaveDashboard(){
     if(!sid){ alert("No active session."); return; }
-    var defaultTitle = (dsl && dsl.__ai_notes && dsl.__ai_notes.title) || "My Dashboard";
+    var defaultTitle = (dsl && dsl.pages && dsl.pages[0] && dsl.pages[0].title) || "My Dashboard";
     var title = prompt("Name your dashboard:", defaultTitle);
     if(title === null) return;
     // Redirect to orchestrator's save page — handles auth + save on same domain
