@@ -3020,18 +3020,48 @@ async function addSuggestionToDashboard(idx){
     setMsg("aMsg","Could not create a session. Please reload.","err");
   }
 
-  // If returning to an existing session, try to restore the dashboard
+  // If returning to an existing session, try to restore the full state
   if(returnSid && sid === returnSid){
     try{
-      var r = await fetch(`${ORCH}/preview/${encodeURIComponent(sid)}`, {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({filters:{}})
-      });
-      if(r.ok){
-        var j = await r.json();
-        if(j.dsl && j.tiles && j.tiles.length > 0){
-          dsl = j.dsl;
+      var stateResp = await fetch(`${ORCH}/session-state/${encodeURIComponent(sid)}`);
+      if(stateResp.ok){
+        var state = await stateResp.json();
+        if(state.ok && state.has_dashboard){
+          // Step 1: Restore business description
+          if(state.prompt){
+            $("prompt").value = state.prompt;
+          }
+          // Show filename from upload key
+          if(state.upload_key){
+            var fname = state.upload_key.includes("/") ? state.upload_key.split("/").pop() : state.upload_key;
+            var aMsg = $("aMsg");
+            if(aMsg){ aMsg.textContent = "File: " + fname; aMsg.className = "ok"; }
+          }
+
+          // Step 2: Restore field map
+          if(state.schema_table && state.schema_table.length){
+            renderFieldMap(state.schema_table);
+            show("stepB", true);
+          }
+
+          // Step 3: Restore questions with answers
+          if(state.questions && state.questions.length){
+            renderQuestions(state.questions);
+            // Fill in saved answers
+            if(state.answers && state.answers.length){
+              var answerInputs = $("qWrap").querySelectorAll("textarea");
+              state.answers.forEach(function(ans, idx){
+                if(answerInputs[idx] && ans){
+                  answerInputs[idx].value = ans;
+                  answers[idx] = ans;
+                }
+              });
+            }
+            show("stepC", true);
+          }
+
+          // Step 4: Restore dashboard
+          dsl = state.dsl;
           show("stepD", true);
           currentFilters = [];
           localLayout = {};
@@ -3047,7 +3077,7 @@ async function addSuggestionToDashboard(idx){
           window.history.replaceState({},"",cleanUrl);
         }
       }
-    }catch(e){ console.log("Could not restore session dashboard:", e); }
+    }catch(e){ console.log("Could not restore session:", e); }
   }
   
   // Watch for chat container being re-added to DOM
