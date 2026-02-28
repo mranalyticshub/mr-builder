@@ -3021,46 +3021,50 @@ async function addSuggestionToDashboard(idx){
   }
 
   // If returning to an existing session, try to restore the full state
+  var editDashId = (readQuery("edit_dash")||"").trim();
+  var editTitle = decodeURIComponent(readQuery("title")||"");
   if(returnSid && sid === returnSid){
     try{
       var stateResp = await fetch(`${ORCH}/session-state/${encodeURIComponent(sid)}`);
       if(stateResp.ok){
         var state = await stateResp.json();
         if(state.ok && state.has_dashboard){
-          // Step 1: Restore business description
-          if(state.prompt){
-            $("prompt").value = state.prompt;
-          }
-          // Show filename from upload key
-          if(state.upload_key){
-            var fname = state.upload_key.includes("/") ? state.upload_key.split("/").pop() : state.upload_key;
-            var aMsg = $("aMsg");
-            if(aMsg){ aMsg.textContent = "File: " + fname; aMsg.className = "ok"; }
-          }
 
-          // Step 2: Restore field map
-          if(state.schema_table && state.schema_table.length){
-            renderFieldMap(state.schema_table);
-            show("stepB", true);
-          }
-
-          // Step 3: Restore questions with answers
-          if(state.questions && state.questions.length){
-            renderQuestions(state.questions);
-            // Fill in saved answers
-            if(state.answers && state.answers.length){
-              var answerInputs = $("qWrap").querySelectorAll("textarea");
-              state.answers.forEach(function(ans, idx){
-                if(answerInputs[idx] && ans){
-                  answerInputs[idx].value = ans;
-                  answers[idx] = ans;
-                }
-              });
+          if(editDashId){
+            // EDIT MODE: Only show step 4 with dashboard, chat, carousel
+            show("stepA", false);
+            show("stepB", false);
+            show("stepC", false);
+          } else {
+            // FULL RESTORE: Show all steps
+            if(state.prompt){
+              $("prompt").value = state.prompt;
             }
-            show("stepC", true);
+            if(state.upload_key){
+              var fname = state.upload_key.includes("/") ? state.upload_key.split("/").pop() : state.upload_key;
+              var aMsg = $("aMsg");
+              if(aMsg){ aMsg.textContent = "File: " + fname; aMsg.className = "ok"; }
+            }
+            if(state.schema_table && state.schema_table.length){
+              renderFieldMap(state.schema_table);
+              show("stepB", true);
+            }
+            if(state.questions && state.questions.length){
+              renderQuestions(state.questions);
+              if(state.answers && state.answers.length){
+                var answerInputs = $("qWrap").querySelectorAll("textarea");
+                state.answers.forEach(function(ans, idx){
+                  if(answerInputs[idx] && ans){
+                    answerInputs[idx].value = ans;
+                    answers[idx] = ans;
+                  }
+                });
+              }
+              show("stepC", true);
+            }
           }
 
-          // Step 4: Restore dashboard
+          // Step 4: Restore dashboard (always)
           dsl = state.dsl;
           show("stepD", true);
           currentFilters = [];
@@ -3071,15 +3075,66 @@ async function addSuggestionToDashboard(idx){
           var sug = (dsl && Array.isArray(dsl.__suggestions)) ? dsl.__suggestions : [];
           renderSuggestions(sug);
           var saveBtn = $("saveDashboard"); if(saveBtn) saveBtn.style.display = "";
-          // Clean the sid param from URL
+
+          // In edit mode, change Save Dashboard button to save back to existing dashboard
+          if(editDashId){
+            if(saveBtn){
+              saveBtn.textContent = "\ud83d\udcbe Save Changes";
+              saveBtn.onclick = async function(){
+                saveBtn.disabled = true; saveBtn.textContent = "Saving...";
+                try{
+                  var previewResp = await fetch(`${ORCH}/preview/${encodeURIComponent(sid)}`, {
+                    method:"POST",
+                    headers:{"Content-Type":"application/json"},
+                    body: JSON.stringify({filters:{}})
+                  });
+                  var previewData = await previewResp.json();
+                  var currentDsl = previewData.dsl || dsl;
+                  var updateResp = await fetch(`${ORCH}/portal-api/dashboards/${encodeURIComponent(editDashId)}`, {
+                    method:"PUT",
+                    headers:{"Content-Type":"application/json"},
+                    credentials:"include",
+                    body: JSON.stringify({dsl: currentDsl})
+                  });
+                  var updateData = await updateResp.json();
+                  if(updateData.ok){
+                    saveBtn.textContent = "\u2713 Saved!"; saveBtn.style.background = "#16a34a";
+                    setTimeout(function(){ location.href = ORCH + "/portal"; }, 1500);
+                  } else {
+                    alert("Save failed: " + (updateData.error || "Unknown error"));
+                    saveBtn.textContent = "\ud83d\udcbe Save Changes"; saveBtn.disabled = false;
+                  }
+                }catch(e){
+                  alert("Save failed: " + e.message);
+                  saveBtn.textContent = "\ud83d\udcbe Save Changes"; saveBtn.disabled = false;
+                }
+              };
+            }
+          }
+
+          // Restore chat messages
+          clearChatMessages();
+          if(state.chat_messages && state.chat_messages.length){
+            state.chat_messages.forEach(function(msg){
+              addChatMessage(msg.text || msg.content || "", !!msg.isUser, false);
+            });
+          } else if(editDashId) {
+            addChatMessage("Editing: " + (editTitle || "Dashboard") + ". Make changes using the chat or suggestions below, then click Save Changes.", false, false);
+          } else {
+            addChatMessage("Dashboard restored. You can continue making changes using the chat below.", false, false);
+          }
+
+          // Clean URL params
           var cleanUrl = new URL(window.location);
           cleanUrl.searchParams.delete("sid");
+          cleanUrl.searchParams.delete("edit_dash");
+          cleanUrl.searchParams.delete("title");
           window.history.replaceState({},"",cleanUrl);
         }
       }
     }catch(e){ console.log("Could not restore session:", e); }
   }
-  
+
   // Watch for chat container being re-added to DOM
   const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
