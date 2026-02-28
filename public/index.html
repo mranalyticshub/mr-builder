@@ -3004,15 +3004,50 @@ async function addSuggestionToDashboard(idx){
 
 /* ---------- Boot ---------- */
 (async () => {
-  // Always start fresh - clear any existing session
-  cookieDel("mr_sid");
-  sid = null;
-  
+  // Check if we're returning to an existing session (e.g. from save flow)
+  var returnSid = (readQuery("sid")||"").trim();
+
+  if(!returnSid){
+    // Fresh start — clear any existing session
+    cookieDel("mr_sid");
+    sid = null;
+  }
+
   try {
     await ensureSession();
   } catch(e) {
     console.error(e);
     setMsg("aMsg","Could not create a session. Please reload.","err");
+  }
+
+  // If returning to an existing session, try to restore the dashboard
+  if(returnSid && sid === returnSid){
+    try{
+      var r = await fetch(`${ORCH}/preview/${encodeURIComponent(sid)}`, {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({filters:{}})
+      });
+      if(r.ok){
+        var j = await r.json();
+        if(j.dsl && j.tiles && j.tiles.length > 0){
+          dsl = j.dsl;
+          show("stepD", true);
+          currentFilters = [];
+          localLayout = {};
+          $("filterStart").value = "";
+          $("filterEnd").value = "";
+          refreshPreview();
+          var sug = (dsl && Array.isArray(dsl.__suggestions)) ? dsl.__suggestions : [];
+          renderSuggestions(sug);
+          var saveBtn = $("saveDashboard"); if(saveBtn) saveBtn.style.display = "";
+          // Clean the sid param from URL
+          var cleanUrl = new URL(window.location);
+          cleanUrl.searchParams.delete("sid");
+          window.history.replaceState({},"",cleanUrl);
+        }
+      }
+    }catch(e){ console.log("Could not restore session dashboard:", e); }
   }
   
   // Watch for chat container being re-added to DOM
