@@ -2364,8 +2364,31 @@ function renderPreviewPayload(tiles){
       tile.style.height=`${(gh/rows)*100}%`;
       localLayout[id] = {x:gx,y:gy,w:gw,h:gh};
     });
-    window.addEventListener("mouseup", ()=>{ dragging=false; resizing=false; });
+    window.addEventListener("mouseup", ()=>{
+      if(dragging || resizing) _autoSaveLayout();
+      dragging=false; resizing=false;
+    });
   });
+}
+
+/* ---------- Auto-save layout to backend ---------- */
+var _layoutSaveTimer = null;
+function _autoSaveLayout(){
+  if(_layoutSaveTimer) clearTimeout(_layoutSaveTimer);
+  _layoutSaveTimer = setTimeout(function(){
+    if(!sid || !dsl) return;
+    var tiles = (dsl.pages && dsl.pages[0] && dsl.pages[0].tiles || []).map(function(t){
+      var pos = localLayout[t.id] || {x:t.x, y:t.y, w:t.w, h:t.h};
+      return {id:t.id, x:pos.x, y:pos.y, w:pos.w, h:pos.h};
+    });
+    fetch(ORCH + "/edit/" + encodeURIComponent(sid), {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({tiles: tiles})
+    }).then(function(r){ return r.json(); }).then(function(j){
+      if(j.dsl) dsl = j.dsl;
+    }).catch(function(e){ console.log("Auto-save layout failed:", e); });
+  }, 500);
 }
 
 /* ---------- Fetch preview tiles (keep dsl for theme) ---------- */
