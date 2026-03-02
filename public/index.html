@@ -3046,6 +3046,7 @@ async function addSuggestionToDashboard(idx){
   // If returning to an existing session, try to restore the full state
   var editDashId = (readQuery("edit_dash")||"").trim();
   var editTitle = decodeURIComponent(readQuery("title")||"");
+  var editAuthToken = (readQuery("auth_token")||"").trim();
   if(returnSid && sid === returnSid){
     try{
       var stateResp = await fetch(`${ORCH}/session-state/${encodeURIComponent(sid)}`);
@@ -3121,9 +3122,11 @@ async function addSuggestionToDashboard(idx){
                   var currentDsl = previewData.dsl || dsl;
                   var updateBody = {dsl: currentDsl};
                   if(newTitle && newTitle !== editTitle) updateBody.title = newTitle;
+                  var putHeaders = {"Content-Type":"application/json"};
+                  if(editAuthToken) putHeaders["Authorization"] = "Bearer " + editAuthToken;
                   var updateResp = await fetch(`${ORCH}/portal-api/dashboards/${encodeURIComponent(editDashId)}`, {
                     method:"PUT",
-                    headers:{"Content-Type":"application/json"},
+                    headers: putHeaders,
                     credentials:"include",
                     body: JSON.stringify(updateBody)
                   });
@@ -3169,6 +3172,7 @@ async function addSuggestionToDashboard(idx){
           cleanUrl.searchParams.delete("sid");
           cleanUrl.searchParams.delete("edit_dash");
           cleanUrl.searchParams.delete("title");
+          cleanUrl.searchParams.delete("auth_token");
           window.history.replaceState({},"",cleanUrl);
         }
       }
