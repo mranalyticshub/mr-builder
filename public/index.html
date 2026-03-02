@@ -2069,6 +2069,13 @@ async function renderVega(el, spec){
     spec.config.range.category = palette;
     spec.config.range.ordinal = palette;
   }
+  // Replace palette placeholder in mark color
+  var pal0 = (palette && palette[0]) || "#6366f1";
+  var specStr = JSON.stringify(spec);
+  if(specStr.indexOf("__PALETTE_0__") !== -1){
+    specStr = specStr.split("__PALETTE_0__").join(pal0);
+    spec = JSON.parse(specStr);
+  }
 
   el.innerHTML = "";
   try{
