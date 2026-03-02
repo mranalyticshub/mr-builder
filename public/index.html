@@ -959,7 +959,7 @@ let localLayout = {};   // tileId -> {x,y,w,h}
 
 /* ------- palette helper (reads dsl.theme.palette) ------- */
 function getPalette(){
-  const def = ["#6366f1","#f97316","#10b981","#ec4899","#8b5cf6","#06b6d4","#facc15"];
+  const def = ["#4c78a8","#f58518","#e45756","#72b7b2","#54a24b","#eeca3b","#b279a2"];
   try{
     const pal = dsl?.theme?.palette;
     if(Array.isArray(pal) && pal.length) return pal;
@@ -2061,7 +2061,7 @@ async function renderVega(el, spec){
   if(spec && spec.data && spec.data.url) delete spec.data.url;
 
   // Merge palette from DSL theme into spec config - ALWAYS apply to ensure consistency
-  var defaultPalette = ["#6366f1","#f97316","#10b981","#ec4899","#8b5cf6","#06b6d4","#facc15"];
+  var defaultPalette = ["#4c78a8","#f58518","#e45756","#72b7b2","#54a24b","#eeca3b","#b279a2"];
   var palette = defaultPalette;
   try{ var pal = dsl && dsl.theme && dsl.theme.palette; if(Array.isArray(pal) && pal.length) palette = pal; }catch(e){}
   spec.config = spec.config || {};
