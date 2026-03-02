@@ -3103,7 +3103,13 @@ async function addSuggestionToDashboard(idx){
           if(editDashId){
             if(saveBtn){
               saveBtn.textContent = "\ud83d\udcbe Save Changes";
-              saveBtn.onclick = async function(){
+              // Remove the default save handler to prevent title prompt
+              saveBtn.removeEventListener("click", onSaveDashboard);
+              var _editSaveHandler = async function(ev){
+                ev.stopPropagation();
+                // Offer to rename with current title prepopulated
+                var newTitle = prompt("Dashboard name:", editTitle || "My Dashboard");
+                if(newTitle === null) return; // cancelled
                 saveBtn.disabled = true; saveBtn.textContent = "Saving...";
                 try{
                   var previewResp = await fetch(`${ORCH}/preview/${encodeURIComponent(sid)}`, {
@@ -3113,12 +3119,22 @@ async function addSuggestionToDashboard(idx){
                   });
                   var previewData = await previewResp.json();
                   var currentDsl = previewData.dsl || dsl;
+                  var updateBody = {dsl: currentDsl};
+                  if(newTitle && newTitle !== editTitle) updateBody.title = newTitle;
                   var updateResp = await fetch(`${ORCH}/portal-api/dashboards/${encodeURIComponent(editDashId)}`, {
                     method:"PUT",
                     headers:{"Content-Type":"application/json"},
                     credentials:"include",
-                    body: JSON.stringify({dsl: currentDsl})
+                    body: JSON.stringify(updateBody)
                   });
+                  console.log("[EDIT-SAVE] PUT response status:", updateResp.status);
+                  if(!updateResp.ok){
+                    var errText = await updateResp.text();
+                    console.error("[EDIT-SAVE] PUT failed:", updateResp.status, errText);
+                    alert("Save failed (HTTP " + updateResp.status + "). Please ensure you are logged in.");
+                    saveBtn.textContent = "\ud83d\udcbe Save Changes"; saveBtn.disabled = false;
+                    return;
+                  }
                   var updateData = await updateResp.json();
                   if(updateData.ok){
                     saveBtn.textContent = "\u2713 Saved!"; saveBtn.style.background = "#16a34a";
@@ -3132,6 +3148,7 @@ async function addSuggestionToDashboard(idx){
                   saveBtn.textContent = "\ud83d\udcbe Save Changes"; saveBtn.disabled = false;
                 }
               };
+              saveBtn.addEventListener("click", _editSaveHandler);
             }
           }
 
@@ -3220,7 +3237,7 @@ async function addSuggestionToDashboard(idx){
   $("applyChange").addEventListener("click", onApplyChange, {passive:true});
   $("clearFilters").addEventListener("click", onClearFilters, {passive:true});
   $("exportPdf").addEventListener("click", onExportPdf, {passive:true});
-  $("saveDashboard").addEventListener("click", onSaveDashboard, {passive:true});
+  if(!editDashId) $("saveDashboard").addEventListener("click", onSaveDashboard, {passive:true});
   $("applyFilters").addEventListener("click", ()=>refreshPreview(), {passive:true});
   $("btnYTD").addEventListener("click", ()=>setQuickRange("YTD"), {passive:true});
   $("btnLastYear").addEventListener("click", ()=>setQuickRange("LAST_YEAR"), {passive:true});
