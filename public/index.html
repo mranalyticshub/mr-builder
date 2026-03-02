@@ -3046,7 +3046,6 @@ async function addSuggestionToDashboard(idx){
   // If returning to an existing session, try to restore the full state
   var editDashId = (readQuery("edit_dash")||"").trim();
   var editTitle = decodeURIComponent(readQuery("title")||"");
-  var editAuthToken = (readQuery("auth_token")||"").trim();
   if(returnSid && sid === returnSid){
     try{
       var stateResp = await fetch(`${ORCH}/session-state/${encodeURIComponent(sid)}`);
@@ -3122,11 +3121,9 @@ async function addSuggestionToDashboard(idx){
                   var currentDsl = previewData.dsl || dsl;
                   var updateBody = {dsl: currentDsl};
                   if(newTitle && newTitle !== editTitle) updateBody.title = newTitle;
-                  var putHeaders = {"Content-Type":"application/json"};
-                  if(editAuthToken) putHeaders["Authorization"] = "Bearer " + editAuthToken;
                   var updateResp = await fetch(`${ORCH}/portal-api/dashboards/${encodeURIComponent(editDashId)}`, {
                     method:"PUT",
-                    headers: putHeaders,
+                    headers:{"Content-Type":"application/json"},
                     credentials:"include",
                     body: JSON.stringify(updateBody)
                   });
@@ -3147,8 +3144,10 @@ async function addSuggestionToDashboard(idx){
                     saveBtn.textContent = "\ud83d\udcbe Save Changes"; saveBtn.disabled = false;
                   }
                 }catch(e){
-                  alert("Save failed: " + e.message);
-                  saveBtn.textContent = "\ud83d\udcbe Save Changes"; saveBtn.disabled = false;
+                  console.warn("[EDIT-SAVE] Fetch error:", e.message, "- attempting alternative save via redirect");
+                  // If direct PUT fails (e.g. cross-origin cookie issue), redirect to orchestrator save page
+                  var saveUrl = ORCH + "/portal/save?session_id=" + encodeURIComponent(sid) + "&title=" + encodeURIComponent(newTitle || editTitle || "My Dashboard") + "&edit_dash=" + encodeURIComponent(editDashId);
+                  location.href = saveUrl;
                 }
               };
               saveBtn.addEventListener("click", _editSaveHandler);
@@ -3172,7 +3171,6 @@ async function addSuggestionToDashboard(idx){
           cleanUrl.searchParams.delete("sid");
           cleanUrl.searchParams.delete("edit_dash");
           cleanUrl.searchParams.delete("title");
-          cleanUrl.searchParams.delete("auth_token");
           window.history.replaceState({},"",cleanUrl);
         }
       }
