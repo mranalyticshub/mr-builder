@@ -2060,17 +2060,16 @@ async function renderVega(el, spec){
   }
   if(spec && spec.data && spec.data.url) delete spec.data.url;
 
-  // Merge palette from DSL theme into spec config
-  var palette = null;
+  // Merge palette from DSL theme into spec config - ALWAYS apply to ensure consistency
+  var defaultPalette = ["#6366f1","#f97316","#10b981","#ec4899","#8b5cf6","#06b6d4","#facc15"];
+  var palette = defaultPalette;
   try{ var pal = dsl && dsl.theme && dsl.theme.palette; if(Array.isArray(pal) && pal.length) palette = pal; }catch(e){}
-  if(palette){
-    spec.config = spec.config || {};
-    spec.config.range = spec.config.range || {};
-    spec.config.range.category = palette;
-    spec.config.range.ordinal = palette;
-  }
+  spec.config = spec.config || {};
+  spec.config.range = spec.config.range || {};
+  spec.config.range.category = palette;
+  spec.config.range.ordinal = palette;
   // Replace palette placeholder in mark color
-  var pal0 = (palette && palette[0]) || "#6366f1";
+  var pal0 = palette[0];
   var specStr = JSON.stringify(spec);
   if(specStr.indexOf("__PALETTE_0__") !== -1){
     specStr = specStr.split("__PALETTE_0__").join(pal0);
