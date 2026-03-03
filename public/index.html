@@ -37,9 +37,9 @@
     }
 
     .wrap {
-      max-width: 1480px;
+      max-width: 1200px;
       margin: 0 auto;
-      padding: 24px 20px 40px;
+      padding: 24px 40px 40px;
     }
 
     h1 {
@@ -812,30 +812,22 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ========== NAV BAR ========== */
-    .builder-nav {
-      background: #fff; padding: 0; position: sticky; top: 0; z-index: 100;
-      border-bottom: 1px solid #e5e7eb;
-    }
-    .builder-nav-inner {
-      max-width: 1480px; margin: 0 auto; padding: 12px 24px;
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    .builder-nav .nav-brand { display: flex; align-items: center; text-decoration: none; }
-    .builder-nav .nav-brand img { height: 68px; width: auto; }
-    .builder-nav .nav-links { display: flex; align-items: center; gap: 30px; }
-    .builder-nav .nav-link {
-      font-family: 'Poppins', sans-serif; font-size: 15px; font-weight: 400;
-      color: var(--primary); text-decoration: none; transition: all .25s ease;
-    }
-    .builder-nav .nav-link:hover { color: var(--accent); }
-    .builder-nav .nav-link.active { color: var(--secondary); font-weight: 600; }
+    /* ========== NAV BAR (matches portal exactly) ========== */
+    .nav{background:#fff;padding:0;position:sticky;top:0;z-index:100}
+    .nav-inner{max-width:1200px;margin:0 auto;padding:12px 40px;display:flex;align-items:center;justify-content:space-between}
+    .nav-brand{display:flex;align-items:center;text-decoration:none}
+    .nav-brand img{height:68px;width:auto}
+    .nav-links{display:flex;align-items:center;gap:30px}
+    .nav-link{font-family:'Poppins',sans-serif;font-size:15px;font-weight:400;color:var(--primary);text-decoration:none;transition:all .25s ease;display:inline-block}
+    .nav-link:hover{color:var(--accent);transform:scale(1.15)}
+    .nav-link.active{color:var(--secondary);font-weight:400}
+    .hide-mobile{}
     @media (max-width: 768px) {
-      .builder-nav-inner { padding: 8px 12px; }
-      .builder-nav .nav-brand img { height: 48px; }
-      .builder-nav .nav-links { gap: 14px; }
-      .builder-nav .nav-link { font-size: 12px; }
-      .builder-nav .hide-mobile { display: none; }
+      .nav-inner{padding:8px 16px}
+      .nav-brand img{height:48px}
+      .nav-links{gap:14px}
+      .nav-link{font-size:12px}
+      .hide-mobile{display:none}
     }
 
     /* ========== HEADER BAR ========== */
@@ -843,7 +835,7 @@
       background: linear-gradient(135deg, rgba(99,6,151,0.06) 0%, rgba(196,90,255,0.08) 50%, rgba(216,146,255,0.05) 100%);
       padding: 20px 24px 16px;
       border-bottom: 1px solid rgba(196,90,255,0.15);
-      margin: 0 -20px 20px;
+      margin: 0 -40px 20px;
       position: relative;
     }
     .builder-header h1 { color: var(--primary); font-size: 24px; margin-bottom: 2px; }
@@ -903,8 +895,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
-<nav class="builder-nav">
-  <div class="builder-nav-inner">
+<nav class="nav">
+  <div class="nav-inner">
     <a href="https://mranalyticshub.com" class="nav-brand">
       <img src="https://mranalyticshub.com/wp-content/uploads/2025/06/MR-Analytics-Purple-and-Black.jpg" alt="MR Analytics Hub">
     </a>
