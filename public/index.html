@@ -7,6 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/vega@5" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/vega-lite@5" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/vega-embed@6" defer></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg: #f5f5f7;
@@ -14,8 +15,10 @@
       --ink: #111111;
       --muted: #6b7280;
       --line: #e5e7eb;
-      --accent: #2563eb;
-      --accent-soft: #eff6ff;
+      --primary: #630697;
+      --secondary: #C45AFF;
+      --accent: #D892FF;
+      --accent-soft: #f3e8ff;
       --ok: #16a34a;
       --err: #b91c1c;
       --radius-lg: 14px;
@@ -30,7 +33,7 @@
       padding:0;
       background: radial-gradient(circle at top left, #f9fafb 0, #eef2ff 40%, #f5f5f7 100%);
       color:var(--ink);
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", Segoe UI, Roboto, sans-serif;
+      font-family: 'Open Sans', system-ui, -apple-system, sans-serif;
     }
 
     .wrap {
@@ -41,14 +44,19 @@
 
     h1 {
       margin:0 0 4px;
-      font-size: 32px;
-      letter-spacing: .02em;
+      font-family: 'Poppins', sans-serif;
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -.5px;
+      color: var(--primary);
     }
 
     h2 {
       margin:0 0 6px;
-      font-size: 18px;
-      letter-spacing:.02em;
+      font-family: 'Poppins', sans-serif;
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--primary);
     }
 
     .muted {
@@ -73,8 +81,8 @@
     .pill {
       padding:4px 10px;
       border-radius:999px;
-      background:rgba(37,99,235,0.06);
-      color:#1d4ed8;
+      background:var(--accent-soft);
+      color:var(--primary);
       font-size:11px;
       font-weight:500;
     }
@@ -104,12 +112,13 @@
       padding:9px 14px;
       border-radius:50px;
       cursor:pointer;
+      font-family: 'Poppins', sans-serif;
       font-weight:600;
       font-size:13px;
       display:inline-flex;
       align-items:center;
       gap:6px;
-      box-shadow:0 4px 12px rgba(196, 90, 255, 0.25);
+      box-shadow:0 4px 12px rgba(99, 6, 151, 0.2);
       transition:all .2s ease-in-out;
     }
     button:hover { 
@@ -138,14 +147,14 @@
       font-size:12px;
       border-radius:999px;
       background:#f3f4ff;
-      color:#4338ca;
-      border:1px solid rgba(129,140,248,0.6);
+      color:var(--primary);
+      border:1px solid rgba(196,90,255,0.4);
       box-shadow:none;
     }
     button.chip[data-active="1"] {
-      background:#4f46e5;
-      color:#eef2ff;
-      border-color:#4f46e5;
+      background:var(--primary);
+      color:#f3e8ff;
+      border-color:var(--primary);
     }
     button[disabled] {
       opacity:.55;
@@ -180,8 +189,8 @@
     input:focus,
     textarea:focus,
     select:focus {
-      border-color:#4f46e5;
-      box-shadow:0 0 0 1px rgba(79,70,229,0.5);
+      border-color:var(--secondary);
+      box-shadow:0 0 0 1px rgba(196,90,255,0.4);
       background:#ffffff;
     }
 
@@ -781,21 +790,145 @@
 .tile:hover .tile-remove-btn { opacity: 1; }
 .tile-remove-btn:hover { background: #ef4444; color: #fff; }
 
+
+    /* ========== LOADING ANIMATION ========== */
+    .loading-bar {
+      width: 100%; height: 4px; background: #e5e7eb; border-radius: 4px;
+      overflow: hidden; margin-top: 10px; display: none;
+    }
+    .loading-bar.active { display: block; }
+    .loading-bar::after {
+      content: ''; display: block; width: 40%; height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent));
+      border-radius: 4px; animation: loadSlide 1.5s ease-in-out infinite;
+    }
+    @keyframes loadSlide { 0% { transform: translateX(-100%); } 100% { transform: translateX(350%); } }
+
+    .btn-spinner::after {
+      content: ''; width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
+      border-radius: 50%; animation: spin 0.6s linear infinite;
+      display: inline-block; margin-left: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ========== NAV BAR ========== */
+    .builder-nav {
+      background: #fff; padding: 0; position: sticky; top: 0; z-index: 100;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .builder-nav-inner {
+      max-width: 1480px; margin: 0 auto; padding: 12px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .builder-nav .nav-brand { display: flex; align-items: center; text-decoration: none; }
+    .builder-nav .nav-brand img { height: 68px; width: auto; }
+    .builder-nav .nav-links { display: flex; align-items: center; gap: 30px; }
+    .builder-nav .nav-link {
+      font-family: 'Poppins', sans-serif; font-size: 15px; font-weight: 400;
+      color: var(--primary); text-decoration: none; transition: all .25s ease;
+    }
+    .builder-nav .nav-link:hover { color: var(--accent); }
+    .builder-nav .nav-link.active { color: var(--secondary); font-weight: 600; }
+    @media (max-width: 768px) {
+      .builder-nav-inner { padding: 8px 12px; }
+      .builder-nav .nav-brand img { height: 48px; }
+      .builder-nav .nav-links { gap: 14px; }
+      .builder-nav .nav-link { font-size: 12px; }
+      .builder-nav .hide-mobile { display: none; }
+    }
+
+    /* ========== HEADER BAR ========== */
+    .builder-header {
+      background: linear-gradient(135deg, rgba(99,6,151,0.06) 0%, rgba(196,90,255,0.08) 50%, rgba(216,146,255,0.05) 100%);
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid rgba(196,90,255,0.15);
+      margin: 0 -20px 20px;
+      position: relative;
+    }
+    .builder-header h1 { color: var(--primary); font-size: 24px; margin-bottom: 2px; }
+    .builder-header .muted { color: var(--muted); }
+    .builder-header .sid-badge {
+      background: rgba(99,6,151,0.06); border-color: rgba(196,90,255,0.3); color: var(--primary);
+    }
+    .builder-header button.secondary {
+      background: #fff; color: var(--primary); border-color: rgba(196,90,255,0.3);
+    }
+    .builder-header button.secondary:hover { background: var(--accent-soft); }
+
+    /* ========== MOBILE RESPONSIVE ========== */
+    @media (max-width: 768px) {
+      .wrap { padding: 0; }
+      .builder-header { margin: 0; border-radius: 0; padding: 16px 16px 12px; }
+      .builder-header h1 { font-size: 20px; }
+      .card { margin: 8px; padding: 12px 14px; border-radius: 12px; }
+      .row { flex-wrap: wrap; }
+      .fm-wrap { overflow-x: auto; }
+      .fm-head, .fm-row { grid-template-columns: 140px 100px 160px 1fr; font-size: 11px; }
+      h2 { font-size: 15px; }
+      button { padding: 8px 12px; font-size: 12px; }
+      .toolbar { gap: 6px; }
+      .date-group { flex-direction: column; align-items: stretch; }
+      .date-group input[type="date"] { width: 100%; }
+      #previewCanvas { min-height: 400px; height: auto !important; max-height: none; }
+      .tile {
+        position: relative !important; left: 0 !important; top: auto !important;
+        width: 100% !important; height: auto !important; min-height: 200px; margin-bottom: 8px;
+      }
+      .tile .t-b { min-height: 180px; }
+      .tile .t-b.kpi-body { min-height: 100px; }
+      .tile .handle { display: none; }
+      .tile .tile-remove-btn { opacity: 1; }
+      .chat-wrapper { margin: 10px !important; }
+      .chat-input-area { flex-direction: column; }
+      .chat-input-area button { align-self: stretch !important; }
+      .suggestion-card { flex: 0 0 220px; }
+      .suggestions-body { padding: 12px; }
+      #previewToolbar { flex-direction: column; align-items: stretch; }
+      .sid-badge { display: none; }
+    }
+    @media (max-width: 480px) {
+      .builder-header h1 { font-size: 18px; }
+      .kpi { font-size: 28px; }
+      .fm-head, .fm-row { grid-template-columns: 100px 80px 120px 1fr; font-size: 10px; }
+      .fm-head div, .fm-row div { padding: 6px; }
+    }
+    .builder-footer {
+      text-align: center; padding: 20px; margin-top: 24px;
+      font-size: 12px; color: var(--muted); font-family: 'Poppins', sans-serif;
+    }
+    .builder-footer a { color: var(--primary); text-decoration: none; font-weight: 600; }
   </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
-<div class="wrap">
-  <div class="row" style="margin-bottom:6px">
-    <div style="flex:1">
-      <h1>Dashboard Builder</h1>
-      <div class="muted">Upload your data, answer a few questions, and let the assistant design the first version.</div>
+<nav class="builder-nav">
+  <div class="builder-nav-inner">
+    <a href="https://mranalyticshub.com" class="nav-brand">
+      <img src="https://mranalyticshub.com/wp-content/uploads/2025/06/MR-Analytics-Purple-and-Black.jpg" alt="MR Analytics Hub">
+    </a>
+    <div class="nav-links">
+      <a href="https://mranalyticshub.com" class="nav-link hide-mobile">Home</a>
+      <a href="https://mranalyticshub.com/portfolio/" class="nav-link hide-mobile">Portfolio</a>
+      <a href="https://mranalyticshub.com/contact-us/" class="nav-link hide-mobile">Contact Us</a>
+      <a href="https://mranalyticshub.com/sign-up/" class="nav-link hide-mobile">Sign Up</a>
+      <a href="https://mranalyticshub.com/my-hub/" class="nav-link">My Hub</a>
     </div>
-    <div class="row">
-      <span class="muted">Session</span>
-      <span id="sidBadge" class="sid-badge">–</span>
-      <button id="newSession" class="secondary" type="button">New session</button>
+  </div>
+</nav>
+<div class="wrap">
+  <div class="builder-header">
+    <div class="row" style="margin-bottom:6px">
+      <div style="flex:1">
+        <h1>Dashboard Builder</h1>
+        <div class="muted">Upload your data, answer a few questions, and let the assistant design the first version.</div>
+      </div>
+      <div class="row">
+        <span class="muted">Session</span>
+        <span id="sidBadge" class="sid-badge">–</span>
+        <button id="newSession" class="secondary" type="button">New session</button>
+      </div>
     </div>
   </div>
 
@@ -813,6 +946,7 @@
       <input id="file" type="file" accept=".csv,.xlsx"/>
       <button id="start" type="button">Profile dataset</button>
       <span id="aMsg" class="muted"></span>
+      <div class="loading-bar"></div>
     </div>
   </div>
 
@@ -836,9 +970,10 @@
     <h2>3) Questions</h2>
     <div class="muted" style="margin-bottom:10px">These refine how the dashboard thinks about your data and time-grain.</div>
     <div id="qWrap"></div>
-    <div style="margin-top:10px; display:flex; gap:10px; align-items:center">
+    <div style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
       <button id="genDesign" type="button">Generate dashboard</button>
       <span id="cMsg" class="muted"></span>
+      <div class="loading-bar" style="width:100%"></div>
     </div>
   </div>
 
@@ -939,9 +1074,19 @@ function setBusy(btn, on, label="Working…"){
   if(on){
     btn.dataset._t = btn.textContent;
     btn.textContent = label;
-  } else if(btn.dataset._t){
-    btn.textContent = btn.dataset._t;
-    delete btn.dataset._t;
+    btn.classList.add("btn-spinner");
+    var bar = btn.closest(".card");
+    bar = bar && bar.querySelector(".loading-bar");
+    if(bar) bar.classList.add("active");
+  } else {
+    btn.classList.remove("btn-spinner");
+    if(btn.dataset._t){
+      btn.textContent = btn.dataset._t;
+      delete btn.dataset._t;
+    }
+    var bar = btn.closest(".card");
+    bar = bar && bar.querySelector(".loading-bar");
+    if(bar) bar.classList.remove("active");
   }
 }
 function readQuery(k){ const p = new URLSearchParams(location.search); return p.get(k); }
@@ -2801,26 +2946,37 @@ async function onExportPdf(){
   var btn = $("exportPdf");
   var origText = btn.textContent;
   btn.disabled = true; btn.textContent = "Generating PDF...";
+  btn.classList.add("btn-spinner");
   try{
     var canvas = $("previewCanvas");
-    if(!canvas || !canvas.children.length){ alert("No dashboard to export."); btn.textContent = origText; btn.disabled = false; return; }
-    // Get dashboard title for the PDF
+    if(!canvas || !canvas.children.length){ alert("No dashboard to export."); btn.textContent = origText; btn.disabled = false; btn.classList.remove("btn-spinner"); return; }
     var dashTitle = (dsl && dsl.pages && dsl.pages[0] && dsl.pages[0].title) || "Dashboard";
-    // Capture the dashboard canvas
+    // On mobile, temporarily force desktop layout for PDF capture
+    var isMobile = window.innerWidth <= 768;
+    var origStyles = [];
+    if(isMobile){
+      canvas.style.height = "960px"; canvas.style.minHeight = "960px";
+      var tiles = canvas.querySelectorAll(".tile");
+      tiles.forEach(function(t){
+        origStyles.push({el:t, css:t.getAttribute("style")});
+        var tid = t.dataset.id; var lo = localLayout[tid];
+        if(lo){ t.style.position="absolute"; t.style.left=((lo.x/12)*100)+"%"; t.style.top=((lo.y/9)*100)+"%"; t.style.width=((lo.w/12)*100)+"%"; t.style.height=((lo.h/9)*100)+"%"; t.style.marginBottom="0"; t.style.minHeight="0"; }
+      });
+      await new Promise(function(r){ setTimeout(r, 200); });
+    }
     var screenshot = await html2canvas(canvas, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: "#ffffff",
-      logging: false
+      scale: 2, useCORS: true, allowTaint: true,
+      backgroundColor: "#ffffff", logging: false
     });
+    if(isMobile){
+      canvas.style.height=""; canvas.style.minHeight="";
+      origStyles.forEach(function(s){ s.el.setAttribute("style", s.css || ""); });
+    }
     var imgData = screenshot.toDataURL("image/png");
     var imgW = screenshot.width;
     var imgH = screenshot.height;
-    // Create PDF - landscape A4 if dashboard is wider than tall, otherwise portrait
     var { jsPDF } = window.jspdf;
-    var orientation = (imgW > imgH) ? "landscape" : "portrait";
-    var pdf = new jsPDF({ orientation: orientation, unit: "mm", format: "a4" });
+    var pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
     var pageW = pdf.internal.pageSize.getWidth();
     var pageH = pdf.internal.pageSize.getHeight();
     // Add title
@@ -2847,12 +3003,12 @@ async function onExportPdf(){
     pdf.setTextColor(160,160,160);
     pdf.text("Generated by MR Analytics Hub — mranalyticshub.com", pageW / 2, pageH - 6, {align:"center"});
     pdf.save(dashTitle.replace(/[^a-zA-Z0-9 ]/g,"_") + ".pdf");
-    btn.textContent = "✓ Exported!"; btn.style.color = "#16a34a";
+    btn.textContent = "✓ Exported!"; btn.style.color = "#16a34a"; btn.classList.remove("btn-spinner");
     setTimeout(function(){ btn.textContent = origText; btn.style.color = ""; btn.disabled = false; }, 2000);
   }catch(e){
     console.error("PDF export error:", e);
     alert("PDF export failed: " + e.message);
-    btn.textContent = origText; btn.disabled = false;
+    btn.textContent = origText; btn.disabled = false; btn.classList.remove("btn-spinner");
   }
 }
 
