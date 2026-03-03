@@ -923,15 +923,34 @@
   var ORCH = (location.hostname.indexOf("builder") !== -1)
     ? location.origin.replace("mr-builder-ui","mr-orchestrator")
     : location.origin;
+
+  function setLoggedIn(){
+    var el = document.getElementById("navAuth");
+    var su = document.getElementById("navSignUp");
+    if(el){ el.textContent = "Log Out"; el.href = ORCH + "/portal/logout"; }
+    if(su) su.style.display = "none";
+  }
+
+  // Method 1: Check URL params (set by portal when redirecting to builder)
+  var params = new URLSearchParams(location.search);
+  if(params.get("logged_in") === "1" || params.get("edit_dash") || params.get("token")){
+    setLoggedIn();
+    return;
+  }
+
+  // Method 2: Check sessionStorage (persists within tab)
+  if(sessionStorage.getItem("mr_logged_in") === "1"){
+    setLoggedIn();
+    return;
+  }
+
+  // Method 3: API call to orchestrator (works if cookies are sent cross-origin)
   fetch(ORCH + "/portal-api/auth-check", { credentials: "include" })
     .then(function(r){ return r.json(); })
     .then(function(d){
-      var el = document.getElementById("navAuth");
-      var su = document.getElementById("navSignUp");
-      if(d.logged_in && el){
-        el.textContent = "Log Out";
-        el.href = ORCH + "/portal/logout";
-        if(su) su.style.display = "none";
+      if(d.logged_in){
+        setLoggedIn();
+        sessionStorage.setItem("mr_logged_in", "1");
       }
     })
     .catch(function(){});
