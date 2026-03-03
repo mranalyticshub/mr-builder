@@ -37,9 +37,9 @@
     }
 
     .wrap {
-      max-width: 1200px;
+      max-width: 100%;
       margin: 0 auto;
-      padding: 24px 40px 40px;
+      padding: 0;
     }
 
     h1 {
@@ -833,9 +833,9 @@
     /* ========== HEADER BAR ========== */
     .builder-header {
       background: linear-gradient(135deg, rgba(99,6,151,0.06) 0%, rgba(196,90,255,0.08) 50%, rgba(216,146,255,0.05) 100%);
-      padding: 20px 24px 16px;
+      padding: 20px 40px 16px;
       border-bottom: 1px solid rgba(196,90,255,0.15);
-      margin: 0 -40px 20px;
+      margin: 0 0 0;
       position: relative;
     }
     .builder-header h1 { color: var(--primary); font-size: 24px; margin-bottom: 2px; }
@@ -885,6 +885,12 @@
       .fm-head, .fm-row { grid-template-columns: 100px 80px 120px 1fr; font-size: 10px; }
       .fm-head div, .fm-row div { padding: 6px; }
     }
+    
+    .builder-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 40px 40px;
+    }
     .builder-footer {
       text-align: center; padding: 20px; margin-top: 24px;
       font-size: 12px; color: var(--muted); font-family: 'Poppins', sans-serif;
@@ -918,9 +924,7 @@
 
   function setLoggedIn(){
     var el = document.getElementById("navAuth");
-    var su = document.getElementById("navSignUp");
     if(el){ el.textContent = "Log Out"; el.href = ORCH + "/portal/logout"; }
-    if(su) su.style.display = "none";
   }
 
   // Method 1: Check URL params (set by portal when redirecting to builder)
@@ -950,6 +954,7 @@
 </script>
 <div class="wrap">
   <div class="builder-header">
+    <div style="max-width:1200px;margin:0 auto;padding:0">
     <div class="row" style="margin-bottom:6px">
       <div style="flex:1">
         <h1>Dashboard Builder</h1>
@@ -961,7 +966,10 @@
         <button id="newSession" class="secondary" type="button">New session</button>
       </div>
     </div>
+    </div>
   </div>
+
+  <div class="builder-content">
 
   <!-- STEP 1 -->
   <div class="card" id="stepA">
