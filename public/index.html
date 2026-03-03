@@ -912,11 +912,31 @@
       <a href="https://mranalyticshub.com" class="nav-link hide-mobile">Home</a>
       <a href="https://mranalyticshub.com/portfolio/" class="nav-link hide-mobile">Portfolio</a>
       <a href="https://mranalyticshub.com/contact-us/" class="nav-link hide-mobile">Contact Us</a>
-      <a href="https://mranalyticshub.com/sign-up/" class="nav-link hide-mobile">Sign Up</a>
+      <a href="https://mranalyticshub.com/sign-up/" class="nav-link hide-mobile" id="navSignUp">Sign Up</a>
       <a href="https://mranalyticshub.com/my-hub/" class="nav-link">My Hub</a>
+      <a id="navAuth" href="https://mranalyticshub.com/my-hub/" class="nav-link hide-mobile">Log In</a>
     </div>
   </div>
 </nav>
+<script>
+(function(){
+  var ORCH = (location.hostname.indexOf("builder") !== -1)
+    ? location.origin.replace("mr-builder-ui","mr-orchestrator")
+    : location.origin;
+  fetch(ORCH + "/portal-api/auth-check", { credentials: "include" })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var el = document.getElementById("navAuth");
+      var su = document.getElementById("navSignUp");
+      if(d.logged_in && el){
+        el.textContent = "Log Out";
+        el.href = ORCH + "/portal/logout";
+        if(su) su.style.display = "none";
+      }
+    })
+    .catch(function(){});
+})();
+</script>
 <div class="wrap">
   <div class="builder-header">
     <div class="row" style="margin-bottom:6px">
