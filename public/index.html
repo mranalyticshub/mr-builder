@@ -601,11 +601,12 @@
 }
 
 .chat-message-ai .chat-bubble {
-  background: #e2e2e2 !important;
-  color: black !important;
+  background: #fff !important;
+  color: #1e1533 !important;
   align-self: flex-start !important;
+  border: 1px solid #e8ddf2 !important;
   border-bottom-left-radius: 4px !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+  box-shadow: none !important;
 }
 
 .chat-bubble-label {
@@ -640,9 +641,10 @@
   border-radius: 12px !important;
   line-height: 1.5 !important;
   font-size: 13px !important;
-  background: #e2e2e2 !important;
-  color: #666 !important;
+  background: #fff !important;
+  color: #9a8fb0 !important;
   font-style: italic !important;
+  border: 1px solid #e8ddf2 !important;
   opacity: 0.8 !important;
   animation: pulse 1.5s ease-in-out infinite !important;
 }
@@ -654,8 +656,8 @@
 
 .chat-input-area {
   padding: 0.75em 1.5em !important;
-  background: #f9f9f9 !important;
-  border-top: 1px solid var(--line) !important;
+  background: #fff !important;
+  border-top: 1px solid #e5e1eb !important;
   display: flex !important;
   gap: 8px !important;
 }
@@ -666,45 +668,35 @@
   resize: vertical !important;
   padding: 10px 12px !important;
   border-radius: 6px !important;
-  border: 1px solid #ccc !important;
+  border: 1px solid #e5e1eb !important;
   background: white !important;
   font-size: 13px !important;
   font-family: inherit !important;
 }
 
 .chat-input-area textarea:focus {
-  border-color: #690697 !important;
-  box-shadow: 0 0 0 2px rgba(105, 6, 151, 0.1) !important;
+  border-color: #C45AFF !important;
+  box-shadow: none !important;
   outline: none !important;
 }
 
 .chat-input-area button {
   align-self: flex-end !important;
   white-space: nowrap !important;
-  padding: 0.5em 1.5em !important;
-  font-size: 1em !important;
-  background-color: #C45AFF !important;
-  color: white !important;
-  border: 5px solid #D892FF !important;
-  border-radius: 50px !important;
+  padding: 10px 20px !important;
+  font-size: 13px !important;
+  background: #630697 !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 8px !important;
   cursor: pointer !important;
-  transition: all 0.2s ease-in-out !important;
-  font-weight: 500 !important;
+  transition: all 0.2s !important;
+  font-family: 'Poppins', sans-serif !important;
+  font-weight: 600 !important;
 }
 
 .chat-input-area button:hover {
-  background-color: #D892FF !important;
-  transform: scale(1.05) !important;
-}
-
-.chat-input-area button:hover {
-  background-color: #D892FF;
-  transform: scale(1.05);
-}
-
-.chat-input-area button:active {
-  background-color: #C45AFF;
-  transform: scale(1);
+  background: #C45AFF !important;
 }
 
     }
@@ -1065,8 +1057,8 @@
 
     <!-- Chat Interface -->
     <div class="chat-wrapper">
-      <h2 class="chat-title">AI Dashboard Assistant</h2>
-      <p class="chat-subtitle">Request changes to your dashboard using the chat below</p>
+      <h2 class="chat-title">🤖 MR Dash — Edit your dashboard</h2>
+      <p class="chat-subtitle">Describe changes and MR Dash will update your dashboard</p>
       
       <div class="chat-container" style="
         border-radius: 8px;
@@ -1077,7 +1069,7 @@
         <div class="chat-header" style="display: none;">
           💬 Chat
         </div>
-        <div class="chat-messages" id="chatMessages" style="background: #f9f9f9; padding: 1.5em;">
+        <div class="chat-messages" id="chatMessages" style="background: #faf7fd; padding: 1em 1.5em;">
           <!-- Messages will be dynamically added here -->
         </div>
         <div class="chat-input-area" style="padding: 0.75em 1.5em;">
