@@ -524,14 +524,14 @@
 
 .chat-header-bar .icon { font-size: 20px; }
 
-.chat-header-bar .title {
+.chat-header-bar .ch-title {
   font-family: 'Poppins', sans-serif;
   font-size: 15px;
   font-weight: 700;
   color: #630697;
 }
 
-.chat-header-bar .subtitle {
+.chat-header-bar .ch-sub {
   font-size: 12px;
   color: #9a8fb0;
   margin-left: auto;
@@ -1085,8 +1085,8 @@
     <div class="chat-outer">
       <div class="chat-header-bar">
         <span class="icon">🤖</span>
-        <span class="title">MR Dash — Edit your dashboard</span>
-        <span class="subtitle">Describe changes and MR Dash will update your dashboard</span>
+        <span class="ch-title">MR Dash — Edit your dashboard</span>
+        <span class="ch-sub">Describe changes and MR Dash will update your dashboard</span>
       </div>
       <div class="chat-messages" id="chatMessages" style="background:#faf7fd;padding:1em 1.5em;max-height:400px;overflow-y:auto">
       </div>
@@ -1094,7 +1094,7 @@
         <textarea id="changeText" placeholder="Describe the changes you want... (e.g., 'change the bar chart to a pie chart')" style="flex:1;padding:10px 12px;border:1px solid #e5e1eb;border-radius:8px;font-family:Poppins,sans-serif;font-size:13px;resize:none;min-height:40px;max-height:120px"></textarea>
         <button id="applyChange" type="button" style="padding:10px 20px;background:#630697;color:#fff;border:none;border-radius:8px;font-family:Poppins,sans-serif;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">Send</button>
       </div>
-      <div class="chat-disclaimer">MR Dash is AI and can make mistakes. Please double-check answers.</div>
+      <div style="text-align:center;font-size:11px;color:#9a8fb0;padding:8px 16px;border-top:1px solid #e5e1eb;background:#faf7fd">MR Dash is AI and can make mistakes. Please double-check answers.</div>
     </div>
   </div>
 </div>
