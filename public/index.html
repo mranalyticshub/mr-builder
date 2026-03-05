@@ -1059,6 +1059,7 @@
       </div>
       <div style="flex:1"></div>
       <button id="exportPdf" class="secondary" type="button" title="Export as PDF">Export PDF</button>
+      <button id="backToHub" type="button" style="display:none;background:#fff;color:#630697;padding:8px 18px;border-radius:8px;font-weight:600;font-size:13px;border:1px solid #e5e1eb;cursor:pointer" onclick="confirmBackToHub()">← Back to My Dashboards</button>
       <button id="saveDashboard" type="button" title="Save to your account" style="display:none;background:#7c3aed;color:#fff;padding:8px 18px;border-radius:8px;font-weight:600;font-size:13px;border:none;cursor:pointer">💾 Save Dashboard</button>
       <span id="dMsg" class="muted" style="display:none;"></span>
     </div>
@@ -2979,6 +2980,12 @@ function onClearFilters(){
   if(fs) { fs.textContent = ""; fs.style.color = "#6b7280"; }
   refreshPreview();
 }
+function confirmBackToHub(){
+  if(confirm("Are you sure you want to exit? Any unsaved changes in this session will be lost.")){
+    window.location.href = ORCH + "/portal";
+  }
+}
+
 async function onExportPdf(){
   var btn = $("exportPdf");
   var origText = btn.textContent;
@@ -3257,6 +3264,7 @@ async function addSuggestionToDashboard(idx){
             show("stepA", false);
             show("stepB", false);
             show("stepC", false);
+            var backBtn = $("backToHub"); if(backBtn) backBtn.style.display = "";
           } else {
             // FULL RESTORE: Show all steps
             if(state.prompt){
