@@ -884,13 +884,8 @@
       .toolbar { gap: 6px; }
       .date-group { flex-direction: column; align-items: stretch; }
       .date-group input[type="date"] { width: 100%; }
-      #previewCanvas { min-height: 400px; height: auto !important; max-height: none; }
-      .tile {
-        position: relative !important; left: 0 !important; top: auto !important;
-        width: 100% !important; height: auto !important; min-height: 200px; margin-bottom: 8px;
-      }
-      .tile .t-b { min-height: 180px; }
-      .tile .t-b.kpi-body { min-height: 100px; }
+      #previewPanel { overflow: hidden; }
+      #previewCanvas { min-height: 600px; height: 800px !important; max-height: none; width: 1200px; transform-origin: top left; }
       .tile .handle { display: none; }
       .tile .tile-remove-btn { opacity: 1; }
       .chat-wrapper { margin: 10px !important; }
@@ -2683,6 +2678,7 @@ async function refreshPreview(){
   const tiles = (dsl?.pages?.[0]?.tiles||[]).map(t=>({...t, data:null}));
   
   renderPreviewPayload(tiles);
+  setTimeout(scaleBuilderDashboard, 100);
 }
 
 /* ---------- Date presets ---------- */
@@ -2988,6 +2984,25 @@ function onClearFilters(){
   if(fs) { fs.textContent = ""; fs.style.color = "#6b7280"; }
   refreshPreview();
 }
+function scaleBuilderDashboard(){
+  var canvas = $("previewCanvas");
+  var panel = $("previewPanel");
+  if(!canvas || !panel) return;
+  var panelWidth = panel.clientWidth - 28; // account for padding
+  var canvasNativeWidth = 1200;
+  if(panelWidth >= canvasNativeWidth){
+    canvas.style.transform = "";
+    panel.style.height = "";
+    return;
+  }
+  var scale = panelWidth / canvasNativeWidth;
+  canvas.style.transform = "scale(" + scale + ")";
+  var canvasHeight = canvas.offsetHeight || 800;
+  panel.style.height = (canvasHeight * scale + 28) + "px";
+}
+window.addEventListener("resize", scaleBuilderDashboard);
+window.addEventListener("orientationchange", function(){ setTimeout(scaleBuilderDashboard, 300); });
+
 function confirmBackToHub(){
   if(confirm("Are you sure you want to exit? Any unsaved changes in this session will be lost.")){
     window.location.href = ORCH + "/portal";
@@ -3007,6 +3022,8 @@ async function onExportPdf(){
     var isMobile = window.innerWidth <= 768;
     var origStyles = [];
     if(isMobile){
+      canvas.style.transform = "none";
+      canvas.style.width = "1200px";
       canvas.style.height = "960px"; canvas.style.minHeight = "960px";
       var tiles = canvas.querySelectorAll(".tile");
       tiles.forEach(function(t){
@@ -3021,8 +3038,9 @@ async function onExportPdf(){
       backgroundColor: "#ffffff", logging: false
     });
     if(isMobile){
-      canvas.style.height=""; canvas.style.minHeight="";
+      canvas.style.height=""; canvas.style.minHeight=""; canvas.style.width=""; canvas.style.transform="";
       origStyles.forEach(function(s){ s.el.setAttribute("style", s.css || ""); });
+      setTimeout(scaleBuilderDashboard, 100);
     }
     var imgData = screenshot.toDataURL("image/png");
     var imgW = screenshot.width;
