@@ -2988,17 +2988,29 @@ function scaleBuilderDashboard(){
   var canvas = $("previewCanvas");
   var panel = $("previewPanel");
   if(!canvas || !panel) return;
-  var panelWidth = panel.clientWidth - 28; // account for padding
+  // Reset transform first so we measure true panel width
+  canvas.style.transform = "";
+  canvas.style.width = "";
+  panel.style.height = "";
+  
+  var panelWidth = panel.clientWidth - 28;
   var canvasNativeWidth = 1200;
+  var canvasNativeHeight = 800;
+  
   if(panelWidth >= canvasNativeWidth){
-    canvas.style.transform = "";
-    panel.style.height = "";
     return;
   }
+  // Force canvas to native desktop dimensions
+  canvas.style.width = canvasNativeWidth + "px";
+  canvas.style.height = canvasNativeHeight + "px";
+  canvas.style.minHeight = canvasNativeHeight + "px";
+  canvas.style.maxHeight = canvasNativeHeight + "px";
+  
   var scale = panelWidth / canvasNativeWidth;
   canvas.style.transform = "scale(" + scale + ")";
-  var canvasHeight = canvas.offsetHeight || 800;
-  panel.style.height = (canvasHeight * scale + 28) + "px";
+  canvas.style.transformOrigin = "top left";
+  panel.style.height = (canvasNativeHeight * scale + 28) + "px";
+  panel.style.overflow = "hidden";
 }
 window.addEventListener("resize", scaleBuilderDashboard);
 window.addEventListener("orientationchange", function(){ setTimeout(scaleBuilderDashboard, 300); });
@@ -3038,7 +3050,8 @@ async function onExportPdf(){
       backgroundColor: "#ffffff", logging: false
     });
     if(isMobile){
-      canvas.style.height=""; canvas.style.minHeight=""; canvas.style.width=""; canvas.style.transform="";
+      canvas.style.cssText = "";
+      $("previewPanel").style.cssText = "";
       origStyles.forEach(function(s){ s.el.setAttribute("style", s.css || ""); });
       setTimeout(scaleBuilderDashboard, 100);
     }
@@ -3051,23 +3064,24 @@ async function onExportPdf(){
     var pageH = pdf.internal.pageSize.getHeight();
     // Add title
     pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(16);
-    pdf.setTextColor(99, 6, 151); // #630697
-    pdf.text(dashTitle, 14, 16);
+    pdf.setFontSize(14);
+    pdf.setTextColor(99, 6, 151);
+    pdf.text(dashTitle, 10, 12);
     // Add date
     pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(9);
+    pdf.setFontSize(8);
     pdf.setTextColor(120, 120, 120);
-    pdf.text("Exported " + new Date().toLocaleDateString("en-GB", {day:"numeric",month:"long",year:"numeric"}), 14, 22);
-    // Fit image to page with margins
-    var margin = 14;
-    var topOffset = 28;
+    pdf.text("Exported " + new Date().toLocaleDateString("en-GB", {day:"numeric",month:"long",year:"numeric"}), 10, 17);
+    // Fit image to page with tight margins
+    var margin = 10;
+    var topOffset = 20;
     var availW = pageW - (margin * 2);
     var availH = pageH - topOffset - margin;
     var ratio = Math.min(availW / imgW, availH / imgH);
     var drawW = imgW * ratio;
     var drawH = imgH * ratio;
-    pdf.addImage(imgData, "PNG", margin, topOffset, drawW, drawH);
+    var xOff = (pageW - drawW) / 2;
+    pdf.addImage(imgData, "PNG", xOff, topOffset, drawW, drawH);
     // Footer
     pdf.setFontSize(7);
     pdf.setTextColor(160,160,160);
