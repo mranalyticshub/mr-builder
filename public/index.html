@@ -3034,42 +3034,42 @@ function onClearFilters(){
 /* ========== FIELD FILTERS (builder) ========== */
 var ffAllFieldValues = {}; // cached {fieldName: [values]}
 
-function ffInit(){
-  // Derive filterable fields from schemaFields (set during profiling)
+async function ffInit(){
+  // Fetch the authoritative field data from the backend
+  // This works for both fresh sessions and edit-mode sessions
   ffFields = [];
   ffAllFieldValues = {};
-  if(!schemaFields || !schemaFields.length){ $("fieldFilterBar").style.display = "none"; return; }
-  for(var i = 0; i < schemaFields.length; i++){
-    var f = schemaFields[i];
-    var name = f.field || f.name || "";
-    if(!name || name === "_upload_id" || name === "_uploaded_at") continue;
-    var dtype = (f.dtype || f.type || "").toLowerCase();
-    var nunique = f.nunique || f.distinct || 0;
-    var isObj = dtype.indexOf("object") >= 0 || dtype.indexOf("str") >= 0 || dtype.indexOf("categ") >= 0;
-    var isLowCard = nunique > 0 && nunique <= 20;
-    if((isObj && nunique <= 200) || isLowCard){
-      ffFields.push({field: name, dtype: dtype, nunique: nunique, samples: f.samples || f.sample_values || []});
-    }
-  }
-  $("fieldFilterBar").style.display = ffFields.length ? "" : "none";
-  ffRenderChips();
-  // Pre-fetch unique values for all filterable fields
-  ffPreloadValues();
-}
+  if(!sid){ $("fieldFilterBar").style.display = "none"; return; }
 
-async function ffPreloadValues(){
-  if(!sid) return;
   try{
     var r = await fetch(ORCH + "/field-values/" + encodeURIComponent(sid));
-    if(r.ok){
-      var j = await r.json();
-      if(j.ok && j.fields){
-        j.fields.forEach(function(f){
-          if(f.values && f.values.length) ffAllFieldValues[f.field] = f.values;
-        });
+    if(!r.ok){ $("fieldFilterBar").style.display = "none"; return; }
+    var j = await r.json();
+    if(!j.ok || !j.fields){ $("fieldFilterBar").style.display = "none"; return; }
+
+    j.fields.forEach(function(f){
+      var name = f.field || "";
+      if(!name || name.startsWith("_")) return;
+      var dtype = f.dtype || "";
+      var nunique = f.nunique || 0;
+
+      // Include categorical fields (≤200 unique) and low-cardinality numerics (≤20 unique)
+      var isCat = dtype === "categorical" && nunique <= 200;
+      var isLowNum = dtype === "numeric" && nunique > 0 && nunique <= 20;
+
+      if(isCat || isLowNum){
+        ffFields.push({field: name, dtype: dtype, nunique: nunique});
+        if(f.values && f.values.length){
+          ffAllFieldValues[name] = f.values;
+        }
       }
-    }
-  }catch(e){}
+    });
+  }catch(e){
+    console.log("ffInit fetch error:", e);
+  }
+
+  $("fieldFilterBar").style.display = ffFields.length ? "" : "none";
+  ffRenderChips();
 }
 
 function ffTogglePicker(){
@@ -3127,12 +3127,6 @@ async function ffFetchValuesForFilter(idx){
       }
     }
   }catch(e){}
-  // Last resort: use schema samples
-  var sf = ffFields.find(function(f){ return f.field === filter.field; });
-  if(sf && sf.samples && sf.samples.length){
-    filter.allValues = sf.samples.map(String);
-    ffOpenValuePicker(idx);
-  }
 }
 
 function ffRenderChips(){
