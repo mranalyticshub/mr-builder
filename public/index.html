@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <title>MR Analytics Hub – Dashboard Builder</title>
+  <title>DashLabs by MR Analytics Hub</title>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <script src="https://cdn.jsdelivr.net/npm/vega@5" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/vega-lite@5" defer></script>
@@ -962,6 +962,7 @@
     </a>
     <div class="nav-links" id="builderNavLinks">
       <a href="https://mranalyticshub.com" class="nav-link hide-mobile">Home</a>
+      <a href="#" class="nav-link" id="navDashLabs" style="font-weight:600;color:var(--primary)">DashLabs</a>
       <a href="https://mranalyticshub.com/portfolio/" class="nav-link hide-mobile">Portfolio</a>
       <a href="https://mranalyticshub.com/contact-us/" class="nav-link hide-mobile">Contact Us</a>
       <a href="https://mranalyticshub.com/sign-up/" class="nav-link hide-mobile" id="navSignUp">Sign Up</a>
@@ -1014,8 +1015,8 @@
     <div style="max-width:1200px;margin:0 auto;padding:0">
     <div class="row" style="margin-bottom:6px">
       <div style="flex:1">
-        <h1>Dashboard Builder</h1>
-        <div class="muted">Upload your data, answer a few questions, and let the assistant design the first version.</div>
+        <h1><span style="color:var(--primary)">DashLabs</span> <span style="font-size:0.6em;font-weight:500;color:#1e293b">by MR Analytics Hub</span></h1>
+        <div class="muted">Upload your data, answer a few questions, and get an AI-designed dashboard in seconds.</div>
       </div>
       <div class="row">
         <span class="muted">Session</span>
@@ -3251,7 +3252,7 @@ window.addEventListener("orientationchange", function(){ setTimeout(scaleBuilder
 
 function confirmBackToHub(){
   if(confirm("Are you sure you want to exit? Any unsaved changes in this session will be lost.")){
-    window.location.href = ORCH + "/portal";
+    window.location.href = ORCH + "/myhub";
   }
 }
 
@@ -3625,7 +3626,7 @@ async function addSuggestionToDashboard(idx){
                   var updateData = await updateResp.json();
                   if(updateData.ok){
                     saveBtn.textContent = "\u2713 Saved!"; saveBtn.style.background = "#16a34a";
-                    setTimeout(function(){ location.href = ORCH + "/portal"; }, 1500);
+                    setTimeout(function(){ location.href = ORCH + "/myhub"; }, 1500);
                   } else {
                     alert("Save failed: " + (updateData.error || "Unknown error"));
                     saveBtn.textContent = "\ud83d\udcbe Save Changes"; saveBtn.disabled = false;
