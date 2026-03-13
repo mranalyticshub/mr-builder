@@ -962,12 +962,12 @@
     </a>
     <div class="nav-links" id="builderNavLinks">
       <a href="https://mranalyticshub.com" class="nav-link hide-mobile">Home</a>
-      <a href="#" class="nav-link" id="navDashLabs" style="font-weight:600;color:var(--primary)">DashLabs</a>
+      <a href="/" class="nav-link" id="navDashLabs" style="font-weight:600;color:var(--primary)">DashLabs</a>
       <a href="https://mranalyticshub.com/portfolio/" class="nav-link hide-mobile">Portfolio</a>
       <a href="https://mranalyticshub.com/contact-us/" class="nav-link hide-mobile">Contact Us</a>
       <a href="https://mranalyticshub.com/sign-up/" class="nav-link hide-mobile" id="navSignUp">Sign Up</a>
-      <a href="https://mranalyticshub.com/my-hub/" class="nav-link">My Hub</a>
-      <a id="navAuth" href="https://mranalyticshub.com/my-hub/" class="nav-link hide-mobile">Log In</a>
+      <a href="/myhub" class="nav-link">My Hub</a>
+      <a id="navAuth" href="/myhub" class="nav-link hide-mobile">Log In</a>
     </div>
     <div class="hamburger" onclick="document.getElementById('builderNavLinks').classList.toggle('open')">
       <span></span><span></span><span></span>
@@ -1151,7 +1151,7 @@
 </div>
 
 <script>
-const ORCH = "https://mr-orchestrator-585407302606.europe-west2.run.app";
+const ORCH = window.location.origin;
 
 const $ = (id) => document.getElementById(id);
 function setMsg(id, text, cls="muted"){ const el=$(id); if(!el) return; el.className=cls; el.textContent = text||""; }
